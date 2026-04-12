@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique @db.Text
+  passwordHash String   @map("password_hash") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  profile    UserProfile?
+  meals      Meal[]
+  savedMeals SavedMeal[]
+  userFoods  UserFood[]
+
+  @@map("users")
+}
+
+/// User-defined foods (per 100 g). Matched by normalized label during analyze; wins over USDA/estimate.
+model UserFood {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  label          String   @db.Text
+  /// Lowercased trimmed label for uniqueness
+  labelNorm      String   @map("label_norm") @db.Text
+  kcalPer100g    Decimal  @map("kcal_per_100g")
+  proteinPer100g Decimal  @map("protein_per_100g")
+  carbsPer100g   Decimal  @map("carbs_per_100g")
+  fatPer100g     Decimal  @map("fat_per_100g")
+  version        Int      @default(1)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, labelNorm], map: "user_foods_user_label_norm_key")
+  @@index([userId], map: "user_foods_user_id_idx")
+  @@map("user_foods")
+}
+
+/// Per-user settings and onboarding state. Rows are optional until first save.
+model UserProfile {
+  userId                  String    @id @map("user_id") @db.Uuid
+  onboardingCompletedAt   DateTime? @map("onboarding_completed_at") @db.Timestamptz(6)
+  onboardingStep          Int       @default(0) @map("onboarding_step")
+  draft                   Json?     @map("draft")
+  /// Height in centimeters
+  heightCm                Decimal?  @map("height_cm")
+  /// Weight in kilograms
+  weightKg                Decimal?  @map("weight_kg")
+  age                     Int?
+  /// male | female | unspecified (used for Mifflin–St Jeor; unspecified uses midpoint formula)
+  sex                     String?   @db.Text
+  /// sedentary | light | moderate | active | very_active
+  activityLevel           String?   @map("activity_level")
+  /// lose | maintain | gain
+  goalIntent              String?   @map("goal_intent")
+  /// gentle | moderate | aggressive — deficit/surplus size for lose/gain; null = moderate
+  goalPace                String?   @map("goal_pace")
+  /// Optional daily protein target (g) from advanced onboarding or settings
+  targetProteinG          Decimal?  @map("target_protein_g")
+  /// quick_estimates | weigh_often | mixed (Epic 1 logging style)
+  loggingStyle            String?   @map("logging_style")
+  /// omnivore | vegetarian | vegan | pescatarian | prefer_not_say
+  dietaryPattern          String?   @map("dietary_pattern")
+  /// JSON string[] — foods to avoid / allergies (normalized labels)
+  foodAvoidJson           Json?     @map("food_avoid_json")
+  /// Epic 5 optional nudge theme for home/history week copy (protein | vegetables | hydration | steady_calories)
+  weeklyCoachingFocus     String?   @map("weekly_coaching_focus") @db.Text
+  bmrKcal                 Decimal?  @map("bmr_kcal")
+  tdeeKcal                Decimal?  @map("tdee_kcal")
+  targetKcal              Decimal?  @map("target_kcal")
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model Meal {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String  @map("user_id") @db.Uuid
+  rawInput      String  @map("raw_input") @db.Text
+  totalKcal     Decimal @default(0) @map("total_kcal")
+  totalProteinG Decimal? @map("total_protein_g")
+  totalCarbsG   Decimal? @map("total_carbs_g")
+  totalFatG     Decimal? @map("total_fat_g")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lineItems MealLineItem[]
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("meals")
+}
+
+model MealLineItem {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  mealId   String  @map("meal_id") @db.Uuid
+  label    String  @db.Text
+  quantity Decimal?
+  unit     String? @db.Text
+  kcal     Decimal
+  fdcId    BigInt? @map("fdc_id")
+  source   String  @db.Text
+  detail   Json?
+
+  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  @@index([mealId], map: "meal_line_items_meal_id_idx")
+  @@map("meal_line_items")
+}
+
+/// User-defined quick-log templates (favorite meals).
+model SavedMeal {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.Text
+  rawInput  String   @map("raw_input") @db.Text
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "saved_meals_user_id_idx")
+  @@map("saved_meals")
+}

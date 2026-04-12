@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f5f2;
+  --foreground: #1c1917;
+  --accent: #047857;
+  --accent-hover: #065f46;
+  --surface: #ffffff;
+  --surface-muted: rgba(255, 255, 255, 0.72);
+  --border-subtle: rgba(120, 113, 108, 0.18);
+  --ring-focus: rgba(5, 150, 105, 0.35);
 }
 
 @theme inline {
@@ -12,15 +18,54 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
+  /* Fills overscroll / area below fold so it matches the page (avoids a second tone when scrolling). */
+  background-color: var(--background);
+  min-height: 100%;
 }
 
 body {
-  background: var(--background);
+  min-height: 100%;
+  min-height: 100dvh;
+  background-color: var(--background);
+  /* Single flat base + top wash only — no vertical fade that can “end” mid-scroll. */
+  background-image: radial-gradient(
+    ellipse 130% 90% at 50% -25%,
+    rgba(16, 185, 129, 0.11),
+    transparent 55%
+  );
+  background-repeat: no-repeat;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Shared focus ring for inputs & textareas */
+.input-field {
+  @apply w-full rounded-xl border border-stone-200/90 bg-white px-3.5 py-2.5 text-stone-900 shadow-inner shadow-stone-900/5 outline-none transition-[border-color,box-shadow] placeholder:text-stone-400;
+}
+
+.input-field:focus {
+  border-color: rgb(16 185 129 / 0.45);
+  box-shadow:
+    0 0 0 3px var(--ring-focus),
+    inset 0 1px 2px rgb(28 25 23 / 0.04);
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-900/15 transition-[transform,background-color,box-shadow] active:scale-[0.99];
+  background: linear-gradient(165deg, #059669 0%, #047857 45%, #065f46 100%);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(165deg, #10b981 0%, #059669 50%, #047857 100%);
+  box-shadow: 0 8px 24px -6px rgb(5 150 105 / 0.45);
+}
+
+.btn-primary:disabled {
+  @apply cursor-not-allowed opacity-50 shadow-none;
+}
+
+.btn-ghost {
+  @apply rounded-xl px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 disabled:opacity-40;
 }
