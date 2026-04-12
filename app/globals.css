@@ -1,27 +1,45 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f7f5f2;
-  --foreground: #1c1917;
-  --accent: #047857;
-  --accent-hover: #065f46;
-  --surface: #ffffff;
-  --surface-muted: rgba(255, 255, 255, 0.72);
-  --border-subtle: rgba(120, 113, 108, 0.18);
-  --ring-focus: rgba(5, 150, 105, 0.35);
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-surface: var(--surface);
+  --color-border-subtle: var(--border-subtle);
+  
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  :root, .dark {
+    --background: #09090b;
+    --foreground: #fafafa;
+    --accent: #10b981;
+    --accent-hover: #059669;
+    --accent-secondary: #bef264;
+    --surface: #18181b;
+    --surface-muted: rgba(24, 24, 27, 0.8);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --ring-focus: rgba(16, 185, 129, 0.4);
+    
+    /* Glassmorphism */
+    --glass-bg: rgba(24, 24, 27, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: 12px;
+    
+    color-scheme: dark;
+  }
 }
 
 html {
-  color-scheme: light;
-  /* Fills overscroll / area below fold so it matches the page (avoids a second tone when scrolling). */
   background-color: var(--background);
+  color: var(--foreground);
   min-height: 100%;
 }
 
@@ -29,43 +47,60 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   background-color: var(--background);
-  /* Single flat base + top wash only — no vertical fade that can “end” mid-scroll. */
-  background-image: radial-gradient(
-    ellipse 130% 90% at 50% -25%,
-    rgba(16, 185, 129, 0.11),
-    transparent 55%
-  );
-  background-repeat: no-repeat;
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  
+  /* Premium radial glow */
+  background-image: 
+    radial-gradient(circle at 50% -20%, rgba(16, 185, 129, 0.15), transparent 70%),
+    radial-gradient(circle at 0% 100%, rgba(190, 242, 100, 0.05), transparent 50%);
+  background-attachment: fixed;
 }
 
-/* Shared focus ring for inputs & textareas */
+/* Glassmorphism utility */
+.glass-pane {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+}
+
 .input-field {
-  @apply w-full rounded-xl border border-stone-200/90 bg-white px-3.5 py-2.5 text-stone-900 shadow-inner shadow-stone-900/5 outline-none transition-[border-color,box-shadow] placeholder:text-stone-400;
-}
-
-.input-field:focus {
-  border-color: rgb(16 185 129 / 0.45);
-  box-shadow:
-    0 0 0 3px var(--ring-focus),
-    inset 0 1px 2px rgb(28 25 23 / 0.04);
+  @apply w-full rounded-2xl border border-white/5 bg-zinc-950 px-4 py-3 text-white shadow-lg outline-none transition-all placeholder:text-zinc-500 hover:bg-white/5 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10;
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-900/15 transition-[transform,background-color,box-shadow] active:scale-[0.99];
-  background: linear-gradient(165deg, #059669 0%, #047857 45%, #065f46 100%);
+  @apply relative inline-flex items-center justify-center overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-bold text-zinc-950 transition-all active:scale-[0.98] disabled:opacity-50;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
+  box-shadow: 0 8px 24px -8px rgba(16, 185, 129, 0.5);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(165deg, #10b981 0%, #059669 50%, #047857 100%);
-  box-shadow: 0 8px 24px -6px rgb(5 150 105 / 0.45);
-}
-
-.btn-primary:disabled {
-  @apply cursor-not-allowed opacity-50 shadow-none;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -8px rgba(16, 185, 129, 0.6);
 }
 
 .btn-ghost {
-  @apply rounded-xl px-3 py-2 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 disabled:opacity-40;
+  @apply rounded-2xl px-4 py-2 text-sm font-medium text-zinc-400 transition-all hover:bg-white/5 hover:text-white disabled:opacity-40;
+}
+
+/* Bento Card Style */
+.bento-card {
+  @apply relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-900/50 p-6 transition-all hover:border-white/[0.12] hover:bg-zinc-900/80;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

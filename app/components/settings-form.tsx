@@ -16,6 +16,20 @@ import {
   parseWeeklyCoachingFocus,
   WEEKLY_COACHING_FOCUS_UI,
 } from "@/lib/meals/weekly-coaching-focus";
+import { 
+  Dna, 
+  Activity, 
+  Target, 
+  Book, 
+  ShieldAlert, 
+  Lightbulb, 
+  Zap, 
+  Save, 
+  User,
+  Scale,
+  Ruler
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Props = {
   profile: UserProfile | null;
@@ -142,10 +156,12 @@ export function SettingsForm({ profile }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-8 flex max-w-lg flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Height (cm)</span>
+    <form onSubmit={onSubmit} className="flex flex-col gap-10">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <label className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <Ruler className="h-3 w-3" /> Height (cm)
+          </div>
           <input
             type="number"
             inputMode="decimal"
@@ -154,11 +170,14 @@ export function SettingsForm({ profile }: Props) {
             required
             value={heightCm}
             onChange={(e) => setHeightCm(e.target.value)}
-            className="input-field"
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Weight (kg)</span>
+        
+        <label className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <Scale className="h-3 w-3" /> Weight (kg)
+          </div>
           <input
             type="number"
             inputMode="decimal"
@@ -168,233 +187,263 @@ export function SettingsForm({ profile }: Props) {
             required
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            className="input-field"
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
           />
         </label>
+
+        <label className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <User className="h-3 w-3" /> Age
+          </div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={13}
+            max={120}
+            required
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+          />
+        </label>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 mb-2">
+            <Dna className="h-3 w-3" /> Biological Sex
+          </legend>
+          <div className="flex flex-wrap gap-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
+            {[["male", "Male"], ["female", "Female"], ["unspecified", "Other"]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSex(id as any)}
+                className={`flex-1 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
+                  sex === id ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
       </div>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium text-stone-800">Age</span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={13}
-          max={120}
-          required
-          value={age}
-          onChange={(e) => setAge(e.target.value)}
-          className="input-field max-w-xs"
-        />
-      </label>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium text-stone-800">Sex (for BMR)</legend>
-        <div className="flex flex-wrap gap-3">
-          {(
-            [
-              ["male", "Male"],
-              ["female", "Female"],
-              ["unspecified", "Prefer not to say"],
-            ] as const
-          ).map(([id, label]) => (
-            <label
-              key={id}
-              className="flex cursor-pointer items-center gap-2 text-sm"
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <label className="flex flex-col gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <Activity className="h-3 w-3" /> Activity Profile
+          </div>
+          <select
+            required
+            value={activityLevel}
+            onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+          >
+            <option value="">Select Activity Level</option>
+            {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
+              <option key={k} value={k}>{ACTIVITY_LABELS[k].title}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <Target className="h-3 w-3" /> Primary Objective
+          </div>
+          <select
+            required
+            value={goalIntent}
+            onChange={(e) => {
+              const v = e.target.value as "lose" | "maintain" | "gain" | "";
+              setGoalIntent(v);
+              if (v === "maintain") setGoalPace("moderate");
+            }}
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+          >
+            <option value="">Select Goal</option>
+            <option value="lose">Fat Loss</option>
+            <option value="maintain">Maintenance</option>
+            <option value="gain">Muscle Gain</option>
+          </select>
+        </label>
+      </div>
+
+      <AnimatePresence>
+        {(goalIntent === "lose" || goalIntent === "gain") && (
+          <motion.label 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-col gap-2 text-sm overflow-hidden"
+          >
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+              <Zap className="h-3 w-3" /> Execution Pace
+            </div>
+            <select
+              value={goalPace}
+              onChange={(e) => setGoalPace(e.target.value as GoalPace)}
+              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
             >
-              <input
-                type="radio"
-                name="sex"
-                checked={sex === id}
-                onChange={() => setSex(id)}
-              />
-              {label}
-            </label>
-          ))}
+              <option value="gentle">Gentle ({goalIntent === "lose" ? "−250" : "+200"} kcal)</option>
+              <option value="moderate">Moderate ({goalIntent === "lose" ? "−400" : "+300"} kcal)</option>
+              <option value="aggressive">Aggressive ({goalIntent === "lose" ? "−550" : "+450"} kcal)</option>
+            </select>
+          </motion.label>
+        )}
+      </AnimatePresence>
+
+      <div className="bento-card border border-white/5 bg-zinc-900/30 p-8 space-y-8">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+            <Book className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Logging Preferences</h3>
+            <p className="text-xs text-zinc-500">Fine-tune the analyzer performance.</p>
+          </div>
         </div>
-      </fieldset>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium text-stone-800">Activity</span>
-        <select
-          required
-          value={activityLevel}
-          onChange={(e) =>
-            setActivityLevel(e.target.value as ActivityLevel | "")
-          }
-          className="input-field"
-        >
-          <option value="">Select…</option>
-          {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
-            <option key={k} value={k}>
-              {ACTIVITY_LABELS[k].title}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium text-stone-800">Goal</span>
-        <select
-          required
-          value={goalIntent}
-          onChange={(e) => {
-            const v = e.target.value as "lose" | "maintain" | "gain" | "";
-            setGoalIntent(v);
-            if (v === "maintain") setGoalPace("moderate");
-          }}
-          className="input-field"
-        >
-          <option value="">Select…</option>
-          <option value="lose">Lose fat</option>
-          <option value="maintain">Maintain</option>
-          <option value="gain">Gain muscle / lean bulk</option>
-        </select>
-      </label>
-      {goalIntent === "lose" || goalIntent === "gain" ? (
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Goal pace</span>
-          <select
-            value={goalPace}
-            onChange={(e) => setGoalPace(e.target.value as GoalPace)}
-            className="input-field"
-          >
-            <option value="gentle">
-              Gentle ({goalIntent === "lose" ? "−250" : "+200"} kcal vs
-              maintenance)
-            </option>
-            <option value="moderate">
-              Moderate ({goalIntent === "lose" ? "−400" : "+300"} kcal)
-            </option>
-            <option value="aggressive">
-              Aggressive ({goalIntent === "lose" ? "−550" : "+450"} kcal)
-            </option>
-          </select>
-        </label>
-      ) : null}
-      <div className="border-t border-stone-200 pt-5">
-        <p className="text-sm font-semibold text-stone-900">Food & logging</p>
-        <p className="mt-1 text-xs text-stone-500">
-          Same choices as onboarding—you can update anytime.
-        </p>
-        <label className="mt-4 flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Logging style</span>
-          <select
-            value={loggingStyle}
-            onChange={(e) =>
-              setLoggingStyle(e.target.value as LoggingStyle)
-            }
-            className="input-field"
-          >
-            {(Object.keys(LOGGING_STYLE_LABELS) as LoggingStyle[]).map(
-              (k) => (
-                <option key={k} value={k}>
-                  {LOGGING_STYLE_LABELS[k].title}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-        <label className="mt-4 flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Dietary pattern</span>
-          <select
-            value={dietaryPattern}
-            onChange={(e) =>
-              setDietaryPattern(e.target.value as DietaryPattern)
-            }
-            className="input-field"
-          >
-            {(Object.keys(DIETARY_PATTERN_LABELS) as DietaryPattern[]).map(
-              (k) => (
-                <option key={k} value={k}>
-                  {DIETARY_PATTERN_LABELS[k].title}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-        <label className="mt-4 flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">
-            Foods to avoid / allergies (optional)
-          </span>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Input Strategy</span>
+            <select
+              value={loggingStyle}
+              onChange={(e) => setLoggingStyle(e.target.value as LoggingStyle)}
+              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            >
+              {(Object.keys(LOGGING_STYLE_LABELS) as LoggingStyle[]).map((k) => (
+                <option key={k} value={k}>{LOGGING_STYLE_LABELS[k].title}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Dietary Filter</span>
+            <select
+              value={dietaryPattern}
+              onChange={(e) => setDietaryPattern(e.target.value as DietaryPattern)}
+              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            >
+              {(Object.keys(DIETARY_PATTERN_LABELS) as DietaryPattern[]).map((k) => (
+                <option key={k} value={k}>{DIETARY_PATTERN_LABELS[k].title}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <label className="flex flex-col gap-2">
+           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            <ShieldAlert className="h-3 w-3" /> Sensitive Ingredients / Allergies
+          </div>
           <textarea
             value={foodAvoidText}
             onChange={(e) => setFoodAvoidText(e.target.value)}
             rows={2}
-            maxLength={2000}
-            placeholder="Comma-separated, e.g. peanuts, dairy"
-            className="input-field resize-y text-sm"
+            placeholder="e.g. Peanuts, Shellfish, Dairy..."
+            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 resize-none"
           />
         </label>
       </div>
-      <div className="border-t border-stone-200 pt-5">
-        <p className="text-sm font-semibold text-stone-900">Weekly coaching</p>
-        <p className="mt-1 text-xs text-stone-500">
-          Optional theme for the &ldquo;Try this week&rdquo; line on home and
-          history when automatic tips do not apply. Not medical advice.
-        </p>
-        <label className="mt-4 flex flex-col gap-1.5 text-sm">
-          <span className="font-medium text-stone-800">Focus</span>
-          <select
-            value={weeklyCoachingFocus}
-            onChange={(e) => setWeeklyCoachingFocus(e.target.value)}
-            className="input-field"
-          >
-            {WEEKLY_COACHING_FOCUS_UI.map((o) => (
-              <option key={`${o.value}-${o.label}`} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <label className="flex flex-col gap-1.5 text-sm">
-        <span className="font-medium text-stone-800">
-          Protein target (g/day, optional)
-        </span>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={20}
-          max={500}
-          placeholder="Leave empty for no protein goal"
-          value={targetProteinG}
-          onChange={(e) => setTargetProteinG(e.target.value)}
-          className="input-field max-w-xs"
-        />
-      </label>
-      {error ? (
-        <p className="text-sm text-red-700" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button type="submit" disabled={saving} className="btn-primary w-full sm:w-auto">
-        {saving ? "Saving…" : "Save & recalculate targets"}
-      </button>
-      {profile?.targetKcal != null ? (
-        <div className="rounded-xl border border-stone-200 bg-stone-50/90 p-4 text-sm text-stone-700">
-          <p className="font-semibold text-stone-900">Current estimates</p>
-          <p className="mt-2">
-            Daily target:{" "}
-            <span className="font-semibold tabular-nums text-emerald-900">
-              ~{Number(profile.targetKcal).toFixed(0)} kcal
-            </span>
-          </p>
-          {profile.bmrKcal != null && profile.tdeeKcal != null ? (
-            <p className="mt-1 text-xs text-stone-500">
-              BMR ~{Number(profile.bmrKcal).toFixed(0)} kcal · TDEE ~
-              {Number(profile.tdeeKcal).toFixed(0)} kcal
-            </p>
-          ) : null}
-          {profile.targetProteinG != null ? (
-            <p className="mt-2 text-sm text-stone-700">
-              Protein goal:{" "}
-              <span className="font-semibold tabular-nums text-emerald-900">
-                ~{Number(profile.targetProteinG).toFixed(0)} g/day
-              </span>
-            </p>
-          ) : null}
-          <p className="mt-2 text-xs text-stone-500">
-            Estimates only (Mifflin–St Jeor + activity factor). Not medical
-            advice.
-          </p>
+
+      <div className="bento-card border border-white/5 bg-emerald-500/5 p-8 space-y-8">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+            <Lightbulb className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-white">Daily Performance Focus</h3>
+            <p className="text-xs text-zinc-500">Enable advanced coaching tips.</p>
+          </div>
         </div>
-      ) : null}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Coaching Objective</span>
+            <select
+              value={weeklyCoachingFocus}
+              onChange={(e) => setWeeklyCoachingFocus(e.target.value)}
+              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+            >
+              {WEEKLY_COACHING_FOCUS_UI.map((o) => (
+                <option key={`${o.value}-${o.label}`} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Protein Hard Target (g)</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={20}
+              max={500}
+              placeholder="Auto-calculated if empty"
+              value={targetProteinG}
+              onChange={(e) => setTargetProteinG(e.target.value)}
+              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            />
+          </label>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {profile?.targetKcal != null && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-3xl bg-zinc-950 p-8 border border-white/5 shadow-inner"
+          >
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-6">Current Bio-Estimates</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Target Energy</p>
+                <p className="text-3xl font-black text-white">{Number(profile.targetKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
+              </div>
+              {profile.tdeeKcal && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Expenditure</p>
+                  <p className="text-3xl font-black text-white">{Number(profile.tdeeKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
+                </div>
+              )}
+              {profile.targetProteinG && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Protein Goal</p>
+                  <p className="text-3xl font-black text-emerald-400">{Number(profile.targetProteinG).toFixed(0)} <span className="text-sm font-medium opacity-40 text-zinc-500">g</span></p>
+                </div>
+              )}
+            </div>
+            <p className="mt-8 text-[10px] italic text-zinc-600">
+              * Mifflin–St Jeor protocol active. Re-save profile to recalculate values after changes.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex flex-col gap-4">
+        {error && (
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-bold">
+            <ShieldAlert className="h-4 w-4" />
+            {error}
+          </div>
+        )}
+        
+        <button 
+          type="submit" 
+          disabled={saving} 
+          className="btn-primary flex items-center justify-center gap-3 py-6 text-base"
+        >
+          {saving ? (
+             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
+               <Zap className="h-5 w-5" />
+             </motion.div>
+          ) : (
+            <>
+              <Save className="h-5 w-5" />
+              Recalculate Protocol Targets
+            </>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

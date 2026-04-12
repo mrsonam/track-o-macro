@@ -2,7 +2,7 @@
 const CACHE_NAME = "calorie-agent-sw-v3";
 const PRECACHE = [
   "/",
-  "/manifest.json",
+  "/manifest.webmanifest",
   "/icon-192x192.svg",
   "/icon-512x512.svg",
 ];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
 import {
@@ -48,6 +49,22 @@ import {
   type ComposerRow,
 } from "@/lib/meals/meal-composer";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
+import { 
+  Sparkles, 
+  History as HistoryIcon, 
+  Star, 
+  Plus, 
+  Keyboard, 
+  ChevronRight, 
+  Clock,
+  LayoutGrid,
+  Zap,
+  MoreHorizontal,
+  Trash2,
+  Edit2,
+  AlertCircle
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 type LogInputMode = "free" | "composer";
 
@@ -78,13 +95,9 @@ export type SavedMealItem = {
 };
 
 type MealLogClientProps = {
-  /** Daily calorie target from profile (Mifflin–St Jeor + goal), if set */
   dailyTargetKcal?: number | null;
-  /** Optional protein goal (g/day) from advanced onboarding / settings */
   dailyTargetProteinG?: number | null;
-  /** Epic 1 — for expectation copy on the log screen */
   loggingStyle?: LoggingStyle | null;
-  /** Epic 5 — optional week-card tip theme from Settings */
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
   savedMeals?: SavedMealItem[];
   recentMeals?: RecentMealItem[];
@@ -444,7 +457,7 @@ export function MealLogClient({
         if (fromJson) {
           msg = fromJson;
         } else if (emptyBody) {
-          msg = `Server returned HTTP ${res.status} with no response body. If this persists, check the server logs (unhandled errors often produce an empty body).`;
+          msg = `Server returned HTTP ${res.status} with no response body.`;
         } else if (parseFailed) {
           msg = `Server returned HTTP ${res.status} with a non-JSON response.`;
         } else {
@@ -528,7 +541,7 @@ export function MealLogClient({
   function saveBoxAsQuickPhrase() {
     const raw = effectiveMealRaw;
     if (raw.length < 3) {
-      setError("Type a short phrase (3+ characters) before saving.");
+      setError("Type a short phrase before saving.");
       return;
     }
     setError(null);
@@ -644,661 +657,427 @@ export function MealLogClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-4 pb-12 pt-8 sm:px-6">
-      <header className="mb-8">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-800/90">
-          Log
-        </p>
-        {dailyTargetKcal != null || dailyTargetProteinG != null ? (
-          <p className="mt-2 flex flex-wrap gap-2">
-            {dailyTargetKcal != null ? (
-              <span className="inline-flex rounded-full border border-emerald-200/90 bg-emerald-50/90 px-3 py-1 text-xs font-medium text-emerald-950">
-                Daily target: ~{Math.round(dailyTargetKcal)} kcal
-              </span>
-            ) : null}
-            {dailyTargetProteinG != null ? (
-              <span className="inline-flex rounded-full border border-teal-200/90 bg-teal-50/90 px-3 py-1 text-xs font-medium text-teal-950">
-                Protein goal: ~{Math.round(dailyTargetProteinG)} g/day
-              </span>
-            ) : null}
-          </p>
-        ) : null}
-        <WeekCalorieStrip
-          dateKeys={dateKeys}
-          selectedDateKey={selectedDateKey}
-          onSelectDateKey={setSelectedDateKey}
-          dailyTargetKcal={dailyTargetKcal}
-          summariesByKey={summariesByKey}
-          batchLoading={weekBatchLoading}
-        />
-        <DaySummaryCard
-          dateKey={selectedDateKey}
-          dailyTargetKcal={dailyTargetKcal}
-          dailyTargetProteinG={dailyTargetProteinG}
-          loading={weekBatchLoading}
-          batchError={weekBatchError}
-          summary={summariesByKey[selectedDateKey]}
-        />
-        <WeekInsightsCard
-          dailyTargetKcal={dailyTargetKcal}
-          dailyTargetProteinG={dailyTargetProteinG}
-          weeklyCoachingFocus={weeklyCoachingFocus}
-          loading={weekBatchLoading}
-          batchError={weekBatchError}
-          data={weekInsightData}
-        />
-        <h1 className="mt-2 text-balance text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
-          What did you eat?
-        </h1>
-        <p className="mt-3 max-w-xl text-pretty text-sm leading-relaxed text-stone-600">
-          Describe it in plain language—amounts help. We match USDA data when
-          we can and estimate only when needed.
-        </p>
-        {loggingStyle ? (
-          <p className="mt-2 max-w-xl text-pretty text-xs leading-relaxed text-stone-500">
-            {loggingStyleBlurb(loggingStyle)}
-          </p>
-        ) : null}
-        <p className="mt-3 max-w-xl rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950/90">
-          Estimates are not medical advice. Always check packaged foods on the
-          label.
-        </p>
-      </header>
-
-      {analyzeQueue.length > 0 ? (
-        <div
-          className="mb-6 rounded-xl border border-sky-200/90 bg-sky-50/90 px-4 py-3 text-sm text-sky-950 shadow-sm shadow-sky-900/5"
-          role="status"
-        >
-          <p className="font-medium">
-            {analyzeQueue.length} meal{analyzeQueue.length === 1 ? "" : "s"}{" "}
-            queued
-            {typeof navigator !== "undefined" && !navigator.onLine
-              ? " · offline"
-              : ""}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-sky-900/85">
-            {truncate(analyzeQueue[0]!.rawInput, 140)}
-            {analyzeQueue.length > 1
-              ? ` · +${analyzeQueue.length - 1} more`
-              : ""}
-          </p>
-          <p className="mt-1 text-[11px] text-sky-800/80">
-            Saved in this browser (IndexedDB). Kept after refresh; syncs when
-            you&apos;re online.
-          </p>
-          {typeof navigator !== "undefined" && navigator.onLine ? (
-            <button
-              type="button"
-              disabled={flushBusy}
-              onClick={() => void flushAnalyzeQueue()}
-              className="mt-2 text-xs font-semibold text-sky-900 underline decoration-sky-800/35 underline-offset-2 hover:decoration-sky-900 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {flushBusy ? "Sending…" : "Send now"}
-            </button>
-          ) : null}
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 pt-8 sm:px-6">
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <div className="flex flex-col gap-6">
+          {/* Top Progress Bar for Selected Date */}
+          <WeekCalorieStrip
+            dateKeys={dateKeys}
+            selectedDateKey={selectedDateKey}
+            onSelectDateKey={setSelectedDateKey}
+            dailyTargetKcal={dailyTargetKcal}
+            summariesByKey={summariesByKey}
+            batchLoading={weekBatchLoading}
+          />
+          
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* Primary Metrics Card */}
+            <div className="lg:col-span-8">
+              <DaySummaryCard
+                dateKey={selectedDateKey}
+                dailyTargetKcal={dailyTargetKcal}
+                dailyTargetProteinG={dailyTargetProteinG}
+                loading={weekBatchLoading}
+                batchError={weekBatchError}
+                summary={summariesByKey[selectedDateKey]}
+              />
+            </div>
+            
+            {/* Insights Card */}
+            <div className="lg:col-span-4">
+              <WeekInsightsCard
+                dailyTargetKcal={dailyTargetKcal}
+                dailyTargetProteinG={dailyTargetProteinG}
+                weeklyCoachingFocus={weeklyCoachingFocus}
+                loading={weekBatchLoading}
+                batchError={weekBatchError}
+                data={weekInsightData}
+              />
+            </div>
+          </div>
         </div>
-      ) : null}
+      </motion.header>
 
-      {savedMeals.length > 0 ? (
-        <section className="mb-10" aria-labelledby="saved-meals-heading">
-          <h2
-            id="saved-meals-heading"
-            className="text-sm font-semibold text-stone-900"
-          >
-            Templates & saved meals
-          </h2>
-          <p className="mt-1 text-xs text-stone-500">
-            Named templates with your exact meal text—log in one tap. Edit
-            updates the name and text.
-          </p>
-          <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {savedMeals.map((s) => {
-              const logging = loggingSavedId === s.id;
-              const editing = editingSavedId === s.id;
-
-              if (editing) {
-                return (
-                  <li
-                    key={s.id}
-                    className="sm:col-span-2 w-full rounded-xl border border-emerald-200/90 bg-white/95 p-4 shadow-sm"
-                  >
-                    <p className="text-xs font-medium text-stone-600">
-                      Edit favorite
-                    </p>
-                    <label className="mt-2 block text-xs font-medium text-stone-600">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={editSavedTitle}
-                      onChange={(e) => setEditSavedTitle(e.target.value)}
-                      maxLength={100}
-                      className="input-field mt-1"
-                      disabled={editSavedBusy}
-                    />
-                    <label className="mt-3 block text-xs font-medium text-stone-600">
-                      Meal text (used when you tap Log)
-                    </label>
-                    <textarea
-                      value={editSavedRaw}
-                      onChange={(e) => setEditSavedRaw(e.target.value)}
-                      rows={4}
-                      maxLength={8000}
-                      className="input-field mt-1 resize-y text-[15px] leading-relaxed"
-                      disabled={editSavedBusy}
-                    />
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={
-                          editSavedBusy ||
-                          !editSavedTitle.trim() ||
-                          !editSavedRaw.trim()
-                        }
-                        onClick={() => void submitEditSaved(s.id)}
-                        className="btn-primary px-4 py-2 text-sm"
-                      >
-                        {editSavedBusy ? "Saving…" : "Save changes"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={editSavedBusy}
-                        onClick={cancelEditSaved}
-                        className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </li>
-                );
-              }
-
-              return (
-                <li
-                  key={s.id}
-                  className="flex min-h-[8.5rem] flex-col rounded-xl border border-emerald-200/90 bg-gradient-to-b from-emerald-50/50 to-white/95 p-4 shadow-sm shadow-emerald-900/5"
+      {/* Main Command Bar Section */}
+      <section className="relative z-10 mb-12">
+        <motion.div 
+          layout
+          className="rounded-[2.5rem] glass-pane p-1 shadow-2xl overflow-hidden"
+        >
+          <div className="p-4 sm:p-6 lg:p-8">
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400">
+                  <Plus className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Log Meal</h2>
+                  <p className="text-xs text-zinc-400">Natural language analysis</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/50 p-1">
+                <button
+                  onClick={() => switchInputMode("free")}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                    logInputMode === "free" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold leading-snug text-emerald-950">
-                      {s.title}
-                    </p>
-                    <p
-                      className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-600"
-                      title={s.rawInput}
-                    >
-                      {s.rawInput}
-                    </p>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-emerald-200/60 pt-3">
-                    <button
-                      type="button"
-                      disabled={busy && !logging}
-                      onClick={() => runAnalyze(s.rawInput, { savedId: s.id })}
-                      className="btn-primary min-h-[40px] flex-1 px-4 py-2 text-sm sm:flex-none"
-                    >
-                      {logging ? "Logging…" : "Log this meal"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy && !logging}
-                      onClick={() => beginEditSaved(s)}
-                      className="rounded-lg border border-emerald-300/80 bg-white px-3 py-2 text-xs font-medium text-emerald-900 hover:bg-emerald-50 disabled:opacity-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy && !logging}
-                      onClick={() => removeSaved(s.id)}
-                      className="rounded-lg px-2 py-2 text-xs text-stone-500 hover:bg-emerald-100/80 hover:text-stone-800 disabled:opacity-50"
-                      aria-label={`Remove ${s.title}`}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+                  <Keyboard className="h-3.5 w-3.5" />
+                  Free
+                </button>
+                <button
+                  onClick={() => switchInputMode("composer")}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                    logInputMode === "composer" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                  }`}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  Build
+                </button>
+              </div>
+            </div>
 
-      {recentMeals.length > 0 ? (
-        <section className="mb-10" aria-labelledby="recent-meals-heading">
-          <h2
-            id="recent-meals-heading"
-            className="text-sm font-semibold text-stone-900"
-          >
-            Recent meals
-          </h2>
-          <p className="mt-1 text-xs text-stone-500">
-            Tap Log again to copy text into the box below—edit if needed, then
-            calculate.
-          </p>
-          <ul className="mt-3 space-y-2">
-            {recentMeals.map((m) => (
-              <li
-                key={m.id}
-                className="flex flex-col gap-2 rounded-xl border border-stone-200/90 bg-white/90 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-stone-900">
-                    {truncate(m.rawInput, 120)}
-                  </p>
-                  <p className="mt-1 text-xs text-stone-500">
-                    <span className="font-medium tabular-nums text-emerald-800">
-                      {Math.round(m.totalKcal)} kcal
-                    </span>
-                    <span className="text-stone-400"> · </span>
-                    <time
-                      dateTime={m.createdAt}
-                      suppressHydrationWarning
+            <form onSubmit={onSubmit} className="flex flex-col gap-6">
+              <div className="relative">
+                {logInputMode === "free" ? (
+                  <textarea
+                    ref={textareaRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    rows={4}
+                    placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
+                    className="w-full resize-none rounded-3xl border border-white/5 bg-zinc-950/50 px-6 py-5 text-lg leading-relaxed text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none focus:ring-4 focus:ring-emerald-500/5"
+                  />
+                ) : (
+                  <MealItemComposer
+                    rows={composerRows}
+                    onChange={setComposerRows}
+                    disabled={busy}
+                  />
+                )}
+                
+                {/* Visual Feedback Line */}
+                <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+              </div>
+
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AnimatePresence>
+                    {lastLoggedRaw && (
+                      <motion.button
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        type="button"
+                        onClick={() => logAgain(lastLoggedRaw)}
+                        className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-700 hover:text-white"
+                      >
+                        <HistoryIcon className="h-3.5 w-3.5" />
+                        Repeat Last
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                  
+                  {STARTER_QUICK_PATTERNS.slice(0, 3).map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => appendToMeal(p.text)}
+                      className="rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/10 hover:text-white"
                     >
-                      {new Date(m.createdAt).toLocaleString(undefined, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
-                    </time>
+                      + {p.label}
+                    </button>
+                  ))}
+                  
+                  <button
+                    type="button"
+                    className="h-8 w-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-colors"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    disabled={!canSaveFavorite || busy}
+                    onClick={openSavePanel}
+                    className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 disabled:opacity-30 disabled:grayscale"
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                    Save Favorite
+                  </button>
+                  
+                  <button
+                    type="submit"
+                    disabled={loading || !effectiveMealRaw.trim()}
+                    className="btn-primary min-w-[160px]"
+                  >
+                    {loading ? (
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-4 w-4 animate-pulse" />
+                        Analyzing...
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <ChevronRight className="h-4 w-4" />
+                        Log Meal
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Analysis Error / Queue Alerts */}
+      <AnimatePresence>
+        {analyzeQueue.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="mb-8 rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 text-blue-400 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5" />
+              <div>
+                <p className="text-sm font-bold">{analyzeQueue.length} meal{analyzeQueue.length > 1 ? 's' : ''} queued offline</p>
+                <p className="text-xs opacity-70">Will sync automatically when connection restores.</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => void flushAnalyzeQueue()}
+              className="text-xs font-bold underline decoration-blue-500/20 underline-offset-4"
+            >
+              Sync Now
+            </button>
+          </motion.div>
+        )}
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="mb-8 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-red-400 flex items-center gap-3"
+          >
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bento Secondary Grid */}
+      <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        {/* Recent Activity */}
+        <div className="bento-card group">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition-colors">
+                <Clock className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-white">Recent Activity</h3>
+            </div>
+            <Link href="/history" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">View All</Link>
+          </div>
+          
+          <ul className="space-y-4">
+            {recentMeals.slice(0, 4).map((m) => (
+              <li key={m.id} className="group/item flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all hover:bg-white/10">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{m.rawInput}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    <span className="font-bold text-emerald-500">{Math.round(m.totalKcal)} kcal</span>
+                    <span className="mx-2 opacity-20">|</span>
+                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <button
-                  type="button"
+                <button 
                   onClick={() => logAgain(m.rawInput)}
-                  className="shrink-0 rounded-lg border border-stone-300 bg-stone-50 px-3 py-1.5 text-sm font-medium text-stone-800 hover:bg-stone-100"
+                  className="rounded-xl bg-zinc-800 p-2 text-zinc-400 opacity-0 group-hover/item:opacity-100 hover:text-white transition-all"
                 >
-                  Log again
+                  <Plus className="h-4 w-4" />
                 </button>
               </li>
             ))}
+            {recentMeals.length === 0 && (
+              <p className="py-8 text-center text-xs text-zinc-600">No recent meals. Time to eat something!</p>
+            )}
           </ul>
-        </section>
-      ) : null}
+        </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <label
-              htmlFor={
-                logInputMode === "free" ? "meal-log-text" : "meal-composer-a11y"
-              }
-              className="text-sm font-medium text-stone-800"
-            >
-              Meal
-            </label>
-            <div
-              className="flex rounded-xl border border-stone-200/90 bg-stone-100/80 p-0.5"
-              role="group"
-              aria-label="Log input mode"
-            >
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => switchInputMode("free")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  logInputMode === "free"
-                    ? "bg-white text-stone-900 shadow-sm"
-                    : "text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                Write freely
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => switchInputMode("composer")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                  logInputMode === "composer"
-                    ? "bg-white text-stone-900 shadow-sm"
-                    : "text-stone-600 hover:text-stone-900"
-                }`}
-              >
-                Build items
-              </button>
+        {/* Templates / Favorites */}
+        <div className="bento-card group">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-400 group-hover:bg-lime-500/10 group-hover:text-lime-400 transition-colors">
+                <Star className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-white">Quick Templates</h3>
             </div>
+            {savePanelOpen && (
+              <div className="text-xs font-bold text-emerald-500 animate-pulse">Save Mode Active</div>
+            )}
           </div>
-          <p id="meal-composer-a11y" className="sr-only">
-            Structured rows for each food item, or switch to Write freely for a
-            single text box.
-          </p>
-          {logInputMode === "composer" ? (
-            <p className="text-xs text-stone-500">
-              Switching from <span className="font-medium">Write freely</span>{" "}
-              does not auto-split your text into rows—use this when you want
-              separate amount / unit fields.
-            </p>
-          ) : null}
 
-          <div className="rounded-xl border border-stone-200/90 bg-stone-50/60 px-3 py-3 sm:px-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-              Quick repeat
-            </p>
-            <p className="mt-1 text-xs text-stone-500">
-              Starters append a new line. &quot;Repeat last&quot; replaces the
-              box with your last logged meal.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {lastLoggedRaw ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => logAgain(lastLoggedRaw)}
-                  className="rounded-full border border-violet-300/90 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-950 hover:bg-violet-100/90 disabled:opacity-50"
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {savedMeals.slice(0, 6).map((s) => (
+              <li 
+                key={s.id}
+                className="relative flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10"
+              >
+                <div className="mb-4">
+                  <p className="text-sm font-bold text-white mb-1">{s.title}</p>
+                  <p className="line-clamp-2 text-[10px] text-zinc-500 leading-relaxed">{s.rawInput}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => runAnalyze(s.rawInput, { savedId: s.id })}
+                    disabled={busy}
+                    className="flex-1 rounded-xl bg-zinc-800 py-2 text-[10px] font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                  >
+                    Log
+                  </button>
+                  <button 
+                    onClick={() => removeSaved(s.id)}
+                    className="rounded-xl bg-zinc-950 p-2 text-zinc-600 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </li>
+            ))}
+            {savedMeals.length === 0 && (
+              <div className="col-span-full py-8 text-center">
+                <p className="text-xs text-zinc-600">No favorites yet.</p>
+                <p className="mt-1 text-[10px] text-zinc-700">Save a meal you eat often to see it here.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Analysis Results Overlay */}
+      <AnimatePresence>
+        {result && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed inset-x-4 bottom-24 z-30 mx-auto w-full max-w-2xl"
+          >
+            <div className="rounded-[2.5rem] border border-emerald-500/20 bg-zinc-950 p-6 shadow-2xl ring-1 ring-white/10">
+              <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Analysis Result</h3>
+                </div>
+                <button 
+                  onClick={() => setResult(null)}
+                  className="rounded-full bg-zinc-900 p-2 text-zinc-400 hover:text-white"
                 >
-                  Repeat last
+                  <Plus className="h-5 w-5 rotate-45" />
                 </button>
-              ) : null}
-              {STARTER_QUICK_PATTERNS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  disabled={busy}
-                  onClick={() => appendToMeal(p.text)}
-                  title={p.text}
-                  className="rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-800 shadow-sm hover:bg-stone-50 disabled:opacity-50"
-                >
-                  + {p.label}
-                </button>
-              ))}
-            </div>
-            {quickSnippets.length > 0 ? (
-              <div className="mt-3 border-t border-stone-200/80 pt-3">
-                <p className="text-[11px] font-medium text-stone-500">
-                  My phrases (this device)
-                </p>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {quickSnippets.map((q) => (
-                    <li
-                      key={q.id}
-                      className="inline-flex max-w-full items-center gap-0.5 rounded-full border border-teal-200/90 bg-teal-50/90 pl-2.5 shadow-sm"
-                    >
-                      <button
-                        type="button"
-                        disabled={busy}
-                        title={q.text}
-                        onClick={() => appendToMeal(q.text)}
-                        className="min-w-0 py-1.5 pr-0.5 text-left text-xs font-medium text-teal-950 hover:text-teal-900 disabled:opacity-50"
-                      >
-                        {truncate(q.label, 28)}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => removeQuickPhrase(q.id)}
-                        className="rounded-full px-2 py-1.5 text-stone-500 hover:bg-teal-100/80 hover:text-stone-800 disabled:opacity-50"
-                        aria-label={`Remove phrase ${q.label}`}
-                      >
-                        ×
-                      </button>
+              </div>
+
+              <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Calories</p>
+                  <p className="mt-1 text-2xl font-black text-white">{result.totals.kcal}<span className="text-xs font-medium ml-1 text-zinc-500">kcal</span></p>
+                </div>
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Protein</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-400">{result.totals.protein_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                </div>
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Carbs</p>
+                  <p className="mt-1 text-2xl font-black text-lime-400">{result.totals.carbs_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                </div>
+                <div className="rounded-2xl bg-white/5 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Fat</p>
+                  <p className="mt-1 text-2xl font-black text-amber-400">{result.totals.fat_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                </div>
+              </div>
+
+              <div className="max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                <ul className="space-y-3">
+                  {result.lines.map((line, i) => (
+                    <li key={i} className="flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-white">{line.label}</p>
+                        <p className="text-[10px] text-zinc-500">{line.quantity}{line.unit}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-white">{line.kcal} kcal</p>
+                        <p className="text-[10px] text-emerald-500/80 uppercase font-black tracking-tighter">{line.source}</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
               </div>
-            ) : null}
-            <div className="mt-3">
-              <button
-                type="button"
-                disabled={busy || effectiveMealRaw.length < 3}
-                onClick={saveBoxAsQuickPhrase}
-                className="text-xs font-medium text-teal-900 underline decoration-teal-800/35 underline-offset-2 hover:decoration-teal-900 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40"
-              >
-                Save box as quick phrase
-              </button>
             </div>
-          </div>
-
-          <div className="mt-2">
-            <MealPortionHints />
-          </div>
-
-          {logInputMode === "free" ? (
-            <textarea
-              id="meal-log-text"
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              rows={5}
-              placeholder="e.g. 2 scrambled eggs, 1 slice sourdough with 15g butter, black coffee"
-              className="input-field resize-y text-[15px] leading-relaxed"
-            />
-          ) : (
-            <MealItemComposer
-              rows={composerRows}
-              onChange={setComposerRows}
-              disabled={busy}
-            />
-          )}
-        </div>
-        <button
-          type="submit"
-          disabled={
-            loading ||
-            (logInputMode === "free"
-              ? !text.trim()
-              : !composerHasAnalyzableContent(composerRows))
-          }
-          className="btn-primary w-full sm:w-auto sm:self-start"
-        >
-          {loading ? "Analyzing…" : "Calculate calories"}
-        </button>
-      </form>
-
-      <div className="mt-4">
-        {!savePanelOpen ? (
-          <button
-            type="button"
-            disabled={!canSaveFavorite || busy}
-            onClick={openSavePanel}
-            className="text-sm font-medium text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-40"
-          >
-            Save as favorite
-          </button>
-        ) : (
-          <div className="rounded-xl border border-stone-200/90 bg-white/90 p-4 shadow-sm">
-            <p className="text-xs font-medium text-stone-600">
-              Name (optional — defaults to a short snippet of the meal text)
-            </p>
-            <input
-              type="text"
-              value={favTitle}
-              onChange={(e) => setFavTitle(e.target.value)}
-              maxLength={100}
-              className="input-field mt-2"
-              placeholder="e.g. Weekday breakfast"
-              disabled={saveBusy}
-            />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={saveBusy || !canSaveFavorite}
-                onClick={() => void submitSaveFavorite()}
-                className="btn-primary px-4 py-2 text-sm"
-              >
-                {saveBusy ? "Saving…" : "Save"}
-              </button>
-              <button
-                type="button"
-                disabled={saveBusy}
-                onClick={() => setSavePanelOpen(false)}
-                className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
 
-      {error ? (
-        <div
-          className="mt-6 rounded-xl border border-red-200 bg-red-50/90 px-4 py-3 text-sm text-red-900"
-          role="alert"
-        >
-          {error}
-        </div>
-      ) : null}
-
-      {result ? (
-        <section className="mt-10 overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-[0_20px_50px_-28px_rgba(28,25,23,0.35)]">
-          <div className="border-b border-stone-100 bg-gradient-to-r from-emerald-50/80 to-teal-50/50 px-5 py-4">
-            {result.meal_label ? (
-              <p className="text-sm font-semibold text-stone-900">
-                {result.meal_label}
-              </p>
-            ) : (
-              <p className="text-sm font-medium text-stone-700">Breakdown</p>
-            )}
-            <p className="mt-2 text-xs leading-relaxed text-stone-600">
-              When possible we match{" "}
-              <span className="font-medium text-stone-800">
-                USDA FoodData Central
-              </span>
-              ; otherwise we show an estimate and how confident the match is.
-            </p>
-            {result.lines.length > 0 ? (
-              <p className="mt-1 text-[11px] text-stone-500">
-                USDA:{" "}
-                {result.lines.filter((l) => l.source === "fdc").length} · My
-                foods:{" "}
-                {result.lines.filter((l) => l.source === "custom").length} ·
-                Estimates:{" "}
-                {result.lines.filter((l) => l.source === "estimate").length}{" "}
-                (of {result.lines.length} lines)
-              </p>
-            ) : null}
-          </div>
-          <ul className="divide-y divide-stone-100">
-            {result.lines.map((line, i) => {
-              const usdaHref = resolveUsdaLink(line.detail, line.fdc_id);
-              const fdcDesc = fdcDescriptionText(line.detail);
-              const confidenceLine = formatSourceConfidence(line.detail);
-              const customNote = sourceNoteFromDetail(line.detail);
-              const portionNote =
-                typeof line.detail.unit_note === "string" &&
-                line.detail.unit_note.trim()
-                  ? line.detail.unit_note.trim()
-                  : null;
-              return (
-                <li
-                  key={`${line.label}-${i}`}
-                  className="flex flex-col gap-2 border-l-[3px] border-emerald-500/35 px-5 py-4 pl-4"
+      {/* Save Panel Popover */}
+      <AnimatePresence>
+        {savePanelOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed inset-x-4 bottom-24 z-40 mx-auto w-full max-w-sm"
+          >
+            <div className="rounded-[2.5rem] bg-zinc-900 p-8 shadow-2xl ring-2 ring-emerald-500/50">
+              <h3 className="text-xl font-bold text-white mb-2">Save as Template</h3>
+              <p className="text-xs text-zinc-400 mb-6">Give this meal a quick name for future use.</p>
+              
+              <input
+                type="text"
+                value={favTitle}
+                onChange={(e) => setFavTitle(e.target.value)}
+                maxLength={100}
+                className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none mb-6"
+                placeholder="e.g., Post-Workout Bowl"
+                autoFocus
+                disabled={saveBusy}
+              />
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => void submitSaveFavorite()}
+                  disabled={saveBusy || !canSaveFavorite}
+                  className="btn-primary flex-1"
                 >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium text-stone-900">
-                      {line.label}
-                      <span className="ml-1.5 font-normal text-stone-500">
-                        ({line.quantity}
-                        {line.unit})
-                      </span>
-                    </span>
-                    <span className="tabular-nums text-base font-semibold text-stone-900">
-                      {line.kcal}{" "}
-                      <span className="text-sm font-medium text-stone-500">
-                        kcal
-                      </span>
-                    </span>
-                  </div>
-                  {portionNote ? (
-                    <p className="text-[11px] leading-relaxed text-stone-600">
-                      <span className="font-medium text-stone-700">
-                        Your portion:
-                      </span>{" "}
-                      {portionNote}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                    <span
-                      className={
-                        line.source === "fdc"
-                          ? "rounded-full bg-emerald-100 px-2.5 py-0.5 font-medium text-emerald-900"
-                          : line.source === "custom"
-                            ? "rounded-full bg-violet-100 px-2.5 py-0.5 font-medium text-violet-950"
-                            : "rounded-full bg-amber-100 px-2.5 py-0.5 font-medium text-amber-950"
-                      }
-                    >
-                      {line.source === "fdc"
-                        ? "USDA match"
-                        : line.source === "custom"
-                          ? "My food"
-                          : "Estimate"}
-                    </span>
-                    {line.fdc_id != null ? (
-                      <span className="tabular-nums text-stone-500">
-                        FDC #{line.fdc_id}
-                      </span>
-                    ) : null}
-                    {line.source !== "custom" && usdaHref ? (
-                      <a
-                        href={usdaHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-                      >
-                        Open in FoodData Central
-                      </a>
-                    ) : null}
-                  </div>
-                  {customNote ? (
-                    <p className="text-[11px] leading-relaxed text-violet-900/90">
-                      {customNote}
-                    </p>
-                  ) : null}
-                  {fdcDesc ? (
-                    <p className="text-xs leading-relaxed text-stone-500">
-                      <span className="font-medium text-stone-600">
-                        Matched food:
-                      </span>{" "}
-                      {fdcDesc}
-                    </p>
-                  ) : null}
-                  {confidenceLine ? (
-                    <p className="text-[11px] leading-relaxed text-stone-500">
-                      {confidenceLine}
-                    </p>
-                  ) : null}
-                  {line.source === "estimate" &&
-                  "reasoning" in line.detail &&
-                  typeof line.detail.reasoning === "string" ? (
-                    <p className="text-xs leading-relaxed text-stone-600">
-                      {line.detail.reasoning}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-          {result.assumptions?.length ? (
-            <div className="border-t border-stone-100 bg-stone-50/80 px-5 py-4 text-xs text-stone-700">
-              <p className="font-semibold text-stone-800">Assumptions</p>
-              <ul className="mt-2 list-inside list-disc space-y-1">
-                {result.assumptions.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
+                  {saveBusy ? "Saving..." : "Save Template"}
+                </button>
+                <button
+                  onClick={() => setSavePanelOpen(false)}
+                  disabled={saveBusy}
+                  className="rounded-2xl bg-zinc-800 px-6 font-bold text-white hover:bg-zinc-700"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          ) : null}
-          <div className="flex flex-wrap items-end justify-between gap-4 border-t border-emerald-100/80 bg-gradient-to-br from-emerald-50/90 px-5 py-5">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-emerald-900/80">
-                Total
-              </p>
-              <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-emerald-900">
-                {result.totals.kcal}
-                <span className="ml-1 text-lg font-medium text-emerald-800/80">
-                  kcal
-                </span>
-              </p>
-            </div>
-            <div className="text-right text-sm text-stone-600">
-              <p className="font-medium text-stone-800">Macros</p>
-              <p className="mt-1 tabular-nums">
-                P {result.totals.protein_g}g · C {result.totals.carbs_g}g · F{" "}
-                {result.totals.fat_g}g
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <p className="mt-12 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-700">
+        Engineered for precision • v1.0
+      </p>
     </div>
   );
 }

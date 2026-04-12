@@ -14,6 +14,22 @@ import {
   LOGGING_STYLE_LABELS,
   parseFoodAvoidList,
 } from "@/lib/profile/preferences";
+import { 
+  Shield, 
+  Target, 
+  Ruler, 
+  Activity, 
+  Settings, 
+  CheckCircle2, 
+  ChevronRight, 
+  ChevronLeft,
+  Zap,
+  Flame,
+  Dna,
+  Lock,
+  ArrowRight
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const STEPS = [
   "welcome",
@@ -30,22 +46,27 @@ const LAST_STEP_INDEX = STEPS.length - 1;
 
 function StepProgress({ current, total }: { current: number; total: number }) {
   return (
-    <div className="mb-8" aria-hidden>
-      <div className="flex gap-1.5">
+    <div className="mb-12" aria-hidden>
+      <div className="flex gap-2">
         {Array.from({ length: total }, (_, i) => (
           <div
             key={i}
-            className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
+            className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
               i <= current
-                ? "bg-gradient-to-r from-emerald-500 to-teal-600"
-                : "bg-stone-200"
+                ? "bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                : "bg-white/5"
             }`}
           />
         ))}
       </div>
-      <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-800/90">
-        Step {current + 1} of {total}
-      </p>
+      <div className="mt-4 flex justify-between items-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500">
+          Module {current + 1}
+        </p>
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">
+          Onboarding Protocol
+        </p>
+      </div>
     </div>
   );
 }
@@ -213,11 +234,6 @@ export function OnboardingWizard() {
       ? Math.round(draft.weightKg * draft.proteinGPerKg)
       : null;
 
-  const avoidPreview = useMemo(
-    () => parseFoodAvoidList(draft.foodAvoidText ?? ""),
-    [draft.foodAvoidText],
-  );
-
   async function goNext() {
     const nextIndex = Math.min(stepIndex + 1, LAST_STEP_INDEX);
     if (stepIndex === LAST_STEP_INDEX) return;
@@ -255,11 +271,12 @@ export function OnboardingWizard() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full flex-1 items-center justify-center px-4 py-16 text-stone-500">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-pulse rounded-full bg-emerald-200/80" />
-          <p className="text-sm">Loading your setup…</p>
-        </div>
+      <div className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 p-4">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="h-12 w-12 rounded-2xl bg-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+        />
       </div>
     );
   }
@@ -267,10 +284,10 @@ export function OnboardingWizard() {
   const step = STEPS[stepIndex];
 
   const choiceClass = (selected: boolean) =>
-    `flex cursor-pointer flex-col rounded-xl border px-4 py-3.5 text-left transition-all duration-200 ${
+    `flex cursor-pointer flex-col rounded-2xl border p-5 text-left transition-all duration-300 ${
       selected
-        ? "border-emerald-500/70 bg-emerald-50/90 shadow-[0_0_0_1px_rgba(16,185,129,0.2)]"
-        : "border-stone-200/90 bg-white/90 hover:border-stone-300 hover:shadow-sm"
+        ? "border-emerald-500 bg-emerald-500/10 shadow-[0_0_30px_rgba(16,185,129,0.1)] ring-1 ring-emerald-500/50"
+        : "border-white/5 bg-zinc-900/50 hover:border-white/10 hover:bg-zinc-900"
     }`;
 
   const canContinue =
@@ -289,718 +306,368 @@ export function OnboardingWizard() {
     (step === "review" && previewTargets != null && displayTargetKcal != null) ||
     step === "done";
 
+  const variants = {
+    initial: { opacity: 0, x: 20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -20 }
+  };
+
   return (
-    <AuthShell size="lg">
-      <div className="mb-2 flex justify-end">
-        <button
-          type="button"
-          onClick={() => void onSignOut()}
-          className="btn-ghost -mr-2 text-stone-500"
-        >
-          Sign out
-        </button>
-      </div>
-
-      <StepProgress current={stepIndex} total={STEPS.length} />
-
-      <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
-        {step === "welcome" && "Welcome to Calorie Agent"}
-        {step === "experience" && "How do you track today?"}
-        {step === "goal" && "What’s your main focus?"}
-        {step === "metrics" && "Your measurements"}
-        {step === "activity" && "How active is your typical week?"}
-        {step === "preferences" && "Food & logging style"}
-        {step === "safety" && "Before we show your target"}
-        {step === "review" && "Your calorie target"}
-        {step === "done" && "You’re set"}
-      </h1>
-      <p className="mt-2 text-sm leading-relaxed text-stone-600">
-        {step === "welcome" &&
-          "A few quick choices so the app fits beginners and macro pros alike. You can change this anytime in settings later."}
-        {step === "experience" &&
-          "This only changes how we explain numbers—not your worth."}
-        {step === "goal" &&
-          "Rough direction is enough. Targets are starting points, not rules."}
-        {step === "metrics" &&
-          "We use height, weight, age, and sex to estimate energy needs (Mifflin–St Jeor). Not medical advice."}
-        {step === "activity" &&
-          "We combine this with your goal to suggest a daily calorie target."}
-        {step === "preferences" &&
-          "This helps us tailor tips later—it never affects your worth or judgment."}
-        {step === "safety" &&
-          "Calorie Agent supports self-tracking—it does not diagnose or treat medical conditions."}
-        {step === "review" &&
-          "These are estimates. Adjust in settings if your coach or clinician gave you different numbers."}
-        {step === "done" &&
-          "We’ll use this to personalize insights as we build more features."}
-      </p>
-
-      {error ? (
-        <p
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
-          role="alert"
-        >
-          {error}
-        </p>
-      ) : null}
-
-      <div className="mt-8 flex flex-col gap-6">
-        {step === "welcome" ? (
-          <p className="text-sm leading-relaxed text-stone-700">
-            Logging works best when it matches your style. Next, pick the
-            experience level that fits you.
-          </p>
-        ) : null}
-
-        {step === "experience" ? (
-          <div className="flex flex-col gap-2.5">
-            {(
-              [
-                {
-                  id: "beginner" as const,
-                  title: "Just getting started",
-                  desc: "New to tracking or prefer simple totals.",
-                },
-                {
-                  id: "intermediate" as const,
-                  title: "Somewhere in between",
-                  desc: "Comfortable with calories and rough macros.",
-                },
-                {
-                  id: "advanced" as const,
-                  title: "I track macros",
-                  desc: "You want control over protein, carbs, and fat.",
-                },
-              ] as const
-            ).map((opt) => (
-              <label key={opt.id} className={choiceClass(draft.experience === opt.id)}>
-                <input
-                  type="radio"
-                  name="experience"
-                  className="sr-only"
-                  checked={draft.experience === opt.id}
-                  onChange={() =>
-                    setDraft((d) => ({ ...d, experience: opt.id }))
-                  }
-                />
-                <span className="font-medium text-stone-900">{opt.title}</span>
-                <span className="text-sm text-stone-600">{opt.desc}</span>
-              </label>
-            ))}
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col p-4 md:p-8">
+      <div className="mx-auto w-full max-w-2xl flex-1 flex flex-col">
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg shadow-lg shadow-emerald-500/20" />
+            <span className="font-black tracking-tighter text-xl">CALORIE AGENT</span>
           </div>
-        ) : null}
-
-        {step === "goal" ? (
-          <div className="flex flex-col gap-2.5">
-            {(
-              [
-                {
-                  id: "lose" as const,
-                  title: "Lose fat",
-                  desc: "Sustainable deficit, not crash dieting.",
-                },
-                {
-                  id: "maintain" as const,
-                  title: "Maintain",
-                  desc: "Stay roughly where you are.",
-                },
-                {
-                  id: "gain" as const,
-                  title: "Gain muscle / lean bulk",
-                  desc: "Small surplus with training in mind.",
-                },
-              ] as const
-            ).map((opt) => (
-              <label key={opt.id} className={choiceClass(draft.goal === opt.id)}>
-                <input
-                  type="radio"
-                  name="goal"
-                  className="sr-only"
-                  checked={draft.goal === opt.id}
-                  onChange={() =>
-                    setDraft((d) => ({
-                      ...d,
-                      goal: opt.id,
-                      goalPace:
-                        opt.id === "maintain"
-                          ? undefined
-                          : (d.goalPace ?? "moderate"),
-                    }))
-                  }
-                />
-                <span className="font-medium text-stone-900">{opt.title}</span>
-                <span className="text-sm text-stone-600">{opt.desc}</span>
-              </label>
-            ))}
-            {draft.goal === "lose" || draft.goal === "gain" ? (
-              <div className="mt-5 flex flex-col gap-2.5">
-                <p className="text-sm font-medium text-stone-800">
-                  How fast do you want to move?
-                </p>
-                <p className="text-xs text-stone-500">
-                  {draft.goal === "lose"
-                    ? "Larger deficits are harder to sustain. When in doubt, start gentler."
-                    : "Smaller surpluses tend to minimize fat gain alongside muscle."}
-                </p>
-                {(
-                  draft.goal === "lose"
-                    ? (
-                        [
-                          {
-                            id: "gentle" as const,
-                            title: "Gentle",
-                            desc: "~250 kcal under your estimated maintenance per day.",
-                          },
-                          {
-                            id: "moderate" as const,
-                            title: "Moderate",
-                            desc: "~400 kcal under maintenance — a common starting point.",
-                          },
-                          {
-                            id: "aggressive" as const,
-                            title: "Aggressive",
-                            desc: "~550 kcal under maintenance — only if you feel good on it.",
-                          },
-                        ] as const
-                      )
-                    : (
-                        [
-                          {
-                            id: "gentle" as const,
-                            title: "Gentle",
-                            desc: "~200 kcal above maintenance per day.",
-                          },
-                          {
-                            id: "moderate" as const,
-                            title: "Moderate",
-                            desc: "~300 kcal above maintenance.",
-                          },
-                          {
-                            id: "aggressive" as const,
-                            title: "Aggressive",
-                            desc: "~450 kcal above maintenance.",
-                          },
-                        ] as const
-                      )
-                ).map((opt) => (
-                  <label
-                    key={opt.id}
-                    className={choiceClass(draft.goalPace === opt.id)}
-                  >
-                    <input
-                      type="radio"
-                      name="goalPace"
-                      className="sr-only"
-                      checked={draft.goalPace === opt.id}
-                      onChange={() =>
-                        setDraft((d) => ({ ...d, goalPace: opt.id }))
-                      }
-                    />
-                    <span className="font-medium text-stone-900">
-                      {opt.title}
-                    </span>
-                    <span className="text-sm text-stone-600">{opt.desc}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {step === "metrics" ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-stone-800">Height (cm)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={80}
-                max={250}
-                className="input-field"
-                value={draft.heightCm ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDraft((d) => ({
-                    ...d,
-                    heightCm: v === "" ? undefined : parseFloat(v),
-                  }));
-                }}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="font-medium text-stone-800">Weight (kg)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={25}
-                max={400}
-                step="0.1"
-                className="input-field"
-                value={draft.weightKg ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDraft((d) => ({
-                    ...d,
-                    weightKg: v === "" ? undefined : parseFloat(v),
-                  }));
-                }}
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-sm sm:col-span-2">
-              <span className="font-medium text-stone-800">Age</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={13}
-                max={120}
-                className="input-field max-w-xs"
-                value={draft.age ?? ""}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setDraft((d) => ({
-                    ...d,
-                    age: v === "" ? undefined : parseInt(v, 10),
-                  }));
-                }}
-              />
-            </label>
-            <fieldset className="sm:col-span-2">
-              <legend className="text-sm font-medium text-stone-800">
-                Sex (for BMR estimate)
-              </legend>
-              <div className="mt-2 flex flex-wrap gap-3">
-                {(
-                  [
-                    ["male", "Male"],
-                    ["female", "Female"],
-                    ["unspecified", "Prefer not to say"],
-                  ] as const
-                ).map(([id, label]) => (
-                  <label
-                    key={id}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <input
-                      type="radio"
-                      name="sex"
-                      checked={draft.sex === id}
-                      onChange={() =>
-                        setDraft((d) => ({ ...d, sex: id }))
-                      }
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          </div>
-        ) : null}
-
-        {step === "activity" ? (
-          <div className="flex flex-col gap-2.5">
-            {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
-              <label key={k} className={choiceClass(draft.activityLevel === k)}>
-                <input
-                  type="radio"
-                  name="activity"
-                  className="sr-only"
-                  checked={draft.activityLevel === k}
-                  onChange={() =>
-                    setDraft((d) => ({ ...d, activityLevel: k }))
-                  }
-                />
-                <span className="font-medium text-stone-900">
-                  {ACTIVITY_LABELS[k].title}
-                </span>
-                <span className="text-sm text-stone-600">
-                  {ACTIVITY_LABELS[k].desc}
-                </span>
-              </label>
-            ))}
-          </div>
-        ) : null}
-
-        {step === "preferences" ? (
-          <div className="flex flex-col gap-8">
-            <div>
-              <p className="text-sm font-medium text-stone-800">
-                How do you usually log?
-              </p>
-              <div className="mt-3 flex flex-col gap-2.5">
-                {(
-                  Object.entries(LOGGING_STYLE_LABELS) as [
-                    keyof typeof LOGGING_STYLE_LABELS,
-                    (typeof LOGGING_STYLE_LABELS)["quick_estimates"],
-                  ][]
-                ).map(([id, opt]) => (
-                  <label
-                    key={id}
-                    className={choiceClass(draft.loggingStyle === id)}
-                  >
-                    <input
-                      type="radio"
-                      name="loggingStyle"
-                      className="sr-only"
-                      checked={draft.loggingStyle === id}
-                      onChange={() =>
-                        setDraft((d) => ({ ...d, loggingStyle: id }))
-                      }
-                    />
-                    <span className="font-medium text-stone-900">
-                      {opt.title}
-                    </span>
-                    <span className="text-sm text-stone-600">{opt.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-stone-800">
-                Dietary pattern
-              </p>
-              <p className="mt-1 text-xs text-stone-500">
-                For future tips only—not a rule about what you should eat.
-              </p>
-              <div className="mt-3 flex flex-col gap-2.5">
-                {(
-                  Object.entries(DIETARY_PATTERN_LABELS) as [
-                    keyof typeof DIETARY_PATTERN_LABELS,
-                    (typeof DIETARY_PATTERN_LABELS)["omnivore"],
-                  ][]
-                ).map(([id, opt]) => (
-                  <label
-                    key={id}
-                    className={choiceClass(draft.dietaryPattern === id)}
-                  >
-                    <input
-                      type="radio"
-                      name="dietaryPattern"
-                      className="sr-only"
-                      checked={draft.dietaryPattern === id}
-                      onChange={() =>
-                        setDraft((d) => ({ ...d, dietaryPattern: id }))
-                      }
-                    />
-                    <span className="font-medium text-stone-900">
-                      {opt.title}
-                    </span>
-                    <span className="text-sm text-stone-600">{opt.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="flex flex-col gap-1.5 text-sm">
-                <span className="font-medium text-stone-800">
-                  Foods to avoid or allergies (optional)
-                </span>
-                <span className="text-xs font-normal text-stone-500">
-                  Comma-separated—e.g. peanuts, shellfish, dairy. We&apos;ll
-                  store this for future features; always double-check labels.
-                </span>
-                <textarea
-                  value={draft.foodAvoidText ?? ""}
-                  onChange={(e) =>
-                    setDraft((d) => ({
-                      ...d,
-                      foodAvoidText: e.target.value,
-                    }))
-                  }
-                  rows={3}
-                  maxLength={2000}
-                  placeholder="e.g. tree nuts, sesame"
-                  className="input-field resize-y text-[15px] leading-relaxed"
-                />
-              </label>
-            </div>
-          </div>
-        ) : null}
-
-        {step === "safety" ? (
-          <div className="space-y-4 text-sm leading-relaxed text-stone-700">
-            <ul className="list-disc space-y-2.5 pl-5">
-              <li>
-                This app is <strong>not medical advice</strong> and does not
-                diagnose or treat any condition.
-              </li>
-              <li>
-                Speak with a qualified professional if you are pregnant,
-                managing diabetes with medication, have a history of eating
-                disorders, or take medicines that affect appetite, metabolism,
-                or weight.
-              </li>
-              <li>
-                Calorie targets are rough estimates. Your body, activity, and
-                health context matter more than any formula.
-              </li>
-            </ul>
-            <p className="text-sm">
-              <a
-                href="/resources/eating-disorders"
-                className="font-semibold text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-              >
-                Resources for eating concerns
-              </a>
-              <span className="text-stone-400"> · </span>
-              <a
-                href="/privacy"
-                className="font-semibold text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-              >
-                Privacy
-              </a>
-            </p>
-            <label className="flex cursor-pointer gap-3 rounded-xl border border-stone-200/90 bg-white/90 p-4">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 shrink-0 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
-                checked={!!draft.safetyAcknowledged}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    safetyAcknowledged: e.target.checked,
-                  }))
-                }
-              />
-              <span>
-                I understand I&apos;m using Calorie Agent for general
-                self-tracking, not as a substitute for medical or dietetic care.
-              </span>
-            </label>
-          </div>
-        ) : null}
-
-        {step === "review" &&
-        previewTargets &&
-        displayTargetKcal != null ? (
-          <div className="space-y-4">
-            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-4 text-sm text-stone-800">
-              <p className="font-semibold text-stone-900">Daily calorie target</p>
-              <p className="mt-3 text-3xl font-semibold tabular-nums text-emerald-900">
-                ~{displayTargetKcal}{" "}
-                <span className="text-lg font-medium text-emerald-800/80">
-                  kcal
-                </span>
-              </p>
-              {draft.manualTargetKcal != null ? (
-                <p className="mt-2 text-xs text-emerald-900/90">
-                  Using your custom calorie target instead of the formula
-                  estimate ({previewTargets.targetKcal} kcal).
-                </p>
-              ) : null}
-              {previewProteinG != null ? (
-                <p className="mt-2 text-sm text-stone-700">
-                  Protein goal:{" "}
-                  <span className="font-semibold tabular-nums text-stone-900">
-                    ~{previewProteinG} g
-                  </span>
-                  /day (from your g/kg entry).
-                </p>
-              ) : null}
-              <details className="mt-4 rounded-lg border border-emerald-200/60 bg-white/60 px-3 py-2 text-xs text-stone-600">
-                <summary className="cursor-pointer font-medium text-stone-800">
-                  How we estimated this
-                </summary>
-                <p className="mt-2">
-                  We use the <strong>Mifflin–St Jeor</strong> equation with your
-                  height, weight, age, and sex to estimate resting energy (BMR),
-                  then multiply by an activity factor for estimated maintenance
-                  (TDEE).
-                </p>
-                <p className="mt-2">
-                  Your goal adjusts TDEE:{" "}
-                  {draft.goal === "maintain" && "we target maintenance."}
-                  {draft.goal === "lose" &&
-                    `we subtract roughly ${
-                      draft.goalPace === "gentle"
-                        ? "250"
-                        : draft.goalPace === "aggressive"
-                          ? "550"
-                          : "400"
-                    } kcal/day (your chosen pace).`}
-                  {draft.goal === "gain" &&
-                    `we add roughly ${
-                      draft.goalPace === "gentle"
-                        ? "200"
-                        : draft.goalPace === "aggressive"
-                          ? "450"
-                          : "300"
-                    } kcal/day (your chosen pace).`}
-                </p>
-                <p className="mt-2 text-stone-500">
-                  Numbers are rounded. Not medical advice.
-                </p>
-              </details>
-              <p className="mt-3 text-xs text-stone-500">
-                BMR ~{previewTargets.bmrKcal} kcal · TDEE ~
-                {previewTargets.tdeeKcal} kcal
-              </p>
-            </div>
-
-            {draft.experience === "advanced" ? (
-              <div className="rounded-xl border border-stone-200/90 bg-stone-50/90 p-4 text-sm text-stone-800">
-                <p className="font-semibold text-stone-900">
-                  Macro-focused options
-                </p>
-                <p className="mt-1 text-xs text-stone-500">
-                  Optional. Leave blank to use the estimate above.
-                </p>
-                <label className="mt-4 flex flex-col gap-1.5">
-                  <span className="font-medium text-stone-800">
-                    Custom daily calories (kcal)
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={800}
-                    max={10000}
-                    placeholder={`e.g. leave empty for ~${previewTargets.targetKcal}`}
-                    className="input-field max-w-xs"
-                    value={draft.manualTargetKcal ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setDraft((d) => ({
-                        ...d,
-                        manualTargetKcal:
-                          v === "" ? undefined : parseFloat(v),
-                      }));
-                    }}
-                  />
-                </label>
-                <label className="mt-4 flex flex-col gap-1.5">
-                  <span className="font-medium text-stone-800">
-                    Protein (g per kg body weight)
-                  </span>
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    min={0.5}
-                    max={4}
-                    step={0.1}
-                    placeholder="e.g. 1.6 — optional"
-                    className="input-field max-w-xs"
-                    value={draft.proteinGPerKg ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setDraft((d) => ({
-                        ...d,
-                        proteinGPerKg:
-                          v === "" ? undefined : parseFloat(v),
-                      }));
-                    }}
-                  />
-                </label>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-
-        {step === "done" && previewTargets && displayTargetKcal != null ? (
-          <div className="space-y-4 rounded-xl border border-stone-200/90 bg-stone-50/90 p-4 text-sm text-stone-800">
-            <p className="font-semibold text-stone-900">Summary</p>
-            <ul className="space-y-2 border-b border-stone-200/80 pb-3 text-stone-700">
-              <li className="flex justify-between gap-4">
-                <span className="text-stone-500">Daily target</span>
-                <span className="font-semibold tabular-nums text-emerald-900">
-                  ~{displayTargetKcal} kcal
-                </span>
-              </li>
-              {previewProteinG != null ? (
-                <li className="flex justify-between gap-4">
-                  <span className="text-stone-500">Protein goal</span>
-                  <span className="font-semibold tabular-nums text-emerald-900">
-                    ~{previewProteinG} g/day
-                  </span>
-                </li>
-              ) : null}
-              <li className="flex justify-between gap-4">
-                <span className="text-stone-500">Height / weight</span>
-                <span className="font-medium">
-                  {draft.heightCm} cm · {draft.weightKg} kg
-                </span>
-              </li>
-              <li className="flex justify-between gap-4">
-                <span className="text-stone-500">Experience</span>
-                <span className="font-medium">
-                  {draft.experience === "beginner" && "Getting started"}
-                  {draft.experience === "intermediate" && "In between"}
-                  {draft.experience === "advanced" && "Macro-focused"}
-                </span>
-              </li>
-              {draft.loggingStyle ? (
-                <li className="flex justify-between gap-4">
-                  <span className="text-stone-500">Logging style</span>
-                  <span className="font-medium text-right">
-                    {LOGGING_STYLE_LABELS[draft.loggingStyle].title}
-                  </span>
-                </li>
-              ) : null}
-              {draft.dietaryPattern ? (
-                <li className="flex justify-between gap-4">
-                  <span className="text-stone-500">Dietary pattern</span>
-                  <span className="font-medium text-right">
-                    {DIETARY_PATTERN_LABELS[draft.dietaryPattern].title}
-                  </span>
-                </li>
-              ) : null}
-              {avoidPreview.length > 0 ? (
-                <li className="flex flex-col gap-1 border-t border-stone-200/80 pt-2">
-                  <span className="text-stone-500">Avoid / allergies</span>
-                  <span className="font-medium text-stone-800">
-                    {avoidPreview.join(", ")}
-                  </span>
-                </li>
-              ) : null}
-            </ul>
-            <p className="text-xs leading-relaxed text-stone-500">
-              Not medical advice. Change your answers anytime in Settings.
-            </p>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-6">
-        <button
-          type="button"
-          onClick={() => void goBack()}
-          disabled={saving || stepIndex === 0}
-          className="btn-ghost"
-        >
-          Back
-        </button>
-        <div className="flex gap-2">
-          {step !== "done" ? (
-            <button
-              type="button"
-              onClick={() => void goNext()}
-              disabled={saving || !canContinue}
-              className="btn-primary min-w-[8.5rem]"
-            >
-              {saving ? "Saving…" : "Continue"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void finish()}
-              disabled={
-                saving ||
-                !draft.experience ||
-                !draft.goal ||
-                !(draft.goal === "maintain" || draft.goalPace != null) ||
-                !metricsValid(draft) ||
-                !draft.activityLevel ||
-                !draft.loggingStyle ||
-                !draft.dietaryPattern ||
-                !draft.safetyAcknowledged ||
-                !previewTargets ||
-                displayTargetKcal == null
-              }
-              className="btn-primary min-w-[8.5rem]"
-            >
-              {saving ? "Saving…" : "Start logging"}
-            </button>
-          )}
+          <button
+            onClick={() => void onSignOut()}
+            className="text-xs font-bold text-zinc-500 hover:text-white transition-colors uppercase tracking-widest"
+          >
+            Sign out
+          </button>
         </div>
+
+        <StepProgress current={stepIndex} total={STEPS.length} />
+
+        <main className="flex-1 flex flex-col">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              variants={variants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="flex-1"
+            >
+              <div className="mb-8">
+                <h1 className="text-4xl font-black tracking-tighter text-white sm:text-5xl">
+                  {step === "welcome" && "Initialize Profile"}
+                  {step === "experience" && "Macro Experience"}
+                  {step === "goal" && "Strategic Objective"}
+                  {step === "metrics" && "Biometric Input"}
+                  {step === "activity" && "Activity Signature"}
+                  {step === "preferences" && "Analyzer Prefs"}
+                  {step === "safety" && "Safety Protocol"}
+                  {step === "review" && "Protocol Preview"}
+                  {step === "done" && "Identity Verified"}
+                </h1>
+                <p className="mt-4 text-base text-zinc-500 font-medium">
+                  {step === "welcome" && "Establish your baseline data. This calibration affects all future analytics."}
+                  {step === "experience" && "This configures the terminology and complexity of your dashboard."}
+                  {step === "goal" && "Define the direction of your metabolic adaptation."}
+                  {step === "metrics" && "Provide precise physiological markers for BMR calculation."}
+                  {step === "activity" && "Estimate your weekly energy expenditure signature."}
+                  {step === "preferences" && "Tailor the AI analyzer to your specific dietary requirements."}
+                  {step === "safety" && "Review critical usage boundaries before activating your profile."}
+                  {step === "review" && "Confirm your estimated performance targets."}
+                  {step === "done" && "Your profile is synchronized. Ready for deployment."}
+                </p>
+              </div>
+
+              {error && (
+                <div className="mb-8 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-bold flex items-center gap-3">
+                  <Shield className="h-4 w-4" />
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-6">
+                {step === "welcome" && (
+                   <div className="rounded-[2rem] glass-pane p-8 border border-white/5 space-y-6">
+                    <div className="flex items-center gap-6">
+                      <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0">
+                        <Zap className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-white">Advanced Analysis</h3>
+                        <p className="text-sm text-zinc-500">Natural language processing for effortless logging.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="h-12 w-12 rounded-2xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
+                        <Target className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-white">Precision Tracking</h3>
+                        <p className="text-sm text-zinc-500">Bento-grid dashboard for real-time macro insights.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {step === "experience" && (
+                  <div className="flex flex-col gap-3">
+                    {(
+                      [
+                        { id: "beginner" as const, title: "Standard", desc: "Focus on simple calorie totals and daily goals." },
+                        { id: "intermediate" as const, title: "Tactical", desc: "Balance calories with primary macronutrient targets." },
+                        { id: "advanced" as const, title: "Elite", desc: "Full control over grams, ratios, and performance targets." },
+                      ] as const
+                    ).map((opt) => (
+                      <label key={opt.id} className={choiceClass(draft.experience === opt.id)}>
+                        <input
+                          type="radio"
+                          className="sr-only"
+                          checked={draft.experience === opt.id}
+                          onChange={() => setDraft((d) => ({ ...d, experience: opt.id }))}
+                        />
+                         <div className="flex items-center justify-between">
+                          <span className="font-black text-white uppercase tracking-widest">{opt.title}</span>
+                          {draft.experience === opt.id && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                        </div>
+                        <span className="text-sm text-zinc-500 mt-1">{opt.desc}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {step === "goal" && (
+                  <div className="space-y-8">
+                    <div className="flex flex-col gap-3">
+                      {(
+                        [
+                          { id: "lose" as const, title: "Deficit", desc: "Shed body fat while preserving lean tissue." },
+                          { id: "maintain" as const, title: "Equilibrium", desc: "Maintain current biological state." },
+                          { id: "gain" as const, title: "Surplus", desc: "Drive hypertrophy and strength gains." },
+                        ] as const
+                      ).map((opt) => (
+                        <label key={opt.id} className={choiceClass(draft.goal === opt.id)}>
+                          <input
+                            type="radio"
+                            className="sr-only"
+                            checked={draft.goal === opt.id}
+                            onChange={() => setDraft((d) => ({ ...d, goal: opt.id, goalPace: opt.id === "maintain" ? undefined : (d.goalPace ?? "moderate") }))}
+                          />
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-white uppercase tracking-widest">{opt.title}</span>
+                            {draft.goal === opt.id && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                          </div>
+                          <span className="text-sm text-zinc-500 mt-1">{opt.desc}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {(draft.goal === "lose" || draft.goal === "gain") && (
+                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                        <div className="flex items-center gap-2">
+                           <Zap className="h-3 w-3 text-emerald-500" />
+                           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pace Selection</span>
+                        </div>
+                        <div className="flex gap-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
+                          {["gentle", "moderate", "aggressive"].map((pace) => (
+                            <button
+                              key={pace}
+                              onClick={() => setDraft(d => ({...d, goalPace: pace as any}))}
+                              className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                draft.goalPace === pace ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-600 hover:text-zinc-400"
+                              }`}
+                            >
+                              {pace}
+                            </button>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
+                {step === "metrics" && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-zinc-950 p-8 rounded-[2rem] border border-white/5">
+                    <label className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-zinc-600 uppercase">
+                        <Ruler className="h-3 w-3" /> Height (cm)
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full bg-zinc-900 px-6 py-4 rounded-2xl border border-white/5 text-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                        value={draft.heightCm ?? ""}
+                        onChange={(e) => setDraft((d) => ({ ...d, heightCm: e.target.value === "" ? undefined : parseFloat(e.target.value) }))}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-zinc-600 uppercase">
+                         <Activity className="h-3 w-3" /> Weight (kg)
+                      </div>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        className="w-full bg-zinc-900 px-6 py-4 rounded-2xl border border-white/5 text-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                        value={draft.weightKg ?? ""}
+                        onChange={(e) => setDraft((d) => ({ ...d, weightKg: e.target.value === "" ? undefined : parseFloat(e.target.value) }))}
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-zinc-600 uppercase">
+                         <Dna className="h-3 w-3" /> Age
+                      </div>
+                      <input
+                        type="number"
+                        className="w-full bg-zinc-900 px-6 py-4 rounded-2xl border border-white/5 text-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                        value={draft.age ?? ""}
+                        onChange={(e) => setDraft((d) => ({ ...d, age: e.target.value === "" ? undefined : parseInt(e.target.value, 10) }))}
+                      />
+                    </label>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-zinc-600 uppercase mb-1">
+                        Sex (BMR Calibration)
+                      </div>
+                      <div className="flex gap-2">
+                        {["male", "female"].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setDraft(d => ({...d, sex: s as any}))}
+                            className={`flex-1 py-4 rounded-xl text-xs font-bold uppercase ${draft.sex === s ? "bg-emerald-500 text-zinc-950" : "bg-zinc-900 text-zinc-500"}`}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {step === "activity" && (
+                  <div className="flex flex-col gap-3">
+                    {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
+                      <label key={k} className={choiceClass(draft.activityLevel === k)}>
+                        <input
+                          type="radio"
+                          className="sr-only"
+                          checked={draft.activityLevel === k}
+                          onChange={() => setDraft((d) => ({ ...d, activityLevel: k }))}
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="font-black text-white uppercase tracking-widest">{ACTIVITY_LABELS[k].title}</span>
+                          {draft.activityLevel === k && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                        </div>
+                        <span className="text-sm text-zinc-500 mt-1">{ACTIVITY_LABELS[k].desc}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
+                {step === "preferences" && (
+                  <div className="space-y-8">
+                     <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Settings className="h-3.5 w-3.5 text-zinc-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Analyzer Strategy</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Object.entries(LOGGING_STYLE_LABELS).map(([id, opt]) => (
+                            <label key={id} className={choiceClass(draft.loggingStyle === id)}>
+                              <input type="radio" className="sr-only" checked={draft.loggingStyle === id} onChange={() => setDraft(d => ({...d, loggingStyle: id as any}))} />
+                              <span className="font-bold text-white text-xs">{opt.title}</span>
+                              <span className="text-[10px] text-zinc-500 leading-tight mt-1">{opt.desc}</span>
+                            </label>
+                          ))}
+                        </div>
+                     </div>
+                     
+                     <div className="space-y-3">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Shield className="h-3.5 w-3.5 text-zinc-500" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dietary Profile</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {Object.entries(DIETARY_PATTERN_LABELS).map(([id, opt]) => (
+                            <label key={id} className={choiceClass(draft.dietaryPattern === id)}>
+                              <input type="radio" className="sr-only" checked={draft.dietaryPattern === id} onChange={() => setDraft(d => ({...d, dietaryPattern: id as any}))} />
+                              <span className="font-bold text-white text-xs">{opt.title}</span>
+                            </label>
+                          ))}
+                        </div>
+                     </div>
+                  </div>
+                )}
+
+                {step === "safety" && (
+                  <div className="rounded-[2rem] bg-zinc-950 p-8 border border-white/5 space-y-8">
+                    <ul className="space-y-6">
+                      <li className="flex gap-4">
+                        <Lock className="h-5 w-5 text-zinc-700 shrink-0" />
+                        <p className="text-sm text-zinc-400">Calorie Agent is a tracking assistant, not a clinical diagnostic tool.</p>
+                      </li>
+                      <li className="flex gap-4">
+                        <Shield className="h-5 w-5 text-zinc-700 shrink-0" />
+                        <p className="text-sm text-zinc-400">Consult healthcare professionals before significant dietary adaptations.</p>
+                      </li>
+                    </ul>
+                    <label className="flex items-start gap-4 p-5 rounded-2xl bg-zinc-900 border border-white/5 cursor-pointer hover:border-emerald-500/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-5 w-5 rounded-md border-white/10 bg-transparent text-emerald-500"
+                        checked={!!draft.safetyAcknowledged}
+                        onChange={(e) => setDraft((d) => ({ ...d, safetyAcknowledged: e.target.checked }))}
+                      />
+                      <span className="text-xs font-bold text-zinc-300">I acknowledge the professional medical disclaimer and protocol limitations.</span>
+                    </label>
+                  </div>
+                )}
+
+                {step === "review" && previewTargets && (
+                  <div className="space-y-8">
+                    <div className="rounded-[2.5rem] glass-pane p-10 border border-emerald-500/20 text-center relative overflow-hidden">
+                       <div className="absolute top-0 left-1/2 -translate-x-1/2 h-1 w-32 bg-emerald-500 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)]" />
+                       <div className="flex flex-col items-center gap-4">
+                          <Flame className="h-8 w-8 text-emerald-500" />
+                          <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500/60">Calculated Energy Intake</h3>
+                          <p className="text-7xl font-black text-white tabular-nums tracking-tighter">
+                            {displayTargetKcal}
+                            <span className="text-xl ml-2 font-medium opacity-20">kcal</span>
+                          </p>
+                       </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                       <div className="bg-zinc-950 rounded-3xl p-6 border border-white/5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Mifflin BMR</span>
+                          <p className="text-2xl font-black text-white mt-1">{Math.round(previewTargets.bmrKcal)}</p>
+                       </div>
+                       <div className="bg-zinc-950 rounded-3xl p-6 border border-white/5">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Estimated TDEE</span>
+                          <p className="text-2xl font-black text-white mt-1">{Math.round(previewTargets.tdeeKcal)}</p>
+                       </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          <footer className="mt-12 flex gap-4">
+             {stepIndex > 0 && (
+               <button
+                onClick={() => void goBack()}
+                disabled={saving}
+                className="flex h-16 w-16 items-center justify-center rounded-3xl bg-zinc-900 border border-white/5 text-zinc-500 hover:text-white transition-all"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+             )}
+             
+             <button
+              onClick={() => stepIndex === LAST_STEP_INDEX ? void finish() : void goNext()}
+              disabled={!canContinue || saving}
+              className="flex-1 btn-primary h-16 flex items-center justify-center gap-3 text-base"
+             >
+                {saving ? "Synchronizing..." : (
+                  <>
+                    {stepIndex === LAST_STEP_INDEX ? "Initialize System" : "Proceed to Next Module"}
+                    <ArrowRight className="h-5 w-5" />
+                  </>
+                )}
+             </button>
+          </footer>
+        </main>
+
+        <p className="mt-12 text-center text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800">
+          Biometric Sync Protocol v3.04.1
+        </p>
       </div>
-    </AuthShell>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 type AuthShellProps = {
   children: ReactNode;
@@ -7,14 +8,23 @@ type AuthShellProps = {
 };
 
 export function AuthShell({ children, size = "md" }: AuthShellProps) {
-  const max = size === "lg" ? "max-w-lg" : "max-w-md";
+  const max = size === "lg" ? "max-w-xl" : "max-w-md";
+  
   return (
-    <div className="flex min-h-full flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6">
-      <div
-        className={`w-full ${max} rounded-2xl border border-stone-200/80 bg-white/85 p-8 shadow-[0_24px_64px_-24px_rgba(28,25,23,0.18)] backdrop-blur-md`}
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className={`w-full ${max} relative`}
       >
-        {children}
-      </div>
+        <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-emerald-500/20 to-violet-500/10 blur-2xl opacity-50" />
+        
+        <div className="relative bento-card border-white/5 bg-zinc-900/40 p-8 sm:p-12 shadow-2xl backdrop-blur-3xl overflow-visible">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-24 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+          {children}
+        </div>
+      </motion.div>
     </div>
   );
 }

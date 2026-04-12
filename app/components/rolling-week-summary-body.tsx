@@ -8,6 +8,7 @@ import {
 import { loggingRhythmBlurb } from "@/lib/meals/logging-rhythm-blurb";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
 import { tryThisWeekSuggestion } from "@/lib/meals/try-this-week-suggestion";
+import { TrendingUp, Calendar, Zap, Target } from "lucide-react";
 
 export type RollingWeekSummaryData = {
   mealCount: number;
@@ -54,79 +55,62 @@ export function RollingWeekSummaryBody({
   );
 
   return (
-    <div className="mt-2 space-y-2 text-sm text-stone-700">
-      <p>
-        <span className="font-semibold tabular-nums text-stone-900">
-          {Math.round(data.averages.kcalPerDay)}
-        </span>{" "}
-        <span className="text-stone-600">
-          kcal/day average
-          {dailyTargetKcal != null ? (
-            <>
-              {" "}
-              <span className="text-stone-500">
-                (vs ~{Math.round(dailyTargetKcal)} kcal goal)
-              </span>
-            </>
-          ) : null}
-        </span>
-      </p>
-      {dailyTargetKcal != null && dailyTargetKcal > 0 ? (
-        <p className="text-xs leading-relaxed text-stone-600">
-          {calorieGoalBlurb(data.averages.kcalPerDay, dailyTargetKcal)}
-        </p>
-      ) : null}
-      <p className="text-xs text-stone-600">
-        <span className="font-medium tabular-nums text-stone-800">
-          {data.daysWithLogs}
-        </span>
-        {" of "}
-        <span className="tabular-nums">{data.daysInWindow}</span> days with a
-        log
-      </p>
-      <p className="text-xs leading-relaxed text-stone-600">
-        {loggingRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
-      </p>
-      {tryThisWeek ? (
-        <p className="text-xs leading-relaxed text-stone-700">
-          <span className="font-semibold text-emerald-900/90">
-            Try this week:{" "}
-          </span>
-          {tryThisWeek}
-        </p>
-      ) : null}
-      <p className="text-xs text-stone-600">
-        <span className="font-medium text-stone-800">
-          {Math.round(data.totals.protein_g)}g
-        </span>{" "}
-        protein over {data.daysInWindow} days
-        {dailyTargetProteinG != null && dailyTargetProteinG > 0 ? (
-          <>
-            {" "}
-            <span className="text-stone-500">
-              (~{Math.round(data.averages.proteinGPerDay)}g/day avg vs ~
-              {Math.round(dailyTargetProteinG)}g goal)
-            </span>
-          </>
-        ) : null}
-        {" · "}
-        <span className="font-medium tabular-nums text-stone-800">
-          {data.mealCount}
-        </span>{" "}
-        meal{data.mealCount === 1 ? "" : "s"} logged
-      </p>
-      {dailyTargetProteinG != null && dailyTargetProteinG > 0 ? (
-        <p className="text-xs leading-relaxed text-stone-600">
-          {proteinGoalBlurb(
-            data.averages.proteinGPerDay,
-            dailyTargetProteinG,
-          )}
-        </p>
-      ) : null}
-      <p className="text-[11px] leading-relaxed text-stone-500">
-        Averages divide totals across {data.daysInWindow} calendar days
-        (including days with nothing logged).
-      </p>
+    <div className="mt-4 space-y-4">
+      <div className="flex items-start gap-4">
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+          <TrendingUp className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-white">
+            {Math.round(data.averages.kcalPerDay)} kcal/day
+          </p>
+          <p className="text-[11px] leading-tight text-zinc-500">
+            {dailyTargetKcal != null && dailyTargetKcal > 0 
+              ? calorieGoalBlurb(data.averages.kcalPerDay, dailyTargetKcal)
+              : "Rolling 7-day average"}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-4">
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+          <Calendar className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-white">
+            {data.daysWithLogs} of {data.daysInWindow} days
+          </p>
+          <p className="text-[11px] leading-tight text-zinc-500">
+            {loggingRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
+          </p>
+        </div>
+      </div>
+
+      {tryThisWeek && (
+        <div className="rounded-2xl bg-emerald-500/5 p-4 ring-1 ring-emerald-500/20">
+          <div className="mb-2 flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">Weekly Focus</span>
+          </div>
+          <p className="text-xs font-medium italic text-zinc-300">
+            &quot;{tryThisWeek}&quot;
+          </p>
+        </div>
+      )}
+
+      <div className="flex items-start gap-4">
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+          <Target className="h-4 w-4" />
+        </div>
+        <div>
+          <p className="text-sm font-bold text-white">
+            {Math.round(data.totals.protein_g)}g Protein Total
+          </p>
+          <p className="text-[11px] leading-tight text-zinc-500">
+            Average: {Math.round(data.averages.proteinGPerDay)}g/day · {data.mealCount} meals
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

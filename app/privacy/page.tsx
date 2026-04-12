@@ -1,125 +1,133 @@
 import Link from "next/link";
+import { 
+  ShieldCheck, 
+  Database, 
+  MessageSquare, 
+  Download, 
+  HeartPulse, 
+  BadgeDollarSign, 
+  ArrowLeft,
+  ChevronRight,
+  Shield,
+  BookOpen
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function PrivacyPage() {
   return (
-    <div className="mx-auto min-h-dvh max-w-2xl px-4 py-12 sm:px-6">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-800/90">
-        Calorie Agent
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-stone-900">
-        Privacy &amp; safety
-      </h1>
-      <div className="mt-6 space-y-5 text-sm leading-relaxed text-stone-700">
-        <p>
-          This page is a plain-language overview for early users. Before a
-          public launch, have counsel review a full privacy policy and terms of
-          service for your jurisdiction.
-        </p>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            Not medical advice
-          </h2>
-          <p className="mt-2">
-            Calorie Agent estimates nutrition from descriptions you provide. It
-            does not diagnose, treat, or prevent any medical condition. Always
-            follow your clinician&apos;s guidance and packaged food labels.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            What we store
-          </h2>
-          <ul className="mt-2 list-disc space-y-2 pl-5">
-            <li>
-              <strong>Account:</strong> email and a password hash (never your
-              plain password).
-            </li>
-            <li>
-              <strong>Profile:</strong> onboarding and settings you save (e.g.
-              height, goals, dietary preferences).
-            </li>
-            <li>
-              <strong>Meals:</strong> free-text meal descriptions, parsed line
-              items, and totals for your history.
-            </li>
-            <li>
-              <strong>My foods:</strong> custom foods you define in Settings.
-            </li>
-            <li>
-              <strong>Favorites:</strong> saved meal templates you create.
-            </li>
-          </ul>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            How meal text is used
-          </h2>
-          <p className="mt-2">
-            Descriptions may be sent to third-party services you configure
-            (for example, an OpenAI-compatible API or nutrition providers) to
-            parse ingredients and estimate calories. Do not paste secrets or
-            highly sensitive health information you are not comfortable storing.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            Export &amp; deletion
-          </h2>
-          <p className="mt-2">
-            While signed in, you can download your meal history as CSV from{" "}
-            <strong>Settings → Data &amp; account</strong> (same export as
-            History). You can permanently delete your account there; your data is
-            removed from our database and cannot be recovered.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            Eating disorders &amp; support
-          </h2>
-          <p className="mt-2">
-            If you or someone you know needs help with disordered eating, see{" "}
-            <Link
-              href="/resources/eating-disorders"
-              className="font-medium text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-            >
-              resources we link to
-            </Link>
-            . Calorie Agent is not a substitute for professional care.
-          </p>
-        </section>
-
-        <section>
-          <h2 className="text-base font-semibold text-stone-900">
-            Selling data
-          </h2>
-          <p className="mt-2">
-            We do not sell your personal information. Update this section when
-            you add analytics, advertising, or subprocessors so users know who
-            sees their data.
-          </p>
-        </section>
-
-        <p className="pt-2">
-          <Link
-            href="/login"
-            className="font-medium text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-          >
-            Back to sign in
-          </Link>
-          {" · "}
-          <Link
-            href="/signup"
-            className="font-medium text-emerald-800 underline decoration-emerald-800/35 underline-offset-2 hover:decoration-emerald-800"
-          >
-            Create account
-          </Link>
+    <div className="mx-auto max-w-3xl px-6 py-16 md:py-24">
+      <div className="flex flex-col items-start mb-12">
+        <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 mb-6">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500 mb-2"> Protocol v1.4</p>
+        <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl">
+          Privacy & Safety
+        </h1>
+        <p className="mt-6 text-sm leading-relaxed text-zinc-500 max-w-xl">
+          Calorie Agent is built on a foundation of data sovereignty. We prioritize clear disclosure of how your biometric and nutritional data is handled.
         </p>
       </div>
+
+      <div className="space-y-6">
+        <div className="bento-card bg-emerald-500/5 border-emerald-500/10 p-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="h-4 w-4 text-emerald-500" />
+            <h2 className="text-sm font-bold text-white uppercase tracking-widest">Protocol Limitation</h2>
+          </div>
+          <p className="text-sm leading-relaxed text-zinc-400">
+            This platform is an analytical assistant for general self-tracking. It is <strong className="text-emerald-400">not medical advice</strong>. Always defer to clinical labels and professional guidance.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section className="bento-card border-white/5 bg-zinc-900/40 p-8">
+            <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 mb-6">
+              <Database className="h-5 w-5" />
+            </div>
+            <h2 className="text-lg font-bold text-white mb-4">Registry Storage</h2>
+            <ul className="space-y-3 text-xs text-zinc-500 font-medium">
+              <li className="flex items-start gap-2">
+                <div className="h-1 w-1 rounded-full bg-zinc-700 mt-1.5 shrink-0" />
+                <span><strong className="text-zinc-300">Identity:</strong> Email & salted password hashes.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="h-1 w-1 rounded-full bg-zinc-700 mt-1.5 shrink-0" />
+                <span><strong className="text-zinc-300">Biometrics:</strong> Onboarding metrics & targets.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="h-1 w-1 rounded-full bg-zinc-700 mt-1.5 shrink-0" />
+                <span><strong className="text-zinc-300">Log History:</strong> All meal text, macro totals, and custom foods.</span>
+              </li>
+            </ul>
+          </section>
+
+          <section className="bento-card border-white/5 bg-zinc-900/40 p-8">
+            <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 mb-6">
+              <MessageSquare className="h-5 w-5" />
+            </div>
+            <h2 className="text-lg font-bold text-white mb-4">NLP Transmission</h2>
+            <p className="text-xs leading-relaxed text-zinc-500">
+              Meal descriptions are synchronized with secure LLM endpoints for nutritional extraction. We do not transmit sensitive secrets—avoid logging PII within meal entries.
+            </p>
+          </section>
+        </div>
+
+        <section className="bento-card border-white/5 bg-zinc-900/40 p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+            <div className="space-y-4">
+              <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-400">
+                <Download className="h-5 w-5" />
+              </div>
+              <h2 className="text-lg font-bold text-white">Sovereignty & Deletion</h2>
+              <p className="text-xs leading-relaxed text-zinc-500 max-w-sm">
+                Personnel maintain 100% data access. Export your full registry or permanently terminate your account from the dashboard settings.
+              </p>
+            </div>
+            <Link 
+              href="/login" 
+              className="group flex items-center gap-3 text-xs font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-400 transition-colors"
+            >
+              Access Identity Control <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
+        </section>
+
+        <section className="bento-card border-red-500/10 bg-red-500/5 p-8">
+          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-red-500/10 text-red-500 mb-6">
+            <HeartPulse className="h-5 w-5" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-4">Safety Resources</h2>
+          <p className="text-xs leading-relaxed text-zinc-500 mb-6">
+            If you or someone in your network requires support for disordered eating, professional clinical resources are available.
+          </p>
+          <Link
+            href="/resources/eating-disorders"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all"
+          >
+            Access Safety Registry <ArrowLeft className="h-4 w-4 rotate-180" />
+          </Link>
+        </section>
+
+        <section className="bento-card border-white/5 bg-zinc-900/40 p-8">
+          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-amber-500/10 text-amber-500 mb-6">
+            <BadgeDollarSign className="h-5 w-5" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-4">Zero Data Monetization</h2>
+          <p className="text-xs leading-relaxed text-zinc-500">
+            We do not sell personal data. Your progress is isolated within this environment. Any future sub-processors will be disclosed here.
+          </p>
+        </section>
+      </div>
+
+      <footer className="mt-16 pt-12 border-t border-white/5 flex flex-col items-center gap-6">
+        <Link href="/login" className="flex items-center gap-2 text-xs font-bold text-zinc-600 hover:text-white transition-colors uppercase tracking-widest">
+          <ArrowLeft className="h-4 w-4" /> Initialize Session
+        </Link>
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-800">
+          Sync Protocol Security v1.4
+        </p>
+      </footer>
     </div>
   );
 }

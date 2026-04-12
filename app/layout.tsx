@@ -18,7 +18,6 @@ export const metadata: Metadata = {
   title: "Calorie Agent",
   description:
     "Describe meals in plain language — calories from USDA-backed nutrition data.",
-  manifest: "/manifest.json",
   icons: {
     icon: "/icon-192x192.svg",
     apple: "/icon-192x192.svg",
@@ -44,7 +43,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} min-h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} min-h-full antialiased dark`}
+      style={{ colorScheme: "dark" }}
     >
       <head>
         <link rel="apple-touch-icon" href="/icon-192x192.svg" />
@@ -55,7 +55,7 @@ export default function RootLayout({
         />
         <meta name="apple-mobile-web-app-title" content="Calorie Agent" />
       </head>
-      <body className="flex min-h-full min-h-dvh flex-col font-sans text-stone-900">
+      <body className="flex min-h-full min-h-dvh flex-col font-sans">
         <Providers>
           <PwaRegistration />
           {children}
