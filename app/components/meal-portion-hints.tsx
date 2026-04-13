@@ -61,6 +61,5 @@ export function MealPortionHints() {
         </p>
       </div>
     </details>
-    </details>
   );
 }

@@ -21,6 +21,10 @@ export type RollingWeekSummaryData = {
     kcalPerDay: number;
     proteinGPerDay: number;
   };
+  drifts?: {
+    weekendAvgKcal: number | null;
+    weekdayAvgKcal: number | null;
+  };
 };
 
 type RollingWeekSummaryBodyProps = {
