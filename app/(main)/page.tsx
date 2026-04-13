@@ -12,6 +12,7 @@ export default async function HomePage() {
   let profile: {
     targetKcal: unknown;
     targetProteinG: unknown;
+    loggingStyle: string | null;
     weeklyCoachingFocus: string | null;
     unitSystem: string | null;
   } | null = null;
