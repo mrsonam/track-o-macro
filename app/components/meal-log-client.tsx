@@ -62,9 +62,13 @@ import {
   MoreHorizontal,
   Trash2,
   Edit2,
-  AlertCircle
+  AlertCircle,
+  Scale
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { type UnitSystem } from "@/lib/profile/units";
+import { WeightLogCard } from "./weight-log-card";
+import { AdaptiveTargetCard } from "./adaptive-target-card";
 
 type LogInputMode = "free" | "composer";
 
@@ -78,6 +82,9 @@ type AnalyzeResponse = {
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g: number;
+    sodium_mg: number;
+    sugar_g: number;
   };
 };
 
@@ -99,6 +106,7 @@ type MealLogClientProps = {
   dailyTargetProteinG?: number | null;
   loggingStyle?: LoggingStyle | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
+  unitSystem?: UnitSystem;
   savedMeals?: SavedMealItem[];
   recentMeals?: RecentMealItem[];
 };
@@ -139,13 +147,19 @@ export function MealLogClient({
   dailyTargetProteinG = null,
   loggingStyle = null,
   weeklyCoachingFocus = null,
+  unitSystem = "metric",
   savedMeals = [],
   recentMeals = [],
 }: MealLogClientProps) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [loggingSavedId, setLoggingSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
@@ -470,12 +484,13 @@ export function MealLogClient({
       setLastLoggedRaw(trimmed);
       setTodayKey((k) => k + 1);
       setSelectedDateKey(formatLocalYmd(new Date()));
-      if (mode === "form" && logInputMode === "composer") {
+      
+      // Clear inputs on successful log
+      if (mode === "form") {
+        setText("");
         setComposerRows([newComposerRow(), newComposerRow()]);
       }
-      if (mode !== "form") {
-        setText("");
-      }
+      
       router.refresh();
     } catch {
       await enqueueAnalyze(trimmed);
@@ -657,7 +672,7 @@ export function MealLogClient({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 pb-24 pt-8 sm:px-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-8 sm:px-6">
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -673,10 +688,12 @@ export function MealLogClient({
             summariesByKey={summariesByKey}
             batchLoading={weekBatchLoading}
           />
+
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent my-2" />
           
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            {/* Primary Metrics Card */}
-            <div className="lg:col-span-8">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+            {/* Primary Metrics & Action Column */}
+            <div className="lg:col-span-8 space-y-8">
               <DaySummaryCard
                 dateKey={selectedDateKey}
                 dailyTargetKcal={dailyTargetKcal}
@@ -685,10 +702,248 @@ export function MealLogClient({
                 batchError={weekBatchError}
                 summary={summariesByKey[selectedDateKey]}
               />
+
+              {/* Injected Log Meal Section for Balance */}
+              <motion.div 
+                layout
+                className="rounded-3xl glass-pane p-1 shadow-2xl overflow-hidden"
+              >
+                <div className="p-4 sm:p-6 lg:p-8">
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400">
+                        <Plus className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Log Meal</h2>
+                        <p className="text-xs text-zinc-400">Natural language analysis</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/50 p-1">
+                      <button
+                        onClick={() => switchInputMode("free")}
+                        className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                          logInputMode === "free" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        <Keyboard className="h-3.5 w-3.5" />
+                        Free
+                      </button>
+                      <button
+                        onClick={() => switchInputMode("composer")}
+                        className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                          logInputMode === "composer" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                        }`}
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                        Build
+                      </button>
+                    </div>
+                  </div>
+
+                  <form onSubmit={onSubmit} className="flex flex-col gap-6">
+                    <div className="relative">
+                      {logInputMode === "free" ? (
+                        <textarea
+                          ref={textareaRef}
+                          value={text}
+                          onChange={(e) => setText(e.target.value)}
+                          rows={4}
+                          placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
+                          className="w-full resize-none rounded-3xl border border-white/5 bg-zinc-950/50 px-6 py-5 text-lg leading-relaxed text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none focus:ring-4 focus:ring-emerald-500/5"
+                        />
+                      ) : (
+                        <MealItemComposer
+                          rows={composerRows}
+                          onChange={setComposerRows}
+                          disabled={busy}
+                        />
+                      )}
+                      
+                      {/* Visual Feedback Line */}
+                      <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+                    </div>
+
+                    <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AnimatePresence>
+                          {lastLoggedRaw && (
+                            <motion.button
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              type="button"
+                              onClick={() => logAgain(lastLoggedRaw)}
+                              className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-700 hover:text-white"
+                            >
+                              <HistoryIcon className="h-3.5 w-3.5" />
+                              Repeat Last
+                            </motion.button>
+                          )}
+                        </AnimatePresence>
+                        
+                        {STARTER_QUICK_PATTERNS.slice(0, 3).map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => appendToMeal(p.text)}
+                            className="rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/10 hover:text-white"
+                          >
+                            + {p.label}
+                          </button>
+                        ))}
+                        
+                        <button
+                          type="button"
+                          className="h-8 w-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-colors"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <button
+                          type="button"
+                          disabled={!canSaveFavorite || busy}
+                          onClick={openSavePanel}
+                          className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 disabled:opacity-30 disabled:grayscale"
+                        >
+                          <Star className="h-3.5 w-3.5" />
+                          Save Favorite
+                        </button>
+                        
+                        <button
+                          type="submit"
+                          disabled={loading || !effectiveMealRaw.trim()}
+                          className="btn-primary min-w-[160px]"
+                        >
+                          {loading ? (
+                            <div className="flex items-center gap-2">
+                              <Zap className="h-4 w-4 animate-pulse" />
+                              Analyzing...
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <ChevronRight className="h-4 w-4" />
+                              Log Meal
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </motion.div>
+
+              {/* Inline Analysis Results */}
+              <AnimatePresence mode="wait">
+                {result && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="bento-card border border-emerald-500/20 bg-emerald-500/[0.02] p-6 lg:p-8">
+                      <div className="mb-6 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20">
+                            <Sparkles className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-white">Latest Analysis</h3>
+                            <p className="text-xs text-zinc-500">Nutritional breakdown for your last log</p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setResult(null)}
+                          className="rounded-full bg-white/5 p-2 text-zinc-400 hover:text-white transition-colors"
+                          title="Clear Result"
+                        >
+                          <Plus className="h-5 w-5 rotate-45" />
+                        </button>
+                      </div>
+
+                      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Calories</p>
+                          <p className="mt-1 text-2xl font-black text-white">{result.totals.kcal}<span className="text-xs font-medium ml-1 text-zinc-500">kcal</span></p>
+                        </div>
+                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Protein</p>
+                          <p className="mt-1 text-2xl font-black text-emerald-400">{result.totals.protein_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        </div>
+                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Carbs</p>
+                          <p className="mt-1 text-2xl font-black text-white/90">{result.totals.carbs_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        </div>
+                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Fat</p>
+                          <p className="mt-1 text-2xl font-black text-zinc-400">{result.totals.fat_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-1">Detailed Breakdown</p>
+                          <div className="space-y-3">
+                            {result.lines.map((line, i) => (
+                              <div key={i} className="flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5 group hover:bg-white/10 transition-colors">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-white mb-0.5">{line.label}</p>
+                                  <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-tighter">{line.quantity} {line.unit}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-black text-white">{line.kcal}<span className="text-[9px] ml-0.5 text-zinc-600">kcal</span></p>
+                                  <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                    <div className="h-1 w-1 rounded-full bg-emerald-500/40" />
+                                    <p className="text-[9px] text-emerald-500/60 uppercase font-black tracking-widest">{line.source}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-1">Secondary Metrics</p>
+                          <div className="space-y-3">
+                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
+                              <span className="text-xs font-bold text-zinc-500">Fiber</span>
+                              <p className="text-sm font-black text-emerald-400/80">{result.totals.fiber_g ?? 0}<span className="text-[10px] ml-0.5 font-bold">g</span></p>
+                            </div>
+                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
+                              <span className="text-xs font-bold text-zinc-500">Sodium</span>
+                              <p className="text-sm font-black text-zinc-300">{Math.round(result.totals.sodium_mg ?? 0)}<span className="text-[10px] ml-0.5 font-bold uppercase">mg</span></p>
+                            </div>
+                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
+                              <span className="text-xs font-bold text-zinc-500">Sugar</span>
+                              <p className="text-sm font-black text-zinc-500">{result.totals.sugar_g ?? 0}<span className="text-[10px] ml-0.5 font-bold">g</span></p>
+                            </div>
+                          </div>
+                          
+                          {result.assumptions && result.assumptions.length > 0 && (
+                            <div className="mt-6 rounded-2xl bg-amber-500/5 p-4 border border-amber-500/10">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-2">Analysis Assumptions</p>
+                              <ul className="space-y-1.5">
+                                {result.assumptions.map((a, i) => (
+                                  <li key={i} className="text-[10px] leading-relaxed text-amber-200/50">• {a}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             
-            {/* Insights Card */}
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-4 space-y-6">
+              <WeightLogCard unitSystem={unitSystem} key={`weight-${todayKey}`} />
+              <AdaptiveTargetCard key={`adaptive-${todayKey}`} />
               <WeekInsightsCard
                 dailyTargetKcal={dailyTargetKcal}
                 dailyTargetProteinG={dailyTargetProteinG}
@@ -702,140 +957,6 @@ export function MealLogClient({
         </div>
       </motion.header>
 
-      {/* Main Command Bar Section */}
-      <section className="relative z-10 mb-12">
-        <motion.div 
-          layout
-          className="rounded-[2.5rem] glass-pane p-1 shadow-2xl overflow-hidden"
-        >
-          <div className="p-4 sm:p-6 lg:p-8">
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400">
-                  <Plus className="h-6 w-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Log Meal</h2>
-                  <p className="text-xs text-zinc-400">Natural language analysis</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/50 p-1">
-                <button
-                  onClick={() => switchInputMode("free")}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                    logInputMode === "free" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  <Keyboard className="h-3.5 w-3.5" />
-                  Free
-                </button>
-                <button
-                  onClick={() => switchInputMode("composer")}
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
-                    logInputMode === "composer" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  Build
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={onSubmit} className="flex flex-col gap-6">
-              <div className="relative">
-                {logInputMode === "free" ? (
-                  <textarea
-                    ref={textareaRef}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    rows={4}
-                    placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
-                    className="w-full resize-none rounded-3xl border border-white/5 bg-zinc-950/50 px-6 py-5 text-lg leading-relaxed text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none focus:ring-4 focus:ring-emerald-500/5"
-                  />
-                ) : (
-                  <MealItemComposer
-                    rows={composerRows}
-                    onChange={setComposerRows}
-                    disabled={busy}
-                  />
-                )}
-                
-                {/* Visual Feedback Line */}
-                <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
-              </div>
-
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <AnimatePresence>
-                    {lastLoggedRaw && (
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        type="button"
-                        onClick={() => logAgain(lastLoggedRaw)}
-                        className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-700 hover:text-white"
-                      >
-                        <HistoryIcon className="h-3.5 w-3.5" />
-                        Repeat Last
-                      </motion.button>
-                    )}
-                  </AnimatePresence>
-                  
-                  {STARTER_QUICK_PATTERNS.slice(0, 3).map((p) => (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => appendToMeal(p.text)}
-                      className="rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/10 hover:text-white"
-                    >
-                      + {p.label}
-                    </button>
-                  ))}
-                  
-                  <button
-                    type="button"
-                    className="h-8 w-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-colors"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    disabled={!canSaveFavorite || busy}
-                    onClick={openSavePanel}
-                    className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 disabled:opacity-30 disabled:grayscale"
-                  >
-                    <Star className="h-3.5 w-3.5" />
-                    Save Favorite
-                  </button>
-                  
-                  <button
-                    type="submit"
-                    disabled={loading || !effectiveMealRaw.trim()}
-                    className="btn-primary min-w-[160px]"
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <Zap className="h-4 w-4 animate-pulse" />
-                        Analyzing...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <ChevronRight className="h-4 w-4" />
-                        Log Meal
-                      </div>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </motion.div>
-      </section>
 
       {/* Analysis Error / Queue Alerts */}
       <AnimatePresence>
@@ -897,7 +1018,7 @@ export function MealLogClient({
                   <p className="mt-1 text-xs text-zinc-500">
                     <span className="font-bold text-emerald-500">{Math.round(m.totalKcal)} kcal</span>
                     <span className="mx-2 opacity-20">|</span>
-                    {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {isMounted ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"}
                   </p>
                 </div>
                 <button 
@@ -965,70 +1086,6 @@ export function MealLogClient({
         </div>
       </section>
 
-      {/* Analysis Results Overlay */}
-      <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed inset-x-4 bottom-24 z-30 mx-auto w-full max-w-2xl"
-          >
-            <div className="rounded-[2.5rem] border border-emerald-500/20 bg-zinc-950 p-6 shadow-2xl ring-1 ring-white/10">
-              <div className="mb-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20">
-                    <Sparkles className="h-5 w-5" />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Analysis Result</h3>
-                </div>
-                <button 
-                  onClick={() => setResult(null)}
-                  className="rounded-full bg-zinc-900 p-2 text-zinc-400 hover:text-white"
-                >
-                  <Plus className="h-5 w-5 rotate-45" />
-                </button>
-              </div>
-
-              <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Calories</p>
-                  <p className="mt-1 text-2xl font-black text-white">{result.totals.kcal}<span className="text-xs font-medium ml-1 text-zinc-500">kcal</span></p>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Protein</p>
-                  <p className="mt-1 text-2xl font-black text-emerald-400">{result.totals.protein_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Carbs</p>
-                  <p className="mt-1 text-2xl font-black text-lime-400">{result.totals.carbs_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Fat</p>
-                  <p className="mt-1 text-2xl font-black text-amber-400">{result.totals.fat_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
-                </div>
-              </div>
-
-              <div className="max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                <ul className="space-y-3">
-                  {result.lines.map((line, i) => (
-                    <li key={i} className="flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-white">{line.label}</p>
-                        <p className="text-[10px] text-zinc-500">{line.quantity}{line.unit}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-white">{line.kcal} kcal</p>
-                        <p className="text-[10px] text-emerald-500/80 uppercase font-black tracking-tighter">{line.source}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Save Panel Popover */}
       <AnimatePresence>

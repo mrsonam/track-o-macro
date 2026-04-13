@@ -318,7 +318,7 @@ export function OnboardingWizard() {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg shadow-lg shadow-emerald-500/20" />
-            <span className="font-black tracking-tighter text-xl">CALORIE AGENT</span>
+            <span className="font-black tracking-tighter text-xl">TRACKOMACRO</span>
           </div>
           <button
             onClick={() => void onSignOut()}
@@ -589,7 +589,7 @@ export function OnboardingWizard() {
                     <ul className="space-y-6">
                       <li className="flex gap-4">
                         <Lock className="h-5 w-5 text-zinc-700 shrink-0" />
-                        <p className="text-sm text-zinc-400">Calorie Agent is a tracking assistant, not a clinical diagnostic tool.</p>
+                        <p className="text-sm text-zinc-400">TrackOMacro is a tracking assistant, not a clinical diagnostic tool.</p>
                       </li>
                       <li className="flex gap-4">
                         <Shield className="h-5 w-5 text-zinc-700 shrink-0" />

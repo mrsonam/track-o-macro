@@ -70,8 +70,8 @@ export function AccountDataPanel() {
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <p className="text-sm text-zinc-500 leading-relaxed">
-              Calorie Agent is a research-grade tracking tool. Data is stored securely and used only for analysis within your profile.
+            <p className="text-xs leading-relaxed text-zinc-500">
+              TrackOMacro is a research-grade tracking tool. Data is stored securely and used only for analysis within your profile.
             </p>
             <Link 
               href="/privacy" 

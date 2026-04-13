@@ -74,6 +74,8 @@ const patchBodySchema = z.object({
     .enum(["protein", "vegetables", "hydration", "steady_calories"])
     .optional()
     .nullable(),
+  unitSystem: z.enum(["metric", "imperial"]).optional(),
+  targetKcal: z.number().min(800).max(10000).optional().nullable(),
 });
 
 export async function GET() {
@@ -232,6 +234,7 @@ export async function PATCH(request: Request) {
     data.goalPace !== undefined ||
     data.targetProteinG !== undefined ||
     data.weeklyCoachingFocus !== undefined ||
+    data.unitSystem !== undefined ||
     hasPreferenceFields;
 
   if (hasSettingsFields) {
@@ -260,7 +263,9 @@ export async function PATCH(request: Request) {
 
     let bmrKcal = existing?.bmrKcal ?? null;
     let tdeeKcal = existing?.tdeeKcal ?? null;
-    let targetKcal = existing?.targetKcal ?? null;
+    let targetKcal = data.targetKcal !== undefined 
+      ? (data.targetKcal ? new Prisma.Decimal(data.targetKcal) : null)
+      : existing?.targetKcal ?? null;
 
     if (
       h != null &&
@@ -268,7 +273,8 @@ export async function PATCH(request: Request) {
       a != null &&
       s != null &&
       act != null &&
-      g != null
+      g != null &&
+      data.targetKcal === undefined // Only recompute if not providing a manual override
     ) {
       const t = computeTargets({
         heightCm: h,
@@ -341,6 +347,7 @@ export async function PATCH(request: Request) {
         bmrKcal: bmrKcal ?? undefined,
         tdeeKcal: tdeeKcal ?? undefined,
         targetKcal: targetKcal ?? undefined,
+        unitSystem: data.unitSystem ?? undefined,
       },
       update: {
         onboardingStep: nextStep,
@@ -367,6 +374,7 @@ export async function PATCH(request: Request) {
         ...(nextWeeklyCoachingFocus !== undefined
           ? { weeklyCoachingFocus: nextWeeklyCoachingFocus }
           : {}),
+        ...(data.unitSystem !== undefined ? { unitSystem: data.unitSystem } : {}),
         ...(bmrKcal != null ? { bmrKcal } : {}),
         ...(tdeeKcal != null ? { tdeeKcal } : {}),
         ...(targetKcal != null ? { targetKcal } : {}),

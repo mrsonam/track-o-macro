@@ -25,7 +25,7 @@ export default function PrivacyPage() {
           Privacy & Safety
         </h1>
         <p className="mt-6 text-sm leading-relaxed text-zinc-500 max-w-xl">
-          Calorie Agent is built on a foundation of data sovereignty. We prioritize clear disclosure of how your biometric and nutritional data is handled.
+          TrackOMacro is built on a foundation of data sovereignty. We prioritize clear disclosure of how your biometric and nutritional data is handled.
         </p>
       </div>
 

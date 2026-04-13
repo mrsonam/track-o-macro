@@ -44,6 +44,9 @@ export async function GET(request: Request) {
         totalProteinG: true,
         totalCarbsG: true,
         totalFatG: true,
+        totalFiberG: true,
+        totalSodiumMg: true,
+        totalSugarG: true,
       },
       _count: { _all: true },
     });
@@ -52,6 +55,9 @@ export async function GET(request: Request) {
     const protein_g = Number(agg._sum.totalProteinG ?? 0);
     const carbs_g = Number(agg._sum.totalCarbsG ?? 0);
     const fat_g = Number(agg._sum.totalFatG ?? 0);
+    const fiber_g = Number(agg._sum.totalFiberG ?? 0);
+    const sodium_mg = Number(agg._sum.totalSodiumMg ?? 0);
+    const sugar_g = Number(agg._sum.totalSugarG ?? 0);
 
     return NextResponse.json({
       from: fromD.toISOString(),
@@ -62,6 +68,9 @@ export async function GET(request: Request) {
         protein_g: Math.round(protein_g * 10) / 10,
         carbs_g: Math.round(carbs_g * 10) / 10,
         fat_g: Math.round(fat_g * 10) / 10,
+        fiber_g: Math.round(fiber_g * 10) / 10,
+        sodium_mg: Math.round(sodium_mg),
+        sugar_g: Math.round(sugar_g * 10) / 10,
       },
     });
   } catch (e) {

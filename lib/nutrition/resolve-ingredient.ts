@@ -10,6 +10,9 @@ export type ResolvedLine = {
   protein_g: number;
   carbs_g: number;
   fat_g: number;
+  fiber_g?: number;
+  sodium_mg?: number;
+  sugar_g?: number;
   fdc_id: number | null;
   source: "fdc" | "estimate" | "custom";
   detail: Record<string, unknown>;
@@ -30,6 +33,9 @@ export type UserFoodResolveInput = {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  fiberPer100g?: number;
+  sodiumPer100g?: number;
+  sugarPer100g?: number;
   version: number;
 };
 
@@ -71,6 +77,9 @@ export function lineFromUserFood(
     protein_g: round1(uf.proteinPer100g * factor),
     carbs_g: round1(uf.carbsPer100g * factor),
     fat_g: round1(uf.fatPer100g * factor),
+    fiber_g: uf.fiberPer100g ? round1(uf.fiberPer100g * factor) : undefined,
+    sodium_mg: uf.sodiumPer100g ? round1(uf.sodiumPer100g * factor) : undefined,
+    sugar_g: uf.sugarPer100g ? round1(uf.sugarPer100g * factor) : undefined,
     fdc_id: null,
     source: "custom",
     detail: {
@@ -116,6 +125,9 @@ export function applyUserFoodOverridesToLines(
       protein_g: round1(matched.proteinPer100g * factor),
       carbs_g: round1(matched.carbsPer100g * factor),
       fat_g: round1(matched.fatPer100g * factor),
+      fiber_g: matched.fiberPer100g ? round1(matched.fiberPer100g * factor) : undefined,
+      sodium_mg: matched.sodiumPer100g ? round1(matched.sodiumPer100g * factor) : undefined,
+      sugar_g: matched.sugarPer100g ? round1(matched.sugarPer100g * factor) : undefined,
       fdc_id: null,
       source: "custom",
       detail: {
@@ -222,6 +234,9 @@ async function resolveRemoteIngredientLines(
         protein_g: Math.round((n.protein ?? 0) * 10) / 10,
         carbs_g: Math.round((n.carbohydrates ?? 0) * 10) / 10,
         fat_g: Math.round((n.total_fat ?? 0) * 10) / 10,
+        fiber_g: n.fiber != null ? Math.round(n.fiber * 10) / 10 : undefined,
+        sodium_mg: n.sodium != null ? Math.round(n.sodium) : undefined,
+        sugar_g: n.sugars != null ? Math.round(n.sugars * 10) / 10 : undefined,
         fdc_id: fdcId != null ? fdcId : null,
         source: fdcId != null ? "fdc" : "estimate",
         detail: {
@@ -292,6 +307,9 @@ async function fallbackEstimate(
       protein_g: est.protein_g ?? 0,
       carbs_g: est.carbs_g ?? 0,
       fat_g: est.fat_g ?? 0,
+      fiber_g: est.fiber_g,
+      sodium_mg: est.sodium_mg,
+      sugar_g: est.sugar_g,
       fdc_id: null,
       source: "estimate",
       detail: {

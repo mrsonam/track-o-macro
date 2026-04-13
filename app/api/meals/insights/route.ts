@@ -70,15 +70,42 @@ export async function GET(request: Request) {
     const fat_g = Number(agg._sum.totalFatG ?? 0);
     const mealCount = agg._count._all;
 
-    const avgKcalPerDay =
-      Math.round((kcal / windowDays) * 10) / 10;
-    const avgProteinPerDay =
-      Math.round((protein_g / windowDays) * 10) / 10;
+    const avgKcalPerDay = Math.round((kcal / windowDays) * 10) / 10;
+    const avgProteinPerDay = Math.round((protein_g / windowDays) * 10) / 10;
 
+    // Weekend Drift Analysis (Sat/Sun vs Mon-Fri)
     const tzRaw = url.searchParams.get("timeZone");
-    const timeZone =
-      tzRaw && isValidIanaTimeZone(tzRaw) ? tzRaw : "UTC";
+    const timeZone = tzRaw && isValidIanaTimeZone(tzRaw) ? tzRaw : "UTC";
 
+    const dayBuckets = await prisma.$queryRaw<{ day_of_week: number; kcal: number }[]>`
+      SELECT 
+        EXTRACT(DOW FROM timezone(${timeZone}, m.created_at))::int as day_of_week,
+        SUM(m.total_kcal)::float as kcal
+      FROM meals m
+      WHERE m.user_id = ${session.user.id}::uuid
+        AND m.created_at >= ${fromD}
+        AND m.created_at < ${toD}
+      GROUP BY day_of_week
+    `;
+
+    const weekendKcal = dayBuckets
+      .filter((b) => b.day_of_week === 0 || b.day_of_week === 6)
+      .reduce((s, b) => s + b.kcal, 0);
+    const weekdayKcal = dayBuckets
+      .filter((b) => b.day_of_week >= 1 && b.day_of_week <= 5)
+      .reduce((s, b) => s + b.kcal, 0);
+
+    // Number of days in this window that fall on weekend vs weekday
+    let weekendsCount = 0;
+    let weekdaysCount = 0;
+    for (let i = 0; i < windowDays; i++) {
+      const d = new Date(fromD.getTime() + i * 24 * 60 * 60 * 1000);
+      const dow = d.getDay(); // 0 is Sunday, 6 is Saturday
+      if (dow === 0 || dow === 6) weekendsCount++;
+      else weekdaysCount++;
+    }
+
+    // Days with logs calculation
     let daysWithLogs = 0;
     if (mealCount > 0) {
       const countRows = await prisma.$queryRaw<{ c: bigint }[]>`
@@ -109,6 +136,10 @@ export async function GET(request: Request) {
       averages: {
         kcalPerDay: avgKcalPerDay,
         proteinGPerDay: avgProteinPerDay,
+      },
+      drifts: {
+        weekendAvgKcal: weekendsCount > 0 ? Math.round(weekendKcal / weekendsCount) : null,
+        weekdayAvgKcal: weekdaysCount > 0 ? Math.round(weekdayKcal / weekdaysCount) : null,
       },
     });
   } catch (e) {

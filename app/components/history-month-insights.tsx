@@ -24,10 +24,16 @@ type MonthPayload = {
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g: number;
+    sodium_mg: number;
+    sugar_g: number;
   };
   averages: {
     kcalPerDay: number;
     proteinGPerDay: number;
+    fiberGPerDay: number;
+    sodiumMgPerDay: number;
+    sugarGPerDay: number;
   };
 };
 
@@ -225,6 +231,60 @@ export function HistoryMonthInsights({
                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
                  {data.mealCount} Individual entries recorded in this period
                </p>
+            </div>
+
+            {/* Monthly Secondary Registry */}
+            <div className="pt-4 border-t border-white/5">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-[1px] flex-1 bg-white/5" />
+                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600">
+                  Monthly Telemetric Baseline
+                </p>
+                <div className="h-[1px] flex-1 bg-white/5" />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-zinc-950/30 p-5 border border-white/5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 block mb-2">Avg. Fiber</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-emerald-400/80">{Math.round(data.averages.fiberGPerDay)}</span>
+                    <span className="text-[10px] font-bold text-zinc-600 uppercase">g/day</span>
+                  </div>
+                  <div className="mt-2 text-[9px] font-bold text-zinc-700">{Math.round(data.totals.fiber_g)}g Total</div>
+                </div>
+                
+                <div className="rounded-2xl bg-zinc-950/30 p-5 border border-white/5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 block mb-2">Avg. Sodium</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-zinc-300">{Math.round(data.averages.sodiumMgPerDay)}</span>
+                    <span className="text-[10px] font-bold text-zinc-600 uppercase">mg/day</span>
+                  </div>
+                  <div className="mt-2 text-[9px] font-bold text-zinc-700">{Math.round(data.totals.sodium_mg / 1000)}k mg Total</div>
+                </div>
+
+                <div className="rounded-2xl bg-zinc-950/30 p-5 border border-white/5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 block mb-2">Avg. Sugar</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-zinc-500">{Math.round(data.averages.sugarGPerDay)}</span>
+                    <span className="text-[10px] font-bold text-zinc-600 uppercase">g/day</span>
+                  </div>
+                  <div className="mt-2 text-[9px] font-bold text-zinc-700">{Math.round(data.totals.sugar_g)}g Total</div>
+                </div>
+              </div>
+
+              {/* Monthly Intelligence */}
+              {(data.averages.sodiumMgPerDay > 2300 || data.averages.sugarGPerDay > 50) && (
+                <div className="mt-6 flex items-start gap-4 rounded-2xl bg-amber-500/5 p-4 border border-amber-500/10">
+                  <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+                    <AlertTriangle className="h-3 w-3" />
+                  </div>
+                  <p className="text-xs font-medium leading-relaxed text-amber-200/70">
+                    <span className="font-black text-amber-500 uppercase tracking-widest mr-2">Archive Feedback:</span>
+                    {data.averages.sodiumMgPerDay > 2300 && `Monthly sodium average (${Math.round(data.averages.sodiumMgPerDay)}mg) was above standard baseline. `}
+                    {data.averages.sugarGPerDay > 50 && "Average glycemic load was consistently high across this period."}
+                  </p>
+                </div>
+              )}
             </div>
           </motion.div>
         ) : null}

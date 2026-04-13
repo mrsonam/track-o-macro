@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Calorie Agent",
+  title: "TrackOMacro",
   description:
     "Describe meals in plain language — calories from USDA-backed nutrition data.",
   icons: {
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "Calorie Agent",
+    title: "TrackOMacro",
   },
 };
 
@@ -53,7 +53,7 @@ export default function RootLayout({
           name="apple-mobile-web-app-status-bar-style"
           content="default"
         />
-        <meta name="apple-mobile-web-app-title" content="Calorie Agent" />
+        <meta name="apple-mobile-web-app-title" content="TrackOMacro" />
       </head>
       <body className="flex min-h-full min-h-dvh flex-col font-sans">
         <Providers>

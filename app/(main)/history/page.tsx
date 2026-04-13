@@ -9,7 +9,9 @@ import { HistoryInsightsStrip } from "@/app/components/history-insights-strip";
 import { HistoryMonthInsights } from "@/app/components/history-month-insights";
 import { HISTORY_MEALS_PAGE_SIZE } from "@/lib/meals/history-meals-page";
 import { parseWeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
-import { History, PlusCircle, ArrowUpRight } from "lucide-react";
+import { History, PlusCircle, ArrowUpRight, Activity } from "lucide-react";
+import { BodyProgressHistory } from "@/app/components/body-progress-history";
+import { type UnitSystem } from "@/lib/profile/units";
 
 export default async function HistoryPage() {
   const session = await getSession();
@@ -21,6 +23,7 @@ export default async function HistoryPage() {
     targetKcal: unknown;
     targetProteinG: unknown;
     weeklyCoachingFocus: string | null;
+    unitSystem: string | null;
   } | null = null;
   let meals;
   let initialHasMore = false;
@@ -31,6 +34,7 @@ export default async function HistoryPage() {
         targetKcal: true,
         targetProteinG: true,
         weeklyCoachingFocus: true,
+        unitSystem: true,
       },
     });
     const mealRows = await prisma.meal.findMany({
@@ -99,6 +103,7 @@ export default async function HistoryPage() {
           dailyTargetKcal={dailyTargetKcal}
           dailyTargetProteinG={dailyTargetProteinG}
         />
+        <BodyProgressHistory unitSystem={(profile?.unitSystem as UnitSystem) ?? "metric"} />
       </div>
 
       <div className="relative">

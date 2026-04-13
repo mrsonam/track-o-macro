@@ -34,19 +34,19 @@ export function MealItemComposer({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs leading-relaxed text-stone-500">
-        Add one row per item. Amount and unit are turned into plain language
-        for analysis (same as typing in the box).
+      <p className="text-[11px] font-medium leading-relaxed text-zinc-500 max-w-sm">
+        Add one row per operational item. Parameters are tokenized and processed
+        into the main registry.
       </p>
       <ul className="space-y-3">
         {rows.map((row, index) => (
           <li
             key={row.id}
-            className="rounded-xl border border-stone-200/90 bg-white/90 p-3 shadow-sm"
+            className="rounded-2xl border border-white/5 bg-zinc-950/50 p-4 transition-all hover:bg-zinc-950/80"
           >
             <div className="flex flex-wrap items-end gap-2">
               <label className="min-w-[4.5rem] flex-1 sm:max-w-[6rem]">
-                <span className="mb-1 block text-[11px] font-medium text-stone-500">
+                <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.1em] text-zinc-600">
                   Amount
                 </span>
                 <input
@@ -61,7 +61,7 @@ export function MealItemComposer({
                 />
               </label>
               <label className="min-w-[8rem] flex-1 sm:max-w-[11rem]">
-                <span className="mb-1 block text-[11px] font-medium text-stone-500">
+                <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.1em] text-zinc-600">
                   Unit
                 </span>
                 <select
@@ -82,7 +82,7 @@ export function MealItemComposer({
                 </select>
               </label>
               <label className="min-w-[8rem] w-full flex-[2]">
-                <span className="mb-1 block text-[11px] font-medium text-stone-500">
+                <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.1em] text-zinc-600">
                   Food
                 </span>
                 <input
@@ -104,10 +104,10 @@ export function MealItemComposer({
                   type="button"
                   disabled={disabled || rows.length <= 1}
                   onClick={() => removeRow(row.id)}
-                  className="rounded-lg px-2 py-1.5 text-xs font-medium text-stone-500 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:bg-red-500/10 hover:text-red-400 transition-all disabled:opacity-20"
                   aria-label={`Remove item ${index + 1}`}
                 >
-                  Remove
+                  Terminate
                 </button>
               </div>
             </div>
@@ -118,9 +118,9 @@ export function MealItemComposer({
         type="button"
         disabled={disabled}
         onClick={addRow}
-        className="self-start rounded-lg border border-dashed border-emerald-300/90 bg-emerald-50/50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100/80 disabled:opacity-50"
+        className="self-start relative flex items-center gap-2 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/10 transition-all active:scale-[0.98] disabled:opacity-30"
       >
-        + Add item
+        <span className="text-sm">+</span> Add Entry Part
       </button>
     </div>
   );

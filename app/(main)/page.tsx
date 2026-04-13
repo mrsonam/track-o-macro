@@ -12,8 +12,8 @@ export default async function HomePage() {
   let profile: {
     targetKcal: unknown;
     targetProteinG: unknown;
-    loggingStyle: string | null;
     weeklyCoachingFocus: string | null;
+    unitSystem: string | null;
   } | null = null;
   let recentMeals: {
     id: string;
@@ -32,6 +32,7 @@ export default async function HomePage() {
           targetProteinG: true,
           loggingStyle: true,
           weeklyCoachingFocus: true,
+          unitSystem: true,
         },
       });
       recentMeals = await prisma.meal.findMany({
@@ -81,6 +82,7 @@ export default async function HomePage() {
       dailyTargetProteinG={dailyTargetProteinG}
       loggingStyle={loggingStyle}
       weeklyCoachingFocus={weeklyCoachingFocus}
+      unitSystem={(profile?.unitSystem as any) ?? "metric"}
       savedMeals={savedMeals}
       recentMeals={recentMeals.map((m) => ({
         id: m.id,

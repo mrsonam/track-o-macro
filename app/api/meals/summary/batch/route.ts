@@ -88,6 +88,9 @@ export async function POST(request: Request) {
               totalProteinG: true,
               totalCarbsG: true,
               totalFatG: true,
+              totalFiberG: true,
+              totalSodiumMg: true,
+              totalSugarG: true,
             },
             _count: { _all: true },
           });
@@ -96,6 +99,54 @@ export async function POST(request: Request) {
           const protein_g = Number(agg._sum.totalProteinG ?? 0);
           const carbs_g = Number(agg._sum.totalCarbsG ?? 0);
           const fat_g = Number(agg._sum.totalFatG ?? 0);
+          const fiber_g = Number(agg._sum.totalFiberG ?? 0);
+          const sodium_mg = Number(agg._sum.totalSodiumMg ?? 0);
+          const sugar_g = Number(agg._sum.totalSugarG ?? 0);
+
+          const drivers: {
+            kcal?: { rawInput: string; value: number };
+            sodium?: { rawInput: string; value: number };
+            sugar?: { rawInput: string; value: number };
+          } = {};
+
+          if (agg._count._all > 0) {
+            const [topKcal, topSodium, topSugar] = await Promise.all([
+              prisma.meal.findFirst({
+                where: { userId, createdAt: { gte: fromD, lt: toD } },
+                orderBy: { totalKcal: "desc" },
+                select: { rawInput: true, totalKcal: true },
+              }),
+              prisma.meal.findFirst({
+                where: { userId, createdAt: { gte: fromD, lt: toD } },
+                orderBy: { totalSodiumMg: "desc" },
+                select: { rawInput: true, totalSodiumMg: true },
+              }),
+              prisma.meal.findFirst({
+                where: { userId, createdAt: { gte: fromD, lt: toD } },
+                orderBy: { totalSugarG: "desc" },
+                select: { rawInput: true, totalSugarG: true },
+              }),
+            ]);
+
+            if (topKcal) {
+              drivers.kcal = {
+                rawInput: topKcal.rawInput,
+                value: Number(topKcal.totalKcal),
+              };
+            }
+            if (topSodium) {
+              drivers.sodium = {
+                rawInput: topSodium.rawInput,
+                value: Number(topSodium.totalSodiumMg),
+              };
+            }
+            if (topSugar) {
+              drivers.sugar = {
+                rawInput: topSugar.rawInput,
+                value: Number(topSugar.totalSugarG),
+              };
+            }
+          }
 
           return {
             ok: true as const,
@@ -105,7 +156,11 @@ export async function POST(request: Request) {
               protein_g: Math.round(protein_g * 10) / 10,
               carbs_g: Math.round(carbs_g * 10) / 10,
               fat_g: Math.round(fat_g * 10) / 10,
+              fiber_g: Math.round(fiber_g * 10) / 10,
+              sodium_mg: Math.round(sodium_mg),
+              sugar_g: Math.round(sugar_g * 10) / 10,
             },
+            drivers,
           };
         } catch {
           return { ok: false as const, error: "Query failed" };

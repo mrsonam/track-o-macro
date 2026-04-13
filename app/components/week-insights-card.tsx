@@ -26,14 +26,20 @@ export function WeekInsightsCard({
   data,
 }: WeekInsightsCardProps) {
   return (
-    <div className="mt-3 rounded-2xl border border-stone-200/90 bg-gradient-to-br from-white/95 to-emerald-50/40 px-4 py-3 shadow-sm shadow-stone-900/5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-        This week
-      </p>
+    <div className="bento-card relative overflow-hidden bg-zinc-900/40 border-white/5 p-6">
+      {/* Background Decorative Blur */}
+      <div className="absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-emerald-500/5 blur-[60px]" />
+      
+      <div className="flex items-center justify-between mb-6">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+          Registry Rhythms
+        </p>
+        <div className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+      </div>
       {loading ? (
-        <p className="mt-2 text-xs text-stone-400">Loading…</p>
+        <p className="mt-2 text-xs font-bold text-zinc-600 animate-pulse">Synchronizing records…</p>
       ) : batchError ? (
-        <p className="mt-2 text-xs text-red-700">{batchError}</p>
+        <p className="mt-2 text-xs font-bold text-red-400/80">{batchError}</p>
       ) : data ? (
         <RollingWeekSummaryBody
           data={data}

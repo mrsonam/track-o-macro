@@ -123,7 +123,7 @@ export default function SignupPage() {
           </div>
           
           <p className="text-[11px] leading-relaxed text-zinc-600">
-            Calorie Agent is a research-grade assistant, <strong className="text-zinc-400">not a substitute for medical care</strong>. By proceeding, you acknowledge this is not for medical diagnosis or treatment.
+            TrackOMacro is a research-grade assistant, <strong className="text-zinc-400">not a substitute for medical care</strong>. By proceeding, you acknowledge this is not for medical diagnosis or treatment.
           </p>
 
           <label className="flex items-start gap-3 cursor-pointer group mt-2">

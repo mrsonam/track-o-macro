@@ -27,9 +27,19 @@ import {
   Save, 
   User,
   Scale,
-  Ruler
+  Ruler,
+  Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { 
+  type UnitSystem, 
+  cmToInches, 
+  inchesToCm, 
+  kgToLbs, 
+  lbsToKg,
+  getWeightLabel,
+  getHeightLabel
+} from "@/lib/profile/units";
 
 type Props = {
   profile: UserProfile | null;
@@ -56,6 +66,9 @@ export function SettingsForm({ profile }: Props) {
   const [age, setAge] = useState(profile?.age != null ? String(profile.age) : "");
   const [sex, setSex] = useState<"male" | "female" | "unspecified">(
     (profile?.sex as "male" | "female" | "unspecified") ?? "unspecified",
+  );
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>(
+    (profile?.unitSystem as UnitSystem) ?? "metric",
   );
   const [activityLevel, setActivityLevel] = useState<ActivityLevel | "">(
     (profile?.activityLevel as ActivityLevel) ?? "",
@@ -86,17 +99,23 @@ export function SettingsForm({ profile }: Props) {
   });
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
     setError(null);
-    const h = parseFloat(heightCm);
-    const w = parseFloat(weightKg);
+    let h = parseFloat(heightCm);
+    let w = parseFloat(weightKg);
     const a = parseInt(age, 10);
+
+    // Convert to metric if needed for the backend
+    if (unitSystem === "imperial") {
+      h = inchesToCm(h);
+      w = lbsToKg(w);
+    }
+
     if (Number.isNaN(h) || h < 80 || h > 250) {
-      setError("Height must be between 80 and 250 cm.");
+      setError(`Height must be between ${unitSystem === 'metric' ? '80 and 250 cm' : '31.5 and 98.4 inches'}.`);
       return;
     }
     if (Number.isNaN(w) || w < 25 || w > 400) {
-      setError("Weight must be between 25 and 400 kg.");
+      setError(`Weight must be between ${unitSystem === 'metric' ? '25 and 400 kg' : '55 and 880 lbs'}.`);
       return;
     }
     if (Number.isNaN(a) || a < 13 || a > 120) {
@@ -140,6 +159,7 @@ export function SettingsForm({ profile }: Props) {
             avoidParsed.length > 0 ? avoidParsed : null,
           weeklyCoachingFocus:
             weeklyCoachingFocus === "" ? null : weeklyCoachingFocus,
+          unitSystem,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -157,10 +177,51 @@ export function SettingsForm({ profile }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-10">
+      <div className="bento-card border border-white/5 bg-zinc-900/30 p-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+              <Globe className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-white">System Units</h3>
+              <p className="text-xs text-zinc-500">Choose your preferred measurement protocol.</p>
+            </div>
+          </div>
+          <div className="flex gap-1 p-1 bg-zinc-950 rounded-xl border border-white/5">
+            {[["metric", "Metric"], ["imperial", "Imperial"]].map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  const next = id as UnitSystem;
+                  if (next === unitSystem) return;
+                  
+                  // Convert current local state values to new system so they don't jump wildly
+                  if (next === "imperial") {
+                    setHeightCm(String(Number(cmToInches(Number(heightCm)).toFixed(1))));
+                    setWeightKg(String(Number(kgToLbs(Number(weightKg)).toFixed(1))));
+                  } else {
+                    setHeightCm(String(Number(inchesToCm(Number(heightCm)).toFixed(0))));
+                    setWeightKg(String(Number(lbsToKg(Number(weightKg)).toFixed(1))));
+                  }
+                  setUnitSystem(next);
+                }}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                  unitSystem === id ? "bg-emerald-500 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <label className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-            <Ruler className="h-3 w-3" /> Height (cm)
+            <Ruler className="h-3 w-3" /> Height ({getHeightLabel(unitSystem)})
           </div>
           <input
             type="number"
@@ -176,7 +237,7 @@ export function SettingsForm({ profile }: Props) {
         
         <label className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-            <Scale className="h-3 w-3" /> Weight (kg)
+            <Scale className="h-3 w-3" /> Weight ({getWeightLabel(unitSystem)})
           </div>
           <input
             type="number"

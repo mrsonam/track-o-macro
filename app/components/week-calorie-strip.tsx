@@ -36,7 +36,7 @@ export function WeekCalorieStrip({
       </div>
       
       <div
-        className="flex gap-2 overflow-x-auto pb-2 scroll-smooth no-scrollbar"
+        className="flex gap-2 overflow-x-auto pt-4 pb-4 px-1 -mt-4 scroll-smooth no-scrollbar"
         role="tablist"
         aria-label="Daily calories last 7 days"
       >
@@ -54,6 +54,9 @@ export function WeekCalorieStrip({
               ? Math.round(kcalVal)
               : "0";
 
+          const surplusThreshold = 1.1;
+          const isSurplus = dailyTargetKcal != null && dailyTargetKcal > 0 && kcalVal > dailyTargetKcal * surplusThreshold;
+
           const targetRatio =
             dailyTargetKcal != null &&
             dailyTargetKcal > 0
@@ -69,35 +72,62 @@ export function WeekCalorieStrip({
               role="tab"
               aria-selected={selected}
               onClick={() => onSelectDateKey(key)}
-              className={`group relative flex min-w-[4.5rem] flex-col items-center rounded-2xl p-3 transition-all ${
+              className={`group relative flex min-w-[5.2rem] flex-col items-center rounded-2xl p-4 transition-all ${
                 selected
-                  ? "bg-emerald-500 shadow-lg shadow-emerald-500/20 ring-1 ring-emerald-400"
-                  : "bg-white/5 border border-white/[0.05] hover:bg-white/10"
-              } ${isToday && !selected ? "ring-1 ring-emerald-500/30" : ""}`}
+                  ? isSurplus 
+                    ? "bg-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)] ring-1 ring-amber-400"
+                    : "bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400"
+                  : isSurplus
+                    ? "bg-amber-950/20 border border-amber-500/20 hover:bg-amber-900/40"
+                    : "bg-zinc-900/60 border border-white/5 hover:bg-zinc-800/60"
+              }`}
             >
-              <span className={`text-[10px] font-bold uppercase ${selected ? "text-emerald-950" : "text-zinc-500"}`}>
+              <span className={`text-[10px] font-black uppercase tracking-wider ${
+                selected ? (isSurplus ? "text-amber-950" : "text-emerald-950") : (isSurplus ? "text-amber-500/70" : "text-zinc-500")
+              }`}>
                 {d.toLocaleDateString(undefined, { weekday: "short" })}
               </span>
-              <span className={`mt-1 text-base font-black tabular-nums ${selected ? "text-emerald-950" : "text-white"}`}>
+              <span className={`mt-1 text-lg font-black tabular-nums tracking-tighter ${
+                selected ? (isSurplus ? "text-amber-950" : "text-emerald-950") : "text-white"
+              }`}>
                 {d.getDate()}
               </span>
               
-              <div className="mt-2 flex flex-col items-center gap-1.5 w-full">
-                <span className={`text-[11px] font-bold tabular-nums ${selected ? "text-emerald-900" : "text-emerald-500"}`}>
+              <div className="mt-3 flex flex-col items-center gap-2 w-full">
+                <span className={`text-[11px] font-bold tabular-nums ${
+                  selected 
+                    ? (isSurplus ? "text-amber-900" : "text-emerald-900") 
+                    : (isSurplus ? "text-amber-400 font-black" : "text-emerald-400 font-black")
+                }`}>
                   {kcalDisplay}
                 </span>
                 
-                {/* Progress dot/bar */}
-                <div className={`h-1 w-full overflow-hidden rounded-full ${selected ? "bg-emerald-900/20" : "bg-zinc-800"}`}>
-                  <div 
-                    className={`h-full rounded-full transition-all duration-500 ${selected ? "bg-emerald-950" : "bg-emerald-500"}`}
-                    style={{ width: `${Math.round(targetRatio * 100)}%` }}
+                {/* Progress bar */}
+                <div className={`h-1.5 w-full overflow-hidden rounded-full ${
+                  selected 
+                    ? (isSurplus ? "bg-amber-900/20" : "bg-emerald-900/20") 
+                    : "bg-zinc-950/80 border border-white/5"
+                }`}>
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.round(targetRatio * 100)}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      selected 
+                        ? (isSurplus ? "bg-amber-950" : "bg-emerald-950") 
+                        : (isSurplus ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" : "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]")
+                    }`}
                   />
                 </div>
               </div>
 
-              {isToday && !selected && (
-                <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-emerald-500 ring-4 ring-background" />
+              {isToday && (
+                <div className={`absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full ${
+                  selected ? (isSurplus ? "bg-amber-950" : "bg-emerald-950") : (isSurplus ? "bg-amber-500" : "bg-emerald-500")
+                }`}>
+                   <div className={`h-1.5 w-1.5 rounded-full ${
+                     selected ? (isSurplus ? "bg-amber-400" : "bg-emerald-400") : "bg-zinc-950"
+                   }`} />
+                </div>
               )}
             </motion.button>
           );

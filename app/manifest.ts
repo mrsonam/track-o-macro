@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Calorie Agent",
-    short_name: "Calorie Agent",
+    name: "TrackOMacro",
+    short_name: "TrackOMacro",
     description:
       "Log meals in plain language and estimate calories with USDA-backed nutrition data.",
     start_url: "/",

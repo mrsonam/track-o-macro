@@ -52,7 +52,7 @@ export function LoginForm() {
           Initialize Session
         </h1>
         <p className="text-sm text-zinc-500 font-medium max-w-[280px]">
-          Synchronize your profile with the Calorie Agent analytics network.
+          Synchronize your profile with the TrackOMacro analytics network.
         </p>
       </div>
 

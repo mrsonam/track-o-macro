@@ -31,6 +31,9 @@ export type AvocavoBatchItem = {
     protein?: number;
     total_fat?: number;
     carbohydrates?: number;
+    fiber?: number;
+    sodium?: number;
+    sugars?: number;
   };
   metadata?: {
     usda_match?: { fdc_id?: number; description?: string };

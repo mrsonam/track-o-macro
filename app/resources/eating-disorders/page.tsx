@@ -26,7 +26,7 @@ export default function EatingDisordersResourcesPage() {
           Eating Concerns
         </h1>
         <p className="mt-6 text-sm leading-relaxed text-zinc-500 max-w-xl">
-          Calorie Agent is a tracking assistant, not a clinical solution. If food, weight, or body image feel overwhelming, professional support is the most effective path forward.
+          TrackOMacro is a tracking assistant, not a clinical solution. If food, weight, or body image feel overwhelming, professional support is the most effective path forward.
         </p>
       </div>
 

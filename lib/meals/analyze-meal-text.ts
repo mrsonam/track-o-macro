@@ -15,6 +15,9 @@ export type AnalyzedMealResult = {
     protein_g: number;
     carbs_g: number;
     fat_g: number;
+    fiber_g: number;
+    sodium_mg: number;
+    sugar_g: number;
   };
 };
 
@@ -59,6 +62,9 @@ export async function analyzeMealText(
   const total_protein = lines.reduce((s, l) => s + l.protein_g, 0);
   const total_carbs = lines.reduce((s, l) => s + l.carbs_g, 0);
   const total_fat = lines.reduce((s, l) => s + l.fat_g, 0);
+  const total_fiber = lines.reduce((s, l) => s + (l.fiber_g ?? 0), 0);
+  const total_sodium = lines.reduce((s, l) => s + (l.sodium_mg ?? 0), 0);
+  const total_sugar = lines.reduce((s, l) => s + (l.sugar_g ?? 0), 0);
 
   return {
     lines,
@@ -69,6 +75,9 @@ export async function analyzeMealText(
       protein_g: Math.round(total_protein * 10) / 10,
       carbs_g: Math.round(total_carbs * 10) / 10,
       fat_g: Math.round(total_fat * 10) / 10,
+      fiber_g: Math.round(total_fiber * 10) / 10,
+      sodium_mg: Math.round(total_sodium),
+      sugar_g: Math.round(total_sugar * 10) / 10,
     },
   };
 }

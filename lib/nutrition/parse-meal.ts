@@ -71,6 +71,9 @@ const EstimateSchema = z.object({
   protein_g: z.number().nonnegative().optional(),
   carbs_g: z.number().nonnegative().optional(),
   fat_g: z.number().nonnegative().optional(),
+  fiber_g: z.number().nonnegative().optional(),
+  sodium_mg: z.number().nonnegative().optional(),
+  sugar_g: z.number().nonnegative().optional(),
   confidence: z.enum(["low", "medium", "high"]),
   reasoning: z.string(),
 });
@@ -96,8 +99,18 @@ export async function estimateIngredientNutrition(input: {
         role: "system",
         content: `You are a conservative nutrition estimator when database lookups fail.
 Respond with a single JSON object only (no markdown), shape:
-{ "estimated_kcal": number, "protein_g"?: number, "carbs_g"?: number, "fat_g"?: number, "confidence": "low"|"medium"|"high", "reasoning": string }
-Provide plausible calories for the stated gram amount. Mark confidence low when uncertain.`,
+{ 
+  "estimated_kcal": number, 
+  "protein_g"?: number, 
+  "carbs_g"?: number, 
+  "fat_g"?: number, 
+  "fiber_g"?: number, 
+  "sodium_mg"?: number, 
+  "sugar_g"?: number, 
+  "confidence": "low"|"medium"|"high", 
+  "reasoning": string 
+}
+Provide plausible calories and "Lite" micros (fiber, sodium, sugar) for the stated gram amount. Mark confidence low when uncertain.`,
       },
       {
         role: "user",

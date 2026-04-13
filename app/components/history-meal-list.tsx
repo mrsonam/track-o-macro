@@ -74,6 +74,11 @@ export function HistoryMealList({
   const [historyQueue, setHistoryQueue] = useState<QueuedHistoryAction[]>([]);
   const [historyFlushBusy, setHistoryFlushBusy] = useState(false);
   const flushingHistoryRef = useRef(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const loadHistoryQueue = useCallback(async () => {
     setHistoryQueue(await readHistoryActionQueue());
@@ -561,7 +566,13 @@ export function HistoryMealList({
                         <Clock className="h-4 w-4" />
                       </div>
                       <time className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        {new Date(m.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })} · {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {isMounted ? (
+                          <>
+                            {new Date(m.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })} · {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </>
+                        ) : (
+                          "Loading clock..."
+                        )}
                       </time>
                     </div>
                     
