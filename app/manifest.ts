@@ -55,6 +55,15 @@ export default function manifest(): MetadataRoute.Manifest {
         ],
       },
       {
+        name: "Trends",
+        short_name: "Trends",
+        description: "Rolling windows and summaries",
+        url: "/trends",
+        icons: [
+          { src: "/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
+        ],
+      },
+      {
         name: "Settings",
         short_name: "Settings",
         description: "Targets, foods, and account",

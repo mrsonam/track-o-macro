@@ -17,20 +17,23 @@ import { registerHistoryActionQueueSync } from "@/lib/meals/register-history-syn
 import { useOnline } from "@/lib/meals/use-online";
 import { localDayBoundsIsoFromYmd } from "@/lib/meals/local-date";
 import { HISTORY_MEALS_PAGE_SIZE } from "@/lib/meals/history-meals-page";
-import { 
-  Search, 
-  Download, 
-  Trash2, 
-  Edit3, 
-  Copy, 
-  Scissors, 
-  MoreVertical, 
+import { parseMealTagsFromText } from "@/lib/meals/meal-tags";
+import {
+  Search,
+  Download,
+  Trash2,
+  Edit3,
+  Copy,
+  Scissors,
   AlertCircle,
   Clock,
   ChevronDown,
   X,
   Plus,
-  ArrowRight
+  ArrowRight,
+  Tag,
+  MapPin,
+  Filter,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -39,6 +42,8 @@ export type HistoryMealRow = {
   rawInput: string;
   totalKcal: number;
   createdAt: string;
+  tags: string[];
+  placeLabel: string | null;
 };
 
 export function HistoryMealList({
@@ -56,6 +61,13 @@ export function HistoryMealList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [filterTag, setFilterTag] = useState("");
+  const [filterPlace, setFilterPlace] = useState("");
+  const [remoteRows, setRemoteRows] = useState<HistoryMealRow[] | null>(null);
+  const [remoteHasMore, setRemoteHasMore] = useState(false);
+  const [metaForId, setMetaForId] = useState<string | null>(null);
+  const [metaTagsDraft, setMetaTagsDraft] = useState("");
+  const [metaPlaceDraft, setMetaPlaceDraft] = useState("");
   const [splittingFor, setSplittingFor] = useState<HistoryMealRow | null>(
     null,
   );
@@ -195,20 +207,126 @@ export function HistoryMealList({
     setExtraMeals([]);
     setMoreAfterExtra(initialHasMore);
     setLoadMoreError(null);
+    setRemoteRows(null);
+    setRemoteHasMore(false);
   }, [mealIdsFingerprint, initialHasMore]);
 
   const displayMeals = useMemo(
-    () => [...meals, ...extraMeals],
-    [meals, extraMeals],
+    () => (remoteRows ?? [...meals, ...extraMeals]),
+    [meals, extraMeals, remoteRows],
   );
 
   const filteredMeals = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return displayMeals;
-    return displayMeals.filter((m) =>
-      m.rawInput.toLowerCase().includes(q),
+    return displayMeals.filter(
+      (m) =>
+        m.rawInput.toLowerCase().includes(q) ||
+        m.tags.some((t) => t.toLowerCase().includes(q)) ||
+        (m.placeLabel?.toLowerCase().includes(q) ?? false),
     );
   }, [displayMeals, search]);
+
+  function buildHistoryQuery(offset: number) {
+    const p = new URLSearchParams();
+    p.set("offset", String(offset));
+    const q = search.trim();
+    if (q) p.set("q", q);
+    const tt = filterTag.trim();
+    if (tt) p.set("tag", tt);
+    const pl = filterPlace.trim();
+    if (pl) p.set("place", pl);
+    if (exportFromYmd && exportToYmd) {
+      const { fromIso } = localDayBoundsIsoFromYmd(exportFromYmd);
+      const { toIso } = localDayBoundsIsoFromYmd(exportToYmd);
+      p.set("from", fromIso);
+      p.set("to", toIso);
+    }
+    return p;
+  }
+
+  async function applyServerFilters() {
+    if (offline) return;
+    setLoadMoreBusy(true);
+    setLoadMoreError(null);
+    setError(null);
+    try {
+      if (exportFromYmd && exportToYmd && exportFromYmd > exportToYmd) {
+        setError("End date must be on or after the start date.");
+        return;
+      }
+      const p = buildHistoryQuery(0);
+      const res = await fetch(`/api/meals/history?${p}`, {
+        credentials: "same-origin",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        meals?: HistoryMealRow[];
+        hasMore?: boolean;
+        error?: string;
+      };
+      if (!res.ok) {
+        setLoadMoreError(
+          typeof data.error === "string" ? data.error : "Could not filter",
+        );
+        return;
+      }
+      if (!Array.isArray(data.meals)) {
+        setLoadMoreError("Unexpected response");
+        return;
+      }
+      setRemoteRows(data.meals);
+      setRemoteHasMore(Boolean(data.hasMore));
+    } catch {
+      setLoadMoreError("Network error");
+    } finally {
+      setLoadMoreBusy(false);
+    }
+  }
+
+  function clearServerFilters() {
+    setRemoteRows(null);
+    setRemoteHasMore(false);
+    setFilterTag("");
+    setFilterPlace("");
+    setSearch("");
+    setExportFromYmd("");
+    setExportToYmd("");
+    setLoadMoreError(null);
+  }
+
+  async function saveMealMeta(id: string) {
+    const tags = parseMealTagsFromText(metaTagsDraft);
+    const placeLabel = metaPlaceDraft.trim() ? metaPlaceDraft.trim().slice(0, 128) : null;
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/meals/${id}`, {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags, placeLabel }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(typeof json.error === "string" ? json.error : "Could not save");
+        return;
+      }
+      setMetaForId(null);
+      setMetaTagsDraft("");
+      setMetaPlaceDraft("");
+      setRemoteRows((prev) =>
+        prev
+          ? prev.map((m) =>
+              m.id === id ? { ...m, tags, placeLabel } : m,
+            )
+          : null,
+      );
+      notifyMealsChanged();
+      router.refresh();
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   function logAgain(rawInput: string) {
     stashMealLogPrefill(rawInput);
@@ -368,6 +486,32 @@ export function HistoryMealList({
     setLoadMoreBusy(true);
     setLoadMoreError(null);
     try {
+      if (remoteRows != null) {
+        const offset = remoteRows.length;
+        const res = await fetch(
+          `/api/meals/history?${buildHistoryQuery(offset)}`,
+          { credentials: "same-origin" },
+        );
+        const data = (await res.json().catch(() => ({}))) as {
+          meals?: HistoryMealRow[];
+          hasMore?: boolean;
+          error?: string;
+        };
+        if (!res.ok) {
+          setLoadMoreError(
+            typeof data.error === "string" ? data.error : "Could not load meals",
+          );
+          return;
+        }
+        if (!Array.isArray(data.meals)) {
+          setLoadMoreError("Unexpected response");
+          return;
+        }
+        setRemoteRows((prev) => [...(prev ?? []), ...data.meals!]);
+        setRemoteHasMore(Boolean(data.hasMore));
+        return;
+      }
+
       const offset = meals.length + extraMeals.length;
       const res = await fetch(`/api/meals/history?offset=${offset}`, {
         credentials: "same-origin",
@@ -468,6 +612,8 @@ export function HistoryMealList({
     }
   }
 
+  const showLoadMore = remoteRows != null ? remoteHasMore : moreAfterExtra;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Search and Action Bar */}
@@ -479,21 +625,65 @@ export function HistoryMealList({
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search meal history..."
-              className="w-full rounded-2xl bg-zinc-950 px-12 py-4 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none border border-white/[0.05]"
+              placeholder="Search text, tags, or place…"
+              className="input-field pl-12 pr-4"
             />
           </div>
           
-          <div className="flex items-center gap-3">
-             <button
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void applyServerFilters()}
+              disabled={offline || loadMoreBusy}
+              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-emerald-600/90 px-5 py-4 text-sm font-bold text-zinc-950 transition-colors duration-200 hover:bg-emerald-500 disabled:opacity-30"
+            >
+              <Filter className="h-4 w-4" />
+              {loadMoreBusy ? "…" : "Apply filters"}
+            </button>
+            <button
+              type="button"
+              onClick={clearServerFilters}
+              disabled={offline}
+              className="focus-ring tap-target rounded-2xl border border-white/10 px-4 py-4 text-xs font-bold text-zinc-500 transition-colors hover:text-white disabled:opacity-30"
+            >
+              Clear
+            </button>
+          <button
               onClick={() => void onExportCsv()}
               disabled={offline || exportBusy}
-              className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-6 py-4 text-sm font-bold text-white hover:bg-zinc-700 transition-all disabled:opacity-30"
+              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-zinc-800 px-6 py-4 text-sm font-bold text-white transition-colors duration-200 hover:bg-zinc-700 disabled:opacity-30"
             >
               <Download className="h-4 w-4" />
               {exportBusy ? "Exporting..." : "Export CSV"}
             </button>
           </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 flex items-center gap-1">
+              <Tag className="h-3 w-3" /> Tag (exact)
+            </span>
+            <input
+              type="text"
+              value={filterTag}
+              onChange={(e) => setFilterTag(e.target.value)}
+              placeholder="e.g. meal-prep"
+              className="form-field-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> Place / restaurant
+            </span>
+            <input
+              type="text"
+              value={filterPlace}
+              onChange={(e) => setFilterPlace(e.target.value)}
+              placeholder="Contains…"
+              className="form-field-sm"
+            />
+          </label>
         </div>
 
         {/* Date Filter Strip */}
@@ -504,7 +694,7 @@ export function HistoryMealList({
               type="date"
               value={exportFromYmd}
               onChange={(e) => setExportFromYmd(e.target.value)}
-              className="rounded-xl bg-zinc-950 px-4 py-3 text-sm text-white border border-white/5"
+              className="form-field-sm"
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -513,18 +703,25 @@ export function HistoryMealList({
               type="date"
               value={exportToYmd}
               onChange={(e) => setExportToYmd(e.target.value)}
-              className="rounded-xl bg-zinc-950 px-4 py-3 text-sm text-white border border-white/5"
+              className="form-field-sm"
             />
           </div>
           <div className="flex items-end">
             <button
-              onClick={() => { setExportFromYmd(""); setExportToYmd(""); }}
-              className="h-11 rounded-xl px-4 text-xs font-bold text-zinc-500 hover:text-white transition-colors"
+              type="button"
+              onClick={() => {
+                setExportFromYmd("");
+                setExportToYmd("");
+              }}
+              className="focus-ring tap-target h-11 rounded-xl px-4 text-xs font-bold text-zinc-500 transition-colors duration-200 hover:text-white"
             >
-              Reset Filters
+              Reset dates
             </button>
           </div>
         </div>
+        <p className="mt-4 text-[10px] font-medium leading-relaxed text-zinc-600">
+          Apply filters runs a server query (tags, place, date range, search text). Quick search above also narrows the current list on the client.
+        </p>
       </section>
 
       {/* Alerts */}
@@ -557,7 +754,7 @@ export function HistoryMealList({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="group relative rounded-3xl border border-white/[0.05] bg-zinc-900/50 p-6 transition-all hover:border-white/[0.1] hover:bg-zinc-900/80"
+                className="group relative rounded-3xl border border-white/[0.05] bg-zinc-900/50 p-6 transition-[color,background-color,border-color] duration-200 hover:border-white/[0.1] hover:bg-zinc-900/80"
               >
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                   <div className="flex-1 min-w-0">
@@ -581,26 +778,94 @@ export function HistoryMealList({
                         <textarea
                           value={draft}
                           onChange={(e) => setDraft(e.target.value)}
-                          className="w-full rounded-2xl bg-zinc-950 p-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                          className="form-field resize-none p-4"
                           rows={3}
                         />
                         <div className="flex gap-2">
                           <button 
                             onClick={() => onSaveRecalculate(m.id)}
-                            className="bg-emerald-500 text-zinc-950 px-4 py-2 rounded-xl font-bold text-xs"
+                            className="focus-ring tap-target rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950 transition-colors duration-200 hover:bg-emerald-400"
                           >
                             Save
                           </button>
                           <button 
                             onClick={cancelEdit}
-                            className="bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold text-xs"
+                            className="focus-ring tap-target rounded-xl bg-zinc-800 px-4 py-2 text-xs font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
                           >
                             Cancel
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <h4 className="text-lg font-bold text-white leading-snug">{m.rawInput}</h4>
+                      <>
+                        <h4 className="text-lg font-bold text-white leading-snug">{m.rawInput}</h4>
+                        {m.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {m.tags.map((t) => (
+                              <span
+                                key={t}
+                                className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-400/90"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {m.placeLabel ? (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-zinc-500">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                            {m.placeLabel}
+                          </p>
+                        ) : null}
+                        {metaForId === m.id && (
+                          <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/80 p-4">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+                              Tags & place
+                            </p>
+                            <label className="block text-[10px] font-bold text-zinc-600 mb-1">
+                              Tags (comma or space)
+                            </label>
+                            <input
+                              type="text"
+                              value={metaTagsDraft}
+                              onChange={(e) => setMetaTagsDraft(e.target.value)}
+                              className="form-field-sm mb-3 w-full"
+                              placeholder="lunch, dining-out"
+                            />
+                            <label className="block text-[10px] font-bold text-zinc-600 mb-1">
+                              Restaurant / place
+                            </label>
+                            <input
+                              type="text"
+                              value={metaPlaceDraft}
+                              onChange={(e) => setMetaPlaceDraft(e.target.value)}
+                              className="form-field-sm mb-3 w-full"
+                              placeholder="Optional"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => void saveMealMeta(m.id)}
+                                disabled={busy}
+                                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-zinc-950 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMetaForId(null);
+                                  setMetaTagsDraft("");
+                                  setMetaPlaceDraft("");
+                                }}
+                                className="rounded-xl bg-zinc-800 px-4 py-2 text-xs font-bold text-white"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -615,35 +880,57 @@ export function HistoryMealList({
                     <div className="flex items-center gap-1">
                       <button 
                         onClick={() => logAgain(m.rawInput)}
-                        className="rounded-xl p-3 bg-zinc-950 text-zinc-500 hover:text-white transition-colors"
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-white"
                         title="Log Again"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => void onDuplicate(m.id, m.rawInput)}
-                        className="rounded-xl p-3 bg-zinc-950 text-zinc-500 hover:text-violet-400 transition-colors"
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-violet-400"
                         title="Duplicate"
                       >
                         <Copy className="h-4 w-4" />
                       </button>
                       <button 
                         onClick={() => openSplit(m)}
-                        className="rounded-xl p-3 bg-zinc-950 text-zinc-500 hover:text-blue-400 transition-colors"
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-blue-400"
                         title="Split"
                       >
                         <Scissors className="h-4 w-4" />
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (metaForId === m.id) {
+                            setMetaForId(null);
+                            setMetaTagsDraft("");
+                            setMetaPlaceDraft("");
+                          } else {
+                            setMetaForId(m.id);
+                            setMetaTagsDraft(m.tags.join(", "));
+                            setMetaPlaceDraft(m.placeLabel ?? "");
+                          }
+                        }}
+                        className={`focus-ring tap-target rounded-xl bg-zinc-950 p-3 transition-colors duration-200 ${
+                          metaForId === m.id
+                            ? "text-emerald-400"
+                            : "text-zinc-500 hover:text-emerald-400/90"
+                        }`}
+                        title="Tags & place"
+                      >
+                        <Tag className="h-4 w-4" />
+                      </button>
                       <button 
                         onClick={() => startEdit(m)}
-                        className="rounded-xl p-3 bg-zinc-950 text-zinc-500 hover:text-emerald-400 transition-colors"
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-emerald-400"
                         title="Edit"
                       >
                         <Edit3 className="h-4 w-4" />
                       </button>
                       <button 
                          onClick={() => onDelete(m.id)}
-                        className="rounded-xl p-3 bg-zinc-950 text-zinc-500 hover:text-red-400 transition-colors"
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-red-400"
                         title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -658,11 +945,11 @@ export function HistoryMealList({
       </ul>
 
       {/* Load More */}
-      {moreAfterExtra && (
+      {showLoadMore && (
         <div className="flex flex-col items-center gap-4 py-12">
            <button
             onClick={() => void onLoadMoreMeals()}
-            className="group flex items-center gap-3 rounded-full bg-zinc-900 border border-white/[0.05] px-8 py-4 text-sm font-bold text-white transition-all hover:bg-zinc-800"
+            className="group focus-ring tap-target flex items-center gap-3 rounded-full border border-white/[0.05] bg-zinc-900 px-8 py-4 text-sm font-bold text-white transition-colors duration-200 hover:bg-zinc-800"
           >
             {loadMoreBusy ? "Loading..." : "Load Older Entries"}
             <ChevronDown className={`h-4 w-4 transition-transform group-hover:translate-y-0.5 ${loadMoreBusy ? 'animate-bounce' : ''}`} />
@@ -680,7 +967,12 @@ export function HistoryMealList({
               exit={{ opacity: 0, scale: 0.9 }}
               className="w-full max-w-2xl rounded-3xl bg-zinc-900 p-8 shadow-2xl border border-white/[0.05] relative"
             >
-              <button onClick={closeSplitModal} className="absolute right-6 top-6 text-zinc-500 hover:text-white">
+              <button
+                type="button"
+                onClick={closeSplitModal}
+                className="focus-ring tap-target absolute right-6 top-6 rounded-xl p-2 text-zinc-500 transition-colors duration-200 hover:text-white"
+                aria-label="Close split dialog"
+              >
                 <X className="h-6 w-6" />
               </button>
               
@@ -718,10 +1010,14 @@ export function HistoryMealList({
               </div>
 
               <div className="mt-8 flex gap-3">
-                <button onClick={onSplitSubmit} className="btn-primary flex-1">
+                <button type="button" onClick={onSplitSubmit} className="btn-primary flex-1">
                   Commit Split
                 </button>
-                <button onClick={closeSplitModal} className="bg-zinc-800 text-white px-8 rounded-2xl font-bold">
+                <button
+                  type="button"
+                  onClick={closeSplitModal}
+                  className="focus-ring tap-target rounded-2xl bg-zinc-800 px-8 py-4 font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
+                >
                   Cancel
                 </button>
               </div>

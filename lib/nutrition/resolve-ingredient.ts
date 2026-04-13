@@ -1,5 +1,6 @@
 import { batchAnalyzeIngredients, maxBatchSize, singleIngredientAnalyze } from "./avocavo";
 import { lineFromAvocavoApiItem } from "./avocavo-analyze-meal";
+import { sugarsFromAvocavoNutrition } from "./avocavo-sugars";
 import { estimateIngredientNutrition } from "./parse-meal";
 
 export type ResolvedLine = {
@@ -13,6 +14,8 @@ export type ResolvedLine = {
   fiber_g?: number;
   sodium_mg?: number;
   sugar_g?: number;
+  /** Present when resolver supplies added sugars; otherwise omitted */
+  added_sugar_g?: number;
   fdc_id: number | null;
   source: "fdc" | "estimate" | "custom";
   detail: Record<string, unknown>;
@@ -226,6 +229,8 @@ async function resolveRemoteIngredientLines(
       const fdcId = item.metadata?.usda_match?.fdc_id ?? null;
       const desc = item.metadata?.usda_match?.description;
 
+      const { sugar_g, added_sugar_g } = sugarsFromAvocavoNutrition(n);
+
       results.push({
         label: ing.name,
         quantity: ing.quantity_g,
@@ -236,7 +241,8 @@ async function resolveRemoteIngredientLines(
         fat_g: Math.round((n.total_fat ?? 0) * 10) / 10,
         fiber_g: n.fiber != null ? Math.round(n.fiber * 10) / 10 : undefined,
         sodium_mg: n.sodium != null ? Math.round(n.sodium) : undefined,
-        sugar_g: n.sugars != null ? Math.round(n.sugars * 10) / 10 : undefined,
+        sugar_g,
+        ...(added_sugar_g != null ? { added_sugar_g } : {}),
         fdc_id: fdcId != null ? fdcId : null,
         source: fdcId != null ? "fdc" : "estimate",
         detail: {

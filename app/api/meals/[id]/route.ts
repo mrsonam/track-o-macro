@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isOnboardingComplete } from "@/lib/profile/require-onboarding";
@@ -6,6 +7,7 @@ import { analyzeMealText } from "@/lib/meals/analyze-meal-text";
 import { loadUserFoodsForResolve } from "@/lib/meals/load-user-foods";
 import { prismaLineCreates } from "@/lib/meals/line-items-create";
 import { isDbUnavailableError } from "@/lib/db-errors";
+import { normalizeMealTags } from "@/lib/meals/meal-tags";
 
 export const maxDuration = 60;
 
@@ -86,16 +88,45 @@ export async function PATCH(request: Request, context: RouteContext) {
     return invalidIdResponse();
   }
 
-  let body: { rawInput?: string };
+  let json: unknown;
   try {
-    body = await request.json();
+    json = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const rawInput = body.rawInput?.trim();
-  if (!rawInput) {
-    return NextResponse.json({ error: "rawInput is required" }, { status: 400 });
+  const patchSchema = z.object({
+    rawInput: z.string().max(12_000).optional(),
+    tags: z.array(z.string()).max(8).optional(),
+    placeLabel: z.union([z.string().max(128), z.literal("")]).optional(),
+  });
+
+  const parsed = patchSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const rawInputTrim = parsed.data.rawInput?.trim();
+  const nextTags =
+    parsed.data.tags !== undefined
+      ? normalizeMealTags(parsed.data.tags)
+      : undefined;
+  const nextPlace =
+    parsed.data.placeLabel === undefined
+      ? undefined
+      : parsed.data.placeLabel.trim() === ""
+        ? null
+        : parsed.data.placeLabel.trim().slice(0, 128);
+
+  const hasReanalyze = Boolean(rawInputTrim);
+  const hasMetaOnly =
+    !hasReanalyze && (nextTags !== undefined || nextPlace !== undefined);
+
+  if (!hasReanalyze && !hasMetaOnly) {
+    return NextResponse.json(
+      { error: "Provide rawInput to re-analyze, or tags / placeLabel to update metadata" },
+      { status: 400 },
+    );
   }
 
   const existing = await prisma.meal.findFirst({
@@ -105,6 +136,37 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!existing) {
     return NextResponse.json({ error: "Meal not found" }, { status: 404 });
   }
+
+  if (hasMetaOnly) {
+    try {
+      const updated = await prisma.meal.update({
+        where: { id },
+        data: {
+          ...(nextTags !== undefined ? { tags: nextTags } : {}),
+          ...(nextPlace !== undefined ? { placeLabel: nextPlace } : {}),
+        },
+        select: { id: true, tags: true, placeLabel: true },
+      });
+      return NextResponse.json({
+        mealId: updated.id,
+        tags: updated.tags,
+        placeLabel: updated.placeLabel,
+      });
+    } catch (e) {
+      if (isDbUnavailableError(e)) {
+        return NextResponse.json(
+          {
+            error: "Database temporarily unavailable",
+            code: "DATABASE_UNAVAILABLE",
+          },
+          { status: 503 },
+        );
+      }
+      throw e;
+    }
+  }
+
+  const rawInput = rawInputTrim!;
 
   try {
     const userFoods = await loadUserFoodsForResolve(userId);
@@ -124,6 +186,9 @@ export async function PATCH(request: Request, context: RouteContext) {
           totalFiberG: totals.fiber_g,
           totalSodiumMg: totals.sodium_mg,
           totalSugarG: totals.sugar_g,
+          totalAddedSugarG: totals.added_sugar_g,
+          ...(nextTags !== undefined ? { tags: nextTags } : {}),
+          ...(nextPlace !== undefined ? { placeLabel: nextPlace } : {}),
           lineItems: {
             create: prismaLineCreates(lines, meal_label, assumptions ?? null),
           },

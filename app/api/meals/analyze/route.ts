@@ -80,6 +80,7 @@ export async function POST(request: Request) {
           totalFiberG: totals.fiber_g,
           totalSodiumMg: totals.sodium_mg,
           totalSugarG: totals.sugar_g,
+          totalAddedSugarG: totals.added_sugar_g,
           lineItems: {
             create: prismaLineCreates(lines, meal_label, assumptions ?? null),
           },

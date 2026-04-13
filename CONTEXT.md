@@ -191,11 +191,17 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 
 **Review questions:** How deep into micros for v1? (Fiber / protein / sodium often sufficient early.)
 
-### Epic 4 — implementation status (partial)
+### Epic 4 — implementation status (v1 closed)
 
-**Shipped in product today:** rolling **calorie + protein** goal blurbs; **day** P/C/F totals; **week** and **history** rolling windows; **month** insights on History. These cover much of “macros + protein adequacy” for v1.
+**Shipped in product today:** rolling **calorie + protein** goal blurbs; **day** P/C/F totals; **week** and **history** rolling windows; **month** insights on History.
 
-**Still open for Epic 4 closure:** micronutrients **lite** (fiber, sodium, added sugar) where FDC estimates exist; **pattern** insights (e.g. late eating, weekend drift); optional **“what drove the day”** summaries.
+**Shipped (Epic 4 “intelligence” slice — v1):**
+
+- **Micronutrients lite** — Fiber, sodium, total sugars, and **added sugars** (when USDA/resolver provides them) aggregated per meal and per day; **week** card shows 7-day **averages** when totals exist. Line items persist `fiber_g`, `sodium_mg`, `sugar_g`, `added_sugar_g` on `meal_line_items`; meal totals mirror `total_*` fields.
+- **Pattern copy (rolling window)** — `/api/meals/insights` returns `patterns.weekendDriftLine`, `patterns.mealTimingBandLine`, and `patterns.lateEatingLine` (weekend vs weekday kcal; **local-time** four bands — morning / midday / early evening / late night — with **dominant-band** copy when ≥3 meals; late-night **after 9 p.m.** line when it does not duplicate the dominant-band story). **Timezone** from the request applies to all of the above.
+- **“Explain the day”** — `explainTheDayLines()` on the home **day** card: calorie driver, **protein distribution** (when one meal is a large share of the day’s protein across ≥2 meals), protein vs guide, fiber, sodium/sugar context in UI thresholds, **total vs added sugar** copy when data exists, calories near target, and **same-day meal-timing** lines from `dayMealTimingLines()` (via batch `includeTiming` + IANA zone). Capped at **five** short lines.
+
+**Explicitly later (Epic 4+ / v2):** deeper LLM-style narratives; micronutrient depth beyond “lite”; meal-pattern experiments beyond current heuristics.
 
 ---
 
@@ -237,11 +243,24 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 - `GET /api/meals/insights` supports **`windowDays=7|14`** (with matching `from`/`to` span); averages use that divisor.
 - **History** `HistoryFortnightStrip`: last 14 local days — days with a log, meal count, kcal/day average vs goal, plus `fortnightRhythmBlurb` (recovery-friendly wording, not a streak).
 
+**Shipped (slice 6 — weekly recap on History):**
+
+- `lib/meals/weekly-recap-lines.ts`: heuristic **wins** and **friction** (logging days, calories vs goal, protein vs goal, weekend vs weekday calories, sparse days).
+- **History** `HistoryWeeklyRecapStrip` (after rolling week card): **Wins** / **Friction** lists; **quiet week** copy when no heuristic fires.
+
+**Shipped (slice 7 — cross-links on History):**
+
+- `lib/meals/history-insight-anchors.ts` — stable fragment IDs for the four insight cards.
+- `HistoryInsightsCrossLinks` — one footer line per card with `next/link` jumps (`scroll-mt-28` on targets).
+
+**Shipped (slice 8 — recovery framing toggle):**
+
+- `user_profiles.active_days_14_enabled` (boolean, default false). **Settings → Daily Performance Focus** checkbox: “Active days (14-day view)”.
+- When enabled, home (`MealLogClient`) and **Trends** rolling week (`HistoryInsightsStrip`) fetch **`/api/meals/insights`** with **`windowDays=14`** and merge **`recovery14`** into `RollingWeekSummaryBody`: **“X of 14 days had at least one log”** plus `lib/meals/active-days-14-blurb.ts` (no streak language).
+
 **Suggested next slices (still Epic 5):**
 
-- **Weekly recap** (explicit wins + friction lines) or **month + fortnight cross-links**.
-- **Weekly recap** surface (History or dedicated strip): wins + friction in plain language.
-- **Recovery-friendly streak** (optional toggle): e.g. “active days in last 14” instead of hard daily chains.
+- Deeper **implementation intentions** or AI nudges (optional, tone-guarded).
 
 ---
 

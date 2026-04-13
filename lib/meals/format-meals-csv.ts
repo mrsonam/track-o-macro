@@ -6,6 +6,8 @@ type MealCsvRow = {
   totalProteinG: number | null;
   totalCarbsG: number | null;
   totalFatG: number | null;
+  tags?: string[];
+  placeLabel?: string | null;
 };
 
 function csvCell(value: string): string {
@@ -32,6 +34,8 @@ export function formatMealsCsv(rows: MealCsvRow[]): string {
     "total_protein_g",
     "total_carbs_g",
     "total_fat_g",
+    "tags",
+    "place_label",
   ];
   const lines = [header.join(",")];
   for (const r of rows) {
@@ -44,6 +48,8 @@ export function formatMealsCsv(rows: MealCsvRow[]): string {
         csvCell(numOrEmpty(r.totalProteinG)),
         csvCell(numOrEmpty(r.totalCarbsG)),
         csvCell(numOrEmpty(r.totalFatG)),
+        csvCell((r.tags ?? []).join(";")),
+        csvCell(r.placeLabel ?? ""),
       ].join(","),
     );
   }

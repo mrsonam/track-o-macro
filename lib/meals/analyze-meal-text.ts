@@ -18,6 +18,8 @@ export type AnalyzedMealResult = {
     fiber_g: number;
     sodium_mg: number;
     sugar_g: number;
+    /** Sum of lines with known added sugars; null when none reported */
+    added_sugar_g: number | null;
   };
 };
 
@@ -25,6 +27,19 @@ export type AnalyzeMealTextOptions = {
   /** Saved foods (per 100 g). Matched by normalized ingredient name; overrides USDA/estimate. */
   userFoods?: UserFoodResolveInput[];
 };
+
+function aggregateAddedSugarG(lines: ResolvedLine[]): number | null {
+  let anyKnown = false;
+  let sum = 0;
+  for (const l of lines) {
+    if (l.added_sugar_g != null) {
+      anyKnown = true;
+      sum += l.added_sugar_g;
+    }
+  }
+  if (!anyKnown) return null;
+  return Math.round(sum * 10) / 10;
+}
 
 /** Parse + resolve nutrition for meal text (OpenAI path or Avocavo-only). */
 export async function analyzeMealText(
@@ -78,6 +93,7 @@ export async function analyzeMealText(
       fiber_g: Math.round(total_fiber * 10) / 10,
       sodium_mg: Math.round(total_sodium),
       sugar_g: Math.round(total_sugar * 10) / 10,
+      added_sugar_g: aggregateAddedSugarG(lines),
     },
   };
 }

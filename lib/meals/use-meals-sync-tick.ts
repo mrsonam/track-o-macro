@@ -14,7 +14,8 @@ export function useMealsSyncTick() {
     let lastBump = 0;
     function bump() {
       const now = Date.now();
-      if (now - lastBump < 400) return;
+      /** Coalesce rapid focus/visibility churn so we don’t refetch the whole week in a loop. */
+      if (now - lastBump < 1200) return;
       lastBump = now;
       setSyncTick((t) => t + 1);
     }

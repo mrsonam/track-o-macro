@@ -12,6 +12,7 @@ type WeekInsightsCardProps = {
   dailyTargetKcal: number | null;
   dailyTargetProteinG?: number | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
+  weeklyImplementationIntention?: string | null;
   loading: boolean;
   batchError: string | null;
   data: WeekInsightPayload | null;
@@ -21,6 +22,7 @@ export function WeekInsightsCard({
   dailyTargetKcal,
   dailyTargetProteinG = null,
   weeklyCoachingFocus = null,
+  weeklyImplementationIntention = null,
   loading,
   batchError,
   data,
@@ -46,6 +48,7 @@ export function WeekInsightsCard({
           dailyTargetKcal={dailyTargetKcal}
           dailyTargetProteinG={dailyTargetProteinG}
           weeklyCoachingFocus={weeklyCoachingFocus}
+          weeklyImplementationIntention={weeklyImplementationIntention}
         />
       ) : null}
     </div>

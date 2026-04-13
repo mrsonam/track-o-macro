@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isDbUnavailableError } from "@/lib/db-errors";
+import { queryMealTimingBands } from "@/lib/meals/meal-timing-bands-query";
+import { isValidIanaTimeZone } from "@/lib/meals/validate-iana-time-zone";
 
 const MAX_RANGES = 14;
 const MAX_SINGLE_RANGE_MS = 49 * 60 * 60 * 1000;
@@ -33,7 +35,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { ranges?: RangeInput[] };
+  let body: {
+    ranges?: RangeInput[];
+    includeTiming?: boolean;
+    timeZone?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -68,6 +74,11 @@ export async function POST(request: Request) {
   }
 
   const userId = session.user.id;
+  const includeTiming = body.includeTiming === true;
+  const timeZone =
+    typeof body.timeZone === "string" && isValidIanaTimeZone(body.timeZone)
+      ? body.timeZone
+      : null;
 
   try {
     const results = await Promise.all(
@@ -91,6 +102,7 @@ export async function POST(request: Request) {
               totalFiberG: true,
               totalSodiumMg: true,
               totalSugarG: true,
+              totalAddedSugarG: true,
             },
             _count: { _all: true },
           });
@@ -102,15 +114,21 @@ export async function POST(request: Request) {
           const fiber_g = Number(agg._sum.totalFiberG ?? 0);
           const sodium_mg = Number(agg._sum.totalSodiumMg ?? 0);
           const sugar_g = Number(agg._sum.totalSugarG ?? 0);
+          const addedSugarSum = agg._sum.totalAddedSugarG;
+          const added_sugar_g =
+            addedSugarSum != null
+              ? Math.round(Number(addedSugarSum) * 10) / 10
+              : null;
 
           const drivers: {
             kcal?: { rawInput: string; value: number };
             sodium?: { rawInput: string; value: number };
             sugar?: { rawInput: string; value: number };
+            protein?: { rawInput: string; value: number };
           } = {};
 
           if (agg._count._all > 0) {
-            const [topKcal, topSodium, topSugar] = await Promise.all([
+            const [topKcal, topSodium, topSugar, topProtein] = await Promise.all([
               prisma.meal.findFirst({
                 where: { userId, createdAt: { gte: fromD, lt: toD } },
                 orderBy: { totalKcal: "desc" },
@@ -125,6 +143,11 @@ export async function POST(request: Request) {
                 where: { userId, createdAt: { gte: fromD, lt: toD } },
                 orderBy: { totalSugarG: "desc" },
                 select: { rawInput: true, totalSugarG: true },
+              }),
+              prisma.meal.findFirst({
+                where: { userId, createdAt: { gte: fromD, lt: toD } },
+                orderBy: { totalProteinG: "desc" },
+                select: { rawInput: true, totalProteinG: true },
               }),
             ]);
 
@@ -146,6 +169,34 @@ export async function POST(request: Request) {
                 value: Number(topSugar.totalSugarG),
               };
             }
+            if (topProtein && Number(topProtein.totalProteinG ?? 0) > 0) {
+              drivers.protein = {
+                rawInput: topProtein.rawInput,
+                value: Number(topProtein.totalProteinG),
+              };
+            }
+          }
+
+          let timing:
+            | {
+                morning_kcal: number;
+                midday_kcal: number;
+                evening_kcal: number;
+                late_night_kcal: number;
+                total_kcal: number;
+              }
+            | undefined;
+          if (includeTiming && timeZone) {
+            const br = await queryMealTimingBands(userId, fromD, toD, timeZone);
+            if (br) {
+              timing = {
+                morning_kcal: br.morning_kcal,
+                midday_kcal: br.midday_kcal,
+                evening_kcal: br.evening_kcal,
+                late_night_kcal: br.late_night_kcal,
+                total_kcal: br.total_kcal,
+              };
+            }
           }
 
           return {
@@ -159,7 +210,9 @@ export async function POST(request: Request) {
               fiber_g: Math.round(fiber_g * 10) / 10,
               sodium_mg: Math.round(sodium_mg),
               sugar_g: Math.round(sugar_g * 10) / 10,
+              ...(added_sugar_g != null ? { added_sugar_g } : {}),
             },
+            ...(timing ? { timing } : {}),
             drivers,
           };
         } catch {

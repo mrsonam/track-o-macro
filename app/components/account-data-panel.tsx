@@ -113,7 +113,7 @@ export function AccountDataPanel() {
             </p>
             <a
               href="/api/meals/export"
-              className="flex items-center justify-center gap-3 bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-4 rounded-2xl text-sm font-bold transition-all shadow-xl"
+              className="tap-target flex items-center justify-center gap-3 rounded-2xl bg-zinc-800 px-8 py-4 text-sm font-bold text-white shadow-xl transition-colors duration-200 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
               <Download className="h-4 w-4" />
               Download Payload
@@ -136,7 +136,7 @@ export function AccountDataPanel() {
             </p>
             <button
               onClick={() => { setOpen(true); setError(null); }}
-              className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-red-500 hover:text-red-400 p-2 -ml-2 transition-colors"
+              className="focus-ring -ml-2 flex items-center gap-2 rounded-lg p-2 text-xs font-black uppercase tracking-[0.2em] text-red-500 transition-colors duration-200 hover:text-red-400"
             >
               Initiate Account Deletion <ChevronRight className="h-4 w-4" />
             </button>
@@ -157,7 +157,7 @@ export function AccountDataPanel() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={busy}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-red-500 outline-none border border-red-500/20"
+                  className="form-field border-red-500/20 focus-visible:border-red-500/45 focus-visible:ring-red-500/30"
                 />
               </label>
 
@@ -187,13 +187,13 @@ export function AccountDataPanel() {
               <button
                 onClick={() => void deleteAccount()}
                 disabled={busy}
-                className="bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-2xl text-sm font-bold shadow-2xl transition-all disabled:opacity-50"
+                className="focus-ring tap-target rounded-2xl bg-red-600 px-8 py-4 text-sm font-bold text-white shadow-2xl transition-colors duration-200 hover:bg-red-500 disabled:opacity-50"
               >
                 {busy ? "Terminating..." : "Terminate Account"}
               </button>
               <button
                 onClick={() => { setOpen(false); setPassword(""); setAck(false); setError(null); }}
-                className="bg-zinc-800 text-white px-8 py-4 rounded-2xl text-sm font-bold hover:bg-zinc-700 transition-colors"
+                className="focus-ring tap-target rounded-2xl bg-zinc-800 px-8 py-4 text-sm font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
                 disabled={busy}
               >
                 Abort

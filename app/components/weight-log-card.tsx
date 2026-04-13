@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
 import { 
   Scale, 
   ChevronRight, 
@@ -11,12 +13,14 @@ import {
   Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  type UnitSystem, 
-  kgToLbs, 
-  lbsToKg, 
-  getWeightLabel 
+import {
+  type UnitSystem,
+  kgToLbs,
+  lbsToKg,
+  getWeightLabel,
 } from "@/lib/profile/units";
+import type { WeightTrendPoint } from "@/lib/body/weight-trend-series";
+import { WeightTrendSparkline } from "@/app/components/weight-trend-sparkline";
 
 type WeightLog = {
   id: string;
@@ -27,9 +31,14 @@ type WeightLog = {
 
 type Props = {
   unitSystem: UnitSystem;
+  /** Epic 6 — compact smoothed sparkline (off by default; main chart is on /trends) */
+  weightTrendOnHomeEnabled?: boolean;
 };
 
-export function WeightLogCard({ unitSystem }: Props) {
+export function WeightLogCard({
+  unitSystem,
+  weightTrendOnHomeEnabled = false,
+}: Props) {
   const [logs, setLogs] = useState<WeightLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -37,6 +46,9 @@ export function WeightLogCard({ unitSystem }: Props) {
   const [bfInputValue, setBfInputValue] = useState("");
   const [showInput, setShowInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trendPoints, setTrendPoints] = useState<WeightTrendPoint[] | null>(
+    null,
+  );
 
   useEffect(() => {
     async function fetchLogs() {
@@ -54,6 +66,35 @@ export function WeightLogCard({ unitSystem }: Props) {
     }
     fetchLogs();
   }, []);
+
+  useEffect(() => {
+    if (!weightTrendOnHomeEnabled) {
+      setTrendPoints(null);
+      return;
+    }
+    let cancelled = false;
+    async function loadTrend() {
+      try {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const q = new URLSearchParams({ timeZone, days: "90" });
+        const res = await fetch(`/api/body/weight-series?${q}`, {
+          credentials: "same-origin",
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          points?: WeightTrendPoint[];
+        };
+        if (!cancelled && res.ok && Array.isArray(json.points)) {
+          setTrendPoints(json.points);
+        }
+      } catch {
+        if (!cancelled) setTrendPoints(null);
+      }
+    }
+    void loadTrend();
+    return () => {
+      cancelled = true;
+    };
+  }, [weightTrendOnHomeEnabled, logs]);
 
   const latestLog = logs[0];
   const previousLog = logs[1];
@@ -236,23 +277,45 @@ export function WeightLogCard({ unitSystem }: Props) {
               )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex-1 h-3 bg-zinc-950 rounded-full overflow-hidden p-0.5 border border-white/5">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: "100%" }}
-                  className="h-full bg-gradient-to-r from-violet-500/20 via-violet-500 to-violet-500/20 rounded-full"
-                  transition={{ duration: 2, repeat: Infinity }}
-                />
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                {weightTrendOnHomeEnabled &&
+                trendPoints &&
+                trendPoints.length >= 2 ? (
+                  <div className="min-w-0 flex-1">
+                    <WeightTrendSparkline
+                      points={trendPoints}
+                      unitSystem={unitSystem}
+                      variant="compact"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1 h-3 rounded-full border border-white/5 bg-zinc-950 p-0.5">
+                    <div className="h-full w-full rounded-full bg-gradient-to-r from-violet-500/20 via-violet-500 to-violet-500/20" />
+                  </div>
+                )}
+                <div className="flex shrink-0 flex-col items-end">
+                  <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                    <LineChart className="h-3 w-3" /> Trend Weight
+                  </span>
+                  <span className="text-xs font-black text-violet-200">
+                    {displayTrendWeight !== null
+                      ? displayTrendWeight.toFixed(1)
+                      : "—"}{" "}
+                    {getWeightLabel(unitSystem)}
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] font-black text-zinc-600 uppercase tracking-widest flex items-center gap-1">
-                  <LineChart className="h-3 w-3" /> Trend Weight
-                </span>
-                <span className="text-xs font-black text-violet-200">
-                  {displayTrendWeight !== null ? displayTrendWeight.toFixed(1) : "—"} {getWeightLabel(unitSystem)}
-                </span>
-              </div>
+              {weightTrendOnHomeEnabled &&
+                trendPoints &&
+                trendPoints.length >= 2 && (
+                  <Link
+                    href={`/trends#${HISTORY_INSIGHT_ANCHORS.weightTrend}`}
+                    className="inline-block text-[9px] font-bold uppercase tracking-widest text-zinc-600 transition-colors hover:text-violet-400/90"
+                  >
+                    Full chart → Trends
+                  </Link>
+                )}
             </div>
           </motion.div>
         )}

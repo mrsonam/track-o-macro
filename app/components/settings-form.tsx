@@ -97,6 +97,17 @@ export function SettingsForm({ profile }: Props) {
     const p = parseWeeklyCoachingFocus(profile?.weeklyCoachingFocus);
     return p ?? "";
   });
+  const [activeDays14Enabled, setActiveDays14Enabled] = useState(
+    () => profile?.activeDays14Enabled === true,
+  );
+  const [weightTrendOnHomeEnabled, setWeightTrendOnHomeEnabled] = useState(
+    () => profile?.weightTrendOnHomeEnabled === true,
+  );
+  const [weeklyImplementationIntention, setWeeklyImplementationIntention] =
+    useState(() => profile?.weeklyImplementationIntention ?? "");
+  const [targetHydrationMl, setTargetHydrationMl] = useState(() =>
+    profile?.targetHydrationMl != null ? String(profile.targetHydrationMl) : "",
+  );
 
   async function onSubmit(e: React.FormEvent) {
     setError(null);
@@ -138,6 +149,27 @@ export function SettingsForm({ profile }: Props) {
       }
       proteinPayload = Math.round(p);
     }
+
+    let hydrationGoalPayload: number | null | undefined;
+    const hTrim = targetHydrationMl.trim();
+    if (hTrim === "") {
+      hydrationGoalPayload = null;
+    } else {
+      const h = parseInt(hTrim, 10);
+      if (Number.isNaN(h) || h < 500 || h > 8000) {
+        setError(
+          "Daily fluid goal must be empty (use app default) or between 500 and 8000 ml.",
+        );
+        return;
+      }
+      hydrationGoalPayload = h;
+    }
+    const planTrim = weeklyImplementationIntention.trim();
+    if (planTrim.length > 320) {
+      setError("Weekly plan must be 320 characters or fewer.");
+      return;
+    }
+
     const avoidParsed = parseFoodAvoidList(foodAvoidText);
     setSaving(true);
     try {
@@ -159,7 +191,12 @@ export function SettingsForm({ profile }: Props) {
             avoidParsed.length > 0 ? avoidParsed : null,
           weeklyCoachingFocus:
             weeklyCoachingFocus === "" ? null : weeklyCoachingFocus,
+          weeklyImplementationIntention:
+            planTrim === "" ? null : planTrim,
+          activeDays14Enabled,
+          weightTrendOnHomeEnabled,
           unitSystem,
+          targetHydrationMl: hydrationGoalPayload,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -207,7 +244,7 @@ export function SettingsForm({ profile }: Props) {
                   }
                   setUnitSystem(next);
                 }}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                className={`focus-ring tap-target rounded-lg px-4 py-2 text-xs font-bold transition-colors duration-200 ${
                   unitSystem === id ? "bg-emerald-500 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
@@ -231,7 +268,7 @@ export function SettingsForm({ profile }: Props) {
             required
             value={heightCm}
             onChange={(e) => setHeightCm(e.target.value)}
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            className="form-field"
           />
         </label>
         
@@ -248,7 +285,7 @@ export function SettingsForm({ profile }: Props) {
             required
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            className="form-field"
           />
         </label>
 
@@ -264,7 +301,7 @@ export function SettingsForm({ profile }: Props) {
             required
             value={age}
             onChange={(e) => setAge(e.target.value)}
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+            className="form-field"
           />
         </label>
 
@@ -278,7 +315,7 @@ export function SettingsForm({ profile }: Props) {
                 key={id}
                 type="button"
                 onClick={() => setSex(id as any)}
-                className={`flex-1 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
+                className={`focus-ring tap-target flex-1 rounded-xl px-4 py-3 text-xs font-bold transition-colors duration-200 ${
                   sex === id ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
@@ -298,7 +335,7 @@ export function SettingsForm({ profile }: Props) {
             required
             value={activityLevel}
             onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+            className="form-field appearance-none"
           >
             <option value="">Select Activity Level</option>
             {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
@@ -319,7 +356,7 @@ export function SettingsForm({ profile }: Props) {
               setGoalIntent(v);
               if (v === "maintain") setGoalPace("moderate");
             }}
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+            className="form-field appearance-none"
           >
             <option value="">Select Goal</option>
             <option value="lose">Fat Loss</option>
@@ -343,7 +380,7 @@ export function SettingsForm({ profile }: Props) {
             <select
               value={goalPace}
               onChange={(e) => setGoalPace(e.target.value as GoalPace)}
-              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+              className="form-field appearance-none"
             >
               <option value="gentle">Gentle ({goalIntent === "lose" ? "−250" : "+200"} kcal)</option>
               <option value="moderate">Moderate ({goalIntent === "lose" ? "−400" : "+300"} kcal)</option>
@@ -370,7 +407,7 @@ export function SettingsForm({ profile }: Props) {
             <select
               value={loggingStyle}
               onChange={(e) => setLoggingStyle(e.target.value as LoggingStyle)}
-              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+              className="form-field"
             >
               {(Object.keys(LOGGING_STYLE_LABELS) as LoggingStyle[]).map((k) => (
                 <option key={k} value={k}>{LOGGING_STYLE_LABELS[k].title}</option>
@@ -383,7 +420,7 @@ export function SettingsForm({ profile }: Props) {
             <select
               value={dietaryPattern}
               onChange={(e) => setDietaryPattern(e.target.value as DietaryPattern)}
-              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+              className="form-field"
             >
               {(Object.keys(DIETARY_PATTERN_LABELS) as DietaryPattern[]).map((k) => (
                 <option key={k} value={k}>{DIETARY_PATTERN_LABELS[k].title}</option>
@@ -401,7 +438,7 @@ export function SettingsForm({ profile }: Props) {
             onChange={(e) => setFoodAvoidText(e.target.value)}
             rows={2}
             placeholder="e.g. Peanuts, Shellfish, Dairy..."
-            className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 resize-none"
+            className="form-field min-h-[5rem] resize-none"
           />
         </label>
       </div>
@@ -423,7 +460,7 @@ export function SettingsForm({ profile }: Props) {
             <select
               value={weeklyCoachingFocus}
               onChange={(e) => setWeeklyCoachingFocus(e.target.value)}
-              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5 appearance-none"
+              className="form-field appearance-none"
             >
               {WEEKLY_COACHING_FOCUS_UI.map((o) => (
                 <option key={`${o.value}-${o.label}`} value={o.value}>{o.label}</option>
@@ -441,10 +478,81 @@ export function SettingsForm({ profile }: Props) {
               placeholder="Auto-calculated if empty"
               value={targetProteinG}
               onChange={(e) => setTargetProteinG(e.target.value)}
-              className="w-full rounded-2xl bg-zinc-950 px-6 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+              className="form-field"
             />
           </label>
+
+          <label className="flex flex-col gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+              Daily fluid goal (ml)
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={500}
+              max={8000}
+              placeholder="Empty = 2000 ml default"
+              value={targetHydrationMl}
+              onChange={(e) => setTargetHydrationMl(e.target.value)}
+              className="form-field"
+            />
+            <span className="text-[10px] font-medium leading-relaxed text-zinc-600">
+              Used for the home hydration progress ring. Clear the field to use
+              the default (2000 ml).
+            </span>
+          </label>
         </div>
+
+        <label className="flex flex-col gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+            Plan this week (if–then)
+          </span>
+          <textarea
+            value={weeklyImplementationIntention}
+            onChange={(e) => setWeeklyImplementationIntention(e.target.value)}
+            maxLength={320}
+            rows={3}
+            placeholder='e.g. "If I skip breakfast, then I log lunch before 2pm."'
+            className="form-field min-h-[5rem] resize-y"
+          />
+          <span className="text-[10px] font-medium leading-relaxed text-zinc-600">
+            Optional. A short concrete plan pairs with suggestions on the home and trends week cards. Not medical advice.
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/5 bg-zinc-950/50 p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">
+          <input
+            type="checkbox"
+            checked={activeDays14Enabled}
+            onChange={(e) => setActiveDays14Enabled(e.target.checked)}
+            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-zinc-900 text-emerald-500 focus-visible:ring-offset-zinc-950"
+          />
+          <span>
+            <span className="block text-sm font-bold text-white">
+              Active days (14-day view)
+            </span>
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-500">
+              On the home and trends week cards, show how many of the last 14 days had at least one log — recovery-friendly, not a daily streak score.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/5 bg-zinc-950/50 p-5 text-left transition-colors duration-200 focus-within:border-violet-500/35 focus-within:ring-2 focus-within:ring-violet-500/15">
+          <input
+            type="checkbox"
+            checked={weightTrendOnHomeEnabled}
+            onChange={(e) => setWeightTrendOnHomeEnabled(e.target.checked)}
+            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-zinc-900 text-violet-500 focus-visible:ring-offset-zinc-950"
+          />
+          <span>
+            <span className="block text-sm font-bold text-white">
+              Weight trend on home
+            </span>
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-500">
+              Adds a compact smoothed curve to the body card on the dashboard. The full trajectory chart stays on Trends so the main log stays quiet.
+            </span>
+          </span>
+        </label>
       </div>
 
       <AnimatePresence>

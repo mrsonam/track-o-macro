@@ -70,8 +70,39 @@ body {
   @apply w-full rounded-2xl border border-white/5 bg-zinc-950 px-4 py-3 text-white shadow-lg outline-none transition-all placeholder:text-zinc-500 hover:bg-white/5 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10;
 }
 
+.focus-ring {
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+}
+
+.tap-target {
+  @apply cursor-pointer select-none;
+}
+
+/* Long-form settings / dense forms — consistent hover + keyboard focus */
+.form-field {
+  @apply w-full rounded-2xl border border-white/5 bg-zinc-950 px-6 py-4 text-white outline-none transition-colors duration-200 placeholder:text-zinc-500 hover:border-white/[0.12] hover:bg-white/[0.02] focus-visible:border-emerald-500/45 focus-visible:ring-2 focus-visible:ring-emerald-500/25;
+}
+
+.form-field-sm {
+  @apply w-full rounded-xl border border-white/5 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition-colors duration-200 hover:border-white/[0.12] hover:bg-white/[0.02] focus-visible:border-emerald-500/45 focus-visible:ring-2 focus-visible:ring-emerald-500/25;
+}
+
+/* Native <select> lists are OS-drawn; nudge toward dark where supported */
+select.form-field,
+select.form-field-sm,
+select.input-field {
+  color-scheme: dark;
+}
+
+select.form-field option,
+select.form-field-sm option,
+select.input-field option {
+  background-color: #09090b;
+  color: #fafafa;
+}
+
 .btn-primary {
-  @apply relative inline-flex items-center justify-center overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-bold text-zinc-950 transition-all active:scale-[0.98] disabled:opacity-50;
+  @apply relative inline-flex items-center justify-center overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-bold text-zinc-950 transition-[transform,box-shadow,filter] duration-200 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-secondary) 100%);
   box-shadow: 0 8px 24px -8px rgba(16, 185, 129, 0.5);
 }
@@ -82,12 +113,12 @@ body {
 }
 
 .btn-ghost {
-  @apply rounded-2xl px-4 py-2 text-sm font-medium text-zinc-400 transition-all hover:bg-white/5 hover:text-white disabled:opacity-40;
+  @apply rounded-2xl px-4 py-2 text-sm font-medium text-zinc-400 transition-colors duration-200 hover:bg-white/5 hover:text-white disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
 }
 
 /* Bento Card Style */
 .bento-card {
-  @apply relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-900/50 p-6 transition-all hover:border-white/[0.12] hover:bg-zinc-900/80;
+  @apply relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-900/50 p-6 transition-colors duration-200 hover:border-white/[0.12] hover:bg-zinc-900/80 focus-within:border-white/[0.16];
 }
 
 /* Custom scrollbar */

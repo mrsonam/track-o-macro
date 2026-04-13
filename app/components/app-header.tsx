@@ -12,7 +12,6 @@ export function AppHeader() {
   async function onSignOut() {
     await signOut({ redirect: false });
     router.push("/login");
-    router.refresh();
   }
 
   return (
@@ -20,7 +19,7 @@ export function AppHeader() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/"
-          className="flex items-center gap-2 transition-opacity hover:opacity-80"
+          className="flex items-center gap-2 rounded-xl transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           aria-label="TrackOMacro home"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 shadow-lg shadow-emerald-500/20">
@@ -34,7 +33,7 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <Link
             href="/privacy"
-            className="hidden items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/10 hover:text-white sm:flex"
+            className="hidden items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-400 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 sm:flex"
           >
             <ShieldCheck className="h-3.5 w-3.5" />
             Privacy
@@ -43,7 +42,7 @@ export function AppHeader() {
           <button
             type="button"
             onClick={() => void onSignOut()}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 transition-all hover:bg-red-500/10 hover:text-red-400"
+            className="focus-ring tap-target flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400"
             title="Sign out"
           >
             <LogOut className="h-5 w-5" />

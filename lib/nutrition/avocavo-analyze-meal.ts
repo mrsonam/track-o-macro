@@ -2,6 +2,7 @@ import {
   analyzeFreeTextMeal,
   type AvocavoAnalyzeResultItem,
 } from "./avocavo";
+import { sugarsFromAvocavoNutrition } from "./avocavo-sugars";
 import {
   applyUserFoodOverridesToLines,
   type ResolvedLine,
@@ -30,6 +31,12 @@ export function lineFromAvocavoApiItem(
   const fdcId = item.metadata?.usda_match?.fdc_id ?? null;
   const desc = item.metadata?.usda_match?.description;
 
+  const fiber_g =
+    n.fiber != null ? Math.round(Number(n.fiber) * 10) / 10 : undefined;
+  const sodium_mg =
+    n.sodium != null ? Math.round(Number(n.sodium)) : undefined;
+  const { sugar_g, added_sugar_g } = sugarsFromAvocavoNutrition(n);
+
   return {
     label,
     quantity,
@@ -38,6 +45,10 @@ export function lineFromAvocavoApiItem(
     protein_g: Math.round((n.protein ?? 0) * 10) / 10,
     carbs_g: Math.round((n.carbohydrates ?? 0) * 10) / 10,
     fat_g: Math.round((n.total_fat ?? 0) * 10) / 10,
+    fiber_g,
+    sodium_mg,
+    sugar_g,
+    ...(added_sugar_g != null ? { added_sugar_g } : {}),
     fdc_id: fdcId != null ? fdcId : null,
     source: fdcId != null ? "fdc" : "estimate",
     detail: {

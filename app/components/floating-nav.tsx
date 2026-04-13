@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, Settings, Plus, User } from "lucide-react";
+import { Home, History, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function FloatingNav() {
@@ -11,6 +11,7 @@ export function FloatingNav() {
   const links = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/history", icon: History, label: "History" },
+    { href: "/trends", icon: TrendingUp, label: "Trends" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -22,15 +23,21 @@ export function FloatingNav() {
         className="flex items-center justify-around gap-2 rounded-3xl glass-pane p-2 shadow-2xl"
       >
         {links.map((link) => {
-          const isActive = pathname === link.href;
+          const isActive =
+            link.href === "/history"
+              ? pathname === "/history"
+              : pathname === link.href;
           const Icon = link.icon;
 
           return (
             <Link
               key={link.href}
               href={link.href}
-              className={`relative flex h-12 w-12 items-center justify-center rounded-2xl transition-all ${
-                isActive ? "text-white" : "text-zinc-500 hover:text-zinc-300"
+              aria-current={isActive ? "page" : undefined}
+              className={`focus-ring tap-target relative flex h-12 w-12 items-center justify-center rounded-2xl transition-colors duration-200 ${
+                isActive
+                  ? "text-white"
+                  : "text-zinc-500 hover:bg-white/5 hover:text-zinc-200"
               }`}
             >
               {isActive && (

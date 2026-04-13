@@ -20,6 +20,7 @@ model User {
   savedMeals SavedMeal[]
   userFoods  UserFood[]
   weightLogs WeightLog[]
+  fluidLogs  FluidLog[]
 
   @@map("users")
 }
@@ -75,11 +76,19 @@ model UserProfile {
   foodAvoidJson           Json?     @map("food_avoid_json")
   /// Epic 5 optional nudge theme for home/history week copy (protein | vegetables | hydration | steady_calories)
   weeklyCoachingFocus     String?   @map("weekly_coaching_focus") @db.Text
+  /// Epic 5 — user-authored if–then plan for the week (optional)
+  weeklyImplementationIntention String? @map("weekly_implementation_intention") @db.Text
+  /// Epic 5 — show "active days in last 14" recovery framing instead of streak-style pressure
+  activeDays14Enabled     Boolean   @default(false) @map("active_days_14_enabled")
+  /// Epic 6 — optional smoothed weight sparkline on the home weight card (trend lives on /trends by default)
+  weightTrendOnHomeEnabled Boolean  @default(false) @map("weight_trend_on_home_enabled")
   bmrKcal                 Decimal?  @map("bmr_kcal")
   tdeeKcal                Decimal?  @map("tdee_kcal")
   targetKcal              Decimal?  @map("target_kcal")
   /// metric | imperial
   unitSystem              String?   @default("metric") @map("unit_system") @db.Text
+  /// Daily fluid goal (ml); null uses app default (2000 ml)
+  targetHydrationMl       Int?      @map("target_hydration_ml")
   createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -99,11 +108,18 @@ model Meal {
   totalFiberG   Decimal? @map("total_fiber_g")
   totalSodiumMg Decimal? @map("total_sodium_mg")
   totalSugarG   Decimal? @map("total_sugar_g")
+  /// Added sugars (g) when USDA / resolver provides them; null if unknown
+  totalAddedSugarG Decimal? @map("total_added_sugar_g")
+  /// Epic 7 — user tags for history search/filter (lowercased in app)
+  tags          String[] @default([]) @map("meal_tags")
+  /// Epic 7 — restaurant / venue label (optional)
+  placeLabel    String?  @map("place_label") @db.Text
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   lineItems MealLineItem[]
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, placeLabel], map: "meals_user_place_label_idx")
   @@map("meals")
 }
 
@@ -120,6 +136,7 @@ model MealLineItem {
   fiberG   Decimal? @map("fiber_g")
   sodiumMg Decimal? @map("sodium_mg")
   sugarG   Decimal? @map("sugar_g")
+  addedSugarG Decimal? @map("added_sugar_g")
   fdcId    BigInt? @map("fdc_id")
   source   String  @db.Text
   detail   Json?
@@ -162,4 +179,21 @@ model WeightLog {
   @@index([userId], map: "weight_logs_user_id_idx")
   @@index([loggedAt], map: "weight_logs_logged_at_idx")
   @@map("weight_logs")
+}
+
+/// Beverages / water — volume in milliliters for a given local day (via logged_at).
+model FluidLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  volumeMl  Decimal  @map("volume_ml")
+  /// Optional: water | tea | coffee | juice | other
+  kind      String?  @db.Text
+  note      String?  @db.Text
+  loggedAt  DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, loggedAt], map: "fluid_logs_user_logged_at_idx")
+  @@map("fluid_logs")
 }

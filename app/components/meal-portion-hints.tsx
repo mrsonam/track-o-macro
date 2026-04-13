@@ -8,7 +8,7 @@ import {
 
 export function MealPortionHints() {
   return (
-    <details className="group rounded-2xl border border-white/5 bg-zinc-900/40 px-4 py-3 text-sm text-zinc-400 transition-all hover:bg-zinc-900/60">
+    <details className="group rounded-2xl border border-white/5 bg-zinc-900/40 px-4 py-3 text-sm text-zinc-400 transition-colors duration-200 hover:bg-zinc-900/60">
       <summary className="cursor-pointer list-none font-bold text-zinc-200 outline-none flex items-center gap-3 [&::-webkit-details-marker]:hidden">
         <div className="h-6 w-6 flex items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 transition-colors group-hover:bg-emerald-500/20">
           <span className="text-xs transition-transform group-open:rotate-90">

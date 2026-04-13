@@ -14,7 +14,10 @@ export default async function HomePage() {
     targetProteinG: unknown;
     loggingStyle: string | null;
     weeklyCoachingFocus: string | null;
+    weeklyImplementationIntention: string | null;
     unitSystem: string | null;
+    activeDays14Enabled?: boolean;
+    weightTrendOnHomeEnabled?: boolean;
   } | null = null;
   let recentMeals: {
     id: string;
@@ -33,7 +36,10 @@ export default async function HomePage() {
           targetProteinG: true,
           loggingStyle: true,
           weeklyCoachingFocus: true,
+          weeklyImplementationIntention: true,
           unitSystem: true,
+          activeDays14Enabled: true,
+          weightTrendOnHomeEnabled: true,
         },
       });
       recentMeals = await prisma.meal.findMany({
@@ -83,6 +89,9 @@ export default async function HomePage() {
       dailyTargetProteinG={dailyTargetProteinG}
       loggingStyle={loggingStyle}
       weeklyCoachingFocus={weeklyCoachingFocus}
+      weeklyImplementationIntention={profile?.weeklyImplementationIntention ?? null}
+      activeDays14Enabled={profile?.activeDays14Enabled ?? false}
+      weightTrendOnHomeEnabled={profile?.weightTrendOnHomeEnabled ?? false}
       unitSystem={(profile?.unitSystem as any) ?? "metric"}
       savedMeals={savedMeals}
       recentMeals={recentMeals.map((m) => ({

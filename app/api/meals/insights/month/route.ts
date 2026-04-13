@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isDbUnavailableError } from "@/lib/db-errors";
 import { calendarMonthMeta } from "@/lib/meals/local-month";
+import { formatYmdInTimeZone } from "@/lib/body/weight-trend-series";
+import { isValidIanaTimeZone } from "@/lib/meals/validate-iana-time-zone";
 
 /** Reject absurd spans (calendar month is at most ~31 days). */
 const MAX_MONTH_SPAN_MS = 40 * 24 * 60 * 60 * 1000;
@@ -68,12 +70,72 @@ export async function GET(request: Request) {
       const avgSodiumPerDay = Math.round(sodium_mg / daysInMonth);
       const avgSugarPerDay = Math.round((sugar_g / daysInMonth) * 10) / 10;
 
+      const tzRaw = url.searchParams.get("timeZone");
+      const timeZone =
+        tzRaw && isValidIanaTimeZone(tzRaw) ? tzRaw : "UTC";
+
+      const targetKcalRaw = url.searchParams.get("targetKcal");
+      const targetKcal =
+        targetKcalRaw != null ? Number(targetKcalRaw) : null;
+      const hasTarget =
+        targetKcal != null && Number.isFinite(targetKcal) && targetKcal > 0;
+
+      const [lineAgg, dayMeals] = await Promise.all([
+        prisma.mealLineItem.groupBy({
+          by: ["label"],
+          where: {
+            meal: {
+              userId: session.user.id,
+              createdAt: { gte: fromD, lt: toD },
+            },
+          },
+          _sum: { kcal: true },
+          _count: { id: true },
+        }),
+        prisma.meal.findMany({
+          where: {
+            userId: session.user.id,
+            createdAt: { gte: fromD, lt: toD },
+          },
+          select: { createdAt: true, totalKcal: true },
+        }),
+      ]);
+
+      const topFoods = lineAgg
+        .map((row) => ({
+          label: row.label,
+          kcal: Number(row._sum.kcal ?? 0),
+          lineCount: row._count.id,
+        }))
+        .filter((r) => r.kcal > 0)
+        .sort((a, b) => b.kcal - a.kcal)
+        .slice(0, 8);
+
+      const byDay = new Map<string, number>();
+      for (const m of dayMeals) {
+        const key = formatYmdInTimeZone(m.createdAt, timeZone);
+        const add = Number(m.totalKcal ?? 0);
+        byDay.set(key, (byDay.get(key) ?? 0) + add);
+      }
+      const daysWithLogs = byDay.size;
+
+      let daysNearTarget: number | null = null;
+      if (hasTarget) {
+        const lo = targetKcal! * 0.88;
+        const hi = targetKcal! * 1.12;
+        daysNearTarget = 0;
+        for (const total of byDay.values()) {
+          if (total >= lo && total <= hi) daysNearTarget++;
+        }
+      }
+
       return NextResponse.json({
         ym,
         from: fromD.toISOString(),
         to: toD.toISOString(),
         daysInMonth,
         mealCount,
+        timeZone,
         totals: {
           kcal: Math.round(kcal * 10) / 10,
           protein_g: Math.round(protein_g * 10) / 10,
@@ -89,6 +151,13 @@ export async function GET(request: Request) {
           fiberGPerDay: avgFiberPerDay,
           sodiumMgPerDay: avgSodiumPerDay,
           sugarGPerDay: avgSugarPerDay,
+        },
+        topFoods,
+        adherence: {
+          daysWithLogs,
+          daysInMonth,
+          daysNearTarget,
+          targetKcal: hasTarget ? targetKcal : null,
         },
       });
     } catch (e) {

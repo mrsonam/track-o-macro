@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
 import {
   formatLocalYmd,
   localDayBoundsIsoFromYmd,
   rolling7DateKeys,
+  rolling7WindowBoundsIso,
+  rolling14WindowBoundsIso,
 } from "@/lib/meals/local-date";
+import type { RollingWeekSummaryData } from "@/app/components/rolling-week-summary-body";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
 import {
   ANALYZE_QUEUE_BROADCAST,
@@ -68,6 +70,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { type UnitSystem } from "@/lib/profile/units";
 import { WeightLogCard } from "./weight-log-card";
+import { HydrationCard } from "./hydration-card";
 import { AdaptiveTargetCard } from "./adaptive-target-card";
 
 type LogInputMode = "free" | "composer";
@@ -85,6 +88,7 @@ type AnalyzeResponse = {
     fiber_g: number;
     sodium_mg: number;
     sugar_g: number;
+    added_sugar_g?: number | null;
   };
 };
 
@@ -106,6 +110,12 @@ type MealLogClientProps = {
   dailyTargetProteinG?: number | null;
   loggingStyle?: LoggingStyle | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
+  /** Epic 5 — user-authored if–then plan for the week card */
+  weeklyImplementationIntention?: string | null;
+  /** Epic 5 — show “active days in last 14” on the week card */
+  activeDays14Enabled?: boolean;
+  /** Epic 6 — optional smoothed weight sparkline on body card */
+  weightTrendOnHomeEnabled?: boolean;
   unitSystem?: UnitSystem;
   savedMeals?: SavedMealItem[];
   recentMeals?: RecentMealItem[];
@@ -117,10 +127,44 @@ function truncate(s: string, max: number) {
   return `${t.slice(0, max).trim()}…`;
 }
 
+function parseRollingWeekInsightPayload(
+  json: Record<string, unknown>,
+): RollingWeekSummaryData | null {
+  const mealCount = Number(json.mealCount);
+  const daysInWindow = Number(json.daysInWindow);
+  const daysWithLogs = Number(json.daysWithLogs);
+  const totals = json.totals;
+  const averages = json.averages;
+  if (
+    !Number.isFinite(mealCount) ||
+    !totals ||
+    typeof totals !== "object" ||
+    !averages ||
+    typeof averages !== "object"
+  ) {
+    return null;
+  }
+  return {
+    mealCount,
+    daysInWindow,
+    daysWithLogs,
+    totals: totals as RollingWeekSummaryData["totals"],
+    averages: averages as RollingWeekSummaryData["averages"],
+    drifts: json.drifts as RollingWeekSummaryData["drifts"],
+    patterns: json.patterns as RollingWeekSummaryData["patterns"],
+  };
+}
+
 function defaultFavoriteTitle(raw: string) {
   const t = raw.trim().replace(/\s+/g, " ");
   if (t.length <= 44) return t;
   return `${t.slice(0, 41).trim()}…`;
+}
+
+function formatLineNutrient(n: number | undefined, fractionDigits = 0) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (fractionDigits === 0) return String(Math.round(n));
+  return (Math.round(n * 10) / 10).toString();
 }
 
 async function readJsonBody(res: Response): Promise<{
@@ -147,11 +191,13 @@ export function MealLogClient({
   dailyTargetProteinG = null,
   loggingStyle = null,
   weeklyCoachingFocus = null,
+  weeklyImplementationIntention = null,
+  activeDays14Enabled = false,
+  weightTrendOnHomeEnabled = false,
   unitSystem = "metric",
   savedMeals = [],
   recentMeals = [],
 }: MealLogClientProps) {
-  const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
   const [isMounted, setIsMounted] = useState(false);
@@ -186,6 +232,17 @@ export function MealLogClient({
     newComposerRow(),
   ]);
 
+  const [recentList, setRecentList] = useState<RecentMealItem[]>(recentMeals);
+  const [savedList, setSavedList] = useState<SavedMealItem[]>(savedMeals);
+
+  useEffect(() => {
+    setRecentList(recentMeals);
+  }, [recentMeals]);
+
+  useEffect(() => {
+    setSavedList(savedMeals);
+  }, [savedMeals]);
+
   useEffect(() => {
     setQuickSnippets(loadQuickSnippets());
   }, []);
@@ -213,66 +270,148 @@ export function MealLogClient({
   >({});
   const [weekBatchLoading, setWeekBatchLoading] = useState(true);
   const [weekBatchError, setWeekBatchError] = useState<string | null>(null);
+  const [weekInsightsApi, setWeekInsightsApi] =
+    useState<RollingWeekSummaryData | null>(null);
+
+  const prevWeekKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
     const keys = rolling7DateKeys();
     const ranges = keys.map((k) => {
       const { fromIso, toIso } = localDayBoundsIsoFromYmd(k);
       return { from: fromIso, to: toIso };
     });
 
-    setWeekBatchLoading(true);
-    setWeekBatchError(null);
-    setSummariesByKey(Object.fromEntries(keys.map((k) => [k, undefined])));
+    const weekChanged = prevWeekKeyRef.current !== weekKey;
+    prevWeekKeyRef.current = weekKey;
+
+    if (weekChanged) {
+      setWeekBatchLoading(true);
+      setWeekBatchError(null);
+      setWeekInsightsApi(null);
+      setSummariesByKey(Object.fromEntries(keys.map((k) => [k, undefined])));
+    }
 
     async function run() {
       try {
-        const res = await fetch("/api/meals/summary/batch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ranges }),
+        const { fromIso, toIso } = rolling7WindowBoundsIso();
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const insightQ = new URLSearchParams({
+          from: fromIso,
+          to: toIso,
+          timeZone,
         });
-        const json = (await res.json()) as {
+
+        const fetchOpts = { signal: ac.signal } as const;
+        const [batchRes, insightRes] = await Promise.all([
+          fetch("/api/meals/summary/batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ranges,
+              includeTiming: true,
+              timeZone,
+            }),
+            ...fetchOpts,
+          }),
+          fetch(`/api/meals/insights?${insightQ}`, fetchOpts),
+        ]);
+
+        const batchJson = (await batchRes.json()) as {
           results?: Array<
             | {
                 ok: true;
                 mealCount: number;
                 totals: MealDaySummary["totals"];
+                timing?: MealDaySummary["timing"];
+                drivers?: MealDaySummary["drivers"];
               }
             | { ok: false; error?: string }
           >;
           error?: string;
         };
-        if (!res.ok) {
+
+        if (!batchRes.ok) {
           if (!cancelled) {
-            setWeekBatchError(json.error ?? "Could not load week data");
-            setSummariesByKey(
-              Object.fromEntries(keys.map((k) => [k, null])),
-            );
+            setWeekBatchError(batchJson.error ?? "Could not load week data");
+            if (weekChanged) {
+              setSummariesByKey(
+                Object.fromEntries(keys.map((k) => [k, null])),
+              );
+            }
           }
           return;
         }
+
         const next: Record<string, MealDaySummary | null | undefined> = {};
-        const results = json.results ?? [];
+        const results = batchJson.results ?? [];
         keys.forEach((k, i) => {
           const r = results[i];
           if (!r || !("ok" in r) || !r.ok) {
             next[k] = null;
           } else {
-            next[k] = { mealCount: r.mealCount, totals: r.totals };
+            next[k] = {
+              mealCount: r.mealCount,
+              totals: r.totals,
+              ...(r.timing ? { timing: r.timing } : {}),
+              ...(r.drivers ? { drivers: r.drivers } : {}),
+            };
           }
         });
         if (!cancelled) {
           setSummariesByKey(next);
           setWeekBatchError(null);
         }
-      } catch {
+
+        if (insightRes.ok && !cancelled) {
+          const insightJson = (await insightRes.json()) as Record<
+            string,
+            unknown
+          >;
+          let mapped = parseRollingWeekInsightPayload(insightJson);
+          if (mapped && activeDays14Enabled) {
+            const r14 = rolling14WindowBoundsIso();
+            const q14 = new URLSearchParams({
+              from: r14.fromIso,
+              to: r14.toIso,
+              timeZone,
+              windowDays: "14",
+            });
+            try {
+              const res14 = await fetch(`/api/meals/insights?${q14}`, {
+                signal: ac.signal,
+              });
+              if (res14.ok) {
+                const j14 = (await res14.json()) as {
+                  daysWithLogs?: unknown;
+                };
+                const dw = Number(j14.daysWithLogs);
+                if (Number.isFinite(dw)) {
+                  mapped = {
+                    ...mapped,
+                    recovery14: { daysWithLogs: dw, daysInWindow: 14 },
+                  };
+                }
+              }
+            } catch {
+              /* keep mapped without recovery14 */
+            }
+          }
+          if (mapped) setWeekInsightsApi(mapped);
+        }
+      } catch (e) {
+        if (cancelled || (e instanceof DOMException && e.name === "AbortError")) {
+          return;
+        }
         if (!cancelled) {
           setWeekBatchError("Network error");
-          setSummariesByKey(
-            Object.fromEntries(keys.map((k) => [k, null])),
-          );
+          if (weekChanged) {
+            setSummariesByKey(
+              Object.fromEntries(keys.map((k) => [k, null])),
+            );
+          }
         }
       } finally {
         if (!cancelled) setWeekBatchLoading(false);
@@ -282,16 +421,21 @@ export function MealLogClient({
     void run();
     return () => {
       cancelled = true;
+      ac.abort();
     };
-  }, [weekKey, todayKey, syncTick]);
+  }, [weekKey, todayKey, syncTick, activeDays14Enabled]);
 
   const weekInsightData = useMemo(() => {
+    if (weekInsightsApi) return weekInsightsApi;
     if (weekBatchLoading || weekBatchError) return null;
     const keys = weekKey.split("|");
     let kcal = 0;
     let protein = 0;
     let carbs = 0;
     let fat = 0;
+    let fiber = 0;
+    let sodium = 0;
+    let sugar = 0;
     let meals = 0;
     let daysWithLogs = 0;
     for (const k of keys) {
@@ -301,6 +445,9 @@ export function MealLogClient({
       protein += s.totals.protein_g;
       carbs += s.totals.carbs_g;
       fat += s.totals.fat_g;
+      fiber += s.totals.fiber_g ?? 0;
+      sodium += s.totals.sodium_mg ?? 0;
+      sugar += s.totals.sugar_g ?? 0;
       meals += s.mealCount;
       if (s.mealCount > 0) daysWithLogs += 1;
     }
@@ -308,13 +455,30 @@ export function MealLogClient({
       mealCount: meals,
       daysInWindow: 7,
       daysWithLogs,
-      totals: { kcal, protein_g: protein, carbs_g: carbs, fat_g: fat },
+      totals: {
+        kcal,
+        protein_g: protein,
+        carbs_g: carbs,
+        fat_g: fat,
+        fiber_g: fiber,
+        sodium_mg: sodium,
+        sugar_g: sugar,
+      },
       averages: {
         kcalPerDay: Math.round((kcal / 7) * 10) / 10,
         proteinGPerDay: Math.round((protein / 7) * 10) / 10,
+        fiberGPerDay: Math.round((fiber / 7) * 10) / 10,
+        sodiumMgPerDay: Math.round(sodium / 7),
+        sugarGPerDay: Math.round((sugar / 7) * 10) / 10,
       },
-    };
-  }, [weekBatchLoading, weekBatchError, summariesByKey, weekKey]);
+    } satisfies RollingWeekSummaryData;
+  }, [
+    weekInsightsApi,
+    weekBatchLoading,
+    weekBatchError,
+    summariesByKey,
+    weekKey,
+  ]);
 
   const syncQueueState = useCallback(async () => {
     const items = await readAnalyzeQueue();
@@ -340,8 +504,28 @@ export function MealLogClient({
             body: JSON.stringify({ rawInput: item.rawInput }),
           });
           if (res.ok) {
+            let parsed: { mealId?: string; totals?: { kcal?: number } };
+            try {
+              parsed = (await res.json()) as typeof parsed;
+            } catch {
+              parsed = {};
+            }
             await dequeueAnalyze(item.id);
             anySuccess = true;
+            if (parsed.mealId && parsed.totals?.kcal != null) {
+              setRecentList((prev) => {
+                const row: RecentMealItem = {
+                  id: parsed.mealId!,
+                  rawInput: item.rawInput,
+                  totalKcal: parsed.totals!.kcal!,
+                  createdAt: new Date().toISOString(),
+                };
+                return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(
+                  0,
+                  5,
+                );
+              });
+            }
             setAnalyzeQueue(await readAnalyzeQueue());
             continue;
           }
@@ -355,7 +539,6 @@ export function MealLogClient({
         setTodayKey((k) => k + 1);
         setSelectedDateKey(formatLocalYmd(new Date()));
         notifyMealsChanged();
-        router.refresh();
       }
     }
 
@@ -371,7 +554,7 @@ export function MealLogClient({
       flushingRef.current = false;
       setFlushBusy(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     void syncQueueState();
@@ -480,18 +663,27 @@ export function MealLogClient({
         setError(msg);
         return;
       }
-      setResult(data as AnalyzeResponse);
+      const parsed = data as AnalyzeResponse;
+      setResult(parsed);
       setLastLoggedRaw(trimmed);
       setTodayKey((k) => k + 1);
       setSelectedDateKey(formatLocalYmd(new Date()));
-      
+      setRecentList((prev) => {
+        const row: RecentMealItem = {
+          id: parsed.mealId,
+          rawInput: trimmed,
+          totalKcal: parsed.totals.kcal,
+          createdAt: new Date().toISOString(),
+        };
+        return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(0, 5);
+      });
+      notifyMealsChanged();
+
       // Clear inputs on successful log
       if (mode === "form") {
         setText("");
         setComposerRows([newComposerRow(), newComposerRow()]);
       }
-      
-      router.refresh();
     } catch {
       await enqueueAnalyze(trimmed);
       await registerAnalyzeQueueSync();
@@ -611,13 +803,20 @@ export function MealLogClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, rawInput: raw }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        item?: { id: string; title: string; rawInput: string };
+      };
       if (!res.ok) {
         setError(data.error ?? "Could not update favorite");
         return;
       }
+      if (data.item) {
+        setSavedList((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, ...data.item! } : s)),
+        );
+      }
       cancelEditSaved();
-      router.refresh();
     } catch {
       setError("Network error");
     } finally {
@@ -638,13 +837,25 @@ export function MealLogClient({
           title: favTitle.trim() || undefined,
         }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        item?: { id: string; title: string; rawInput: string };
+      };
       if (!res.ok) {
         setError(data.error ?? "Could not save favorite");
         return;
       }
+      if (data.item) {
+        setSavedList((prev) => [
+          ...prev,
+          {
+            id: data.item!.id,
+            title: data.item!.title,
+            rawInput: data.item!.rawInput,
+          },
+        ]);
+      }
       setSavePanelOpen(false);
-      router.refresh();
     } catch {
       setError("Network error");
     } finally {
@@ -665,7 +876,7 @@ export function MealLogClient({
       if (editingSavedId === id) {
         cancelEditSaved();
       }
-      router.refresh();
+      setSavedList((prev) => prev.filter((s) => s.id !== id));
     } catch {
       setError("Network error");
     }
@@ -703,6 +914,12 @@ export function MealLogClient({
                 summary={summariesByKey[selectedDateKey]}
               />
 
+              <HydrationCard
+                dateKey={selectedDateKey}
+                unitSystem={unitSystem}
+                key={`hydration-${selectedDateKey}`}
+              />
+
               {/* Injected Log Meal Section for Balance */}
               <motion.div 
                 layout
@@ -723,7 +940,7 @@ export function MealLogClient({
                     <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/50 p-1">
                       <button
                         onClick={() => switchInputMode("free")}
-                        className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                        className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
                           logInputMode === "free" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
                         }`}
                       >
@@ -732,7 +949,7 @@ export function MealLogClient({
                       </button>
                       <button
                         onClick={() => switchInputMode("composer")}
-                        className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all ${
+                        className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
                           logInputMode === "composer" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
                         }`}
                       >
@@ -775,7 +992,7 @@ export function MealLogClient({
                               exit={{ opacity: 0, scale: 0.9 }}
                               type="button"
                               onClick={() => logAgain(lastLoggedRaw)}
-                              className="flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-all hover:bg-zinc-700 hover:text-white"
+                              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-colors duration-200 hover:bg-zinc-700 hover:text-white"
                             >
                               <HistoryIcon className="h-3.5 w-3.5" />
                               Repeat Last
@@ -788,7 +1005,7 @@ export function MealLogClient({
                             key={p.label}
                             type="button"
                             onClick={() => appendToMeal(p.text)}
-                            className="rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-all hover:bg-white/10 hover:text-white"
+                            className="focus-ring tap-target rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-colors duration-200 hover:bg-white/10 hover:text-white"
                           >
                             + {p.label}
                           </button>
@@ -796,7 +1013,7 @@ export function MealLogClient({
                         
                         <button
                           type="button"
-                          className="h-8 w-8 rounded-full bg-zinc-900/50 flex items-center justify-center text-zinc-600 hover:text-zinc-400 transition-colors"
+                          className="focus-ring tap-target flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900/50 text-zinc-600 transition-colors duration-200 hover:text-zinc-400"
                         >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
@@ -889,16 +1106,105 @@ export function MealLogClient({
                           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-1">Detailed Breakdown</p>
                           <div className="space-y-3">
                             {result.lines.map((line, i) => (
-                              <div key={i} className="flex items-center justify-between rounded-2xl bg-white/5 p-4 border border-white/5 group hover:bg-white/10 transition-colors">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-white mb-0.5">{line.label}</p>
-                                  <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-tighter">{line.quantity} {line.unit}</p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="text-sm font-black text-white">{line.kcal}<span className="text-[9px] ml-0.5 text-zinc-600">kcal</span></p>
-                                  <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                              <div
+                                key={i}
+                                className="rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/[0.07]"
+                              >
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-bold text-white">
+                                      {line.label}
+                                    </p>
+                                    <p className="text-[10px] font-medium uppercase tracking-tighter text-zinc-500">
+                                      {line.quantity} {line.unit}
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1.5 self-start sm:self-center">
                                     <div className="h-1 w-1 rounded-full bg-emerald-500/40" />
-                                    <p className="text-[9px] text-emerald-500/60 uppercase font-black tracking-widest">{line.source}</p>
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60">
+                                      {line.source}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                      kcal
+                                    </p>
+                                    <p className="text-sm font-black text-white">
+                                      {formatLineNutrient(line.kcal)}
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                      protein
+                                    </p>
+                                    <p className="text-sm font-black text-emerald-400/90">
+                                      {formatLineNutrient(line.protein_g)}
+                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                        g
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                      carbs
+                                    </p>
+                                    <p className="text-sm font-black text-zinc-100">
+                                      {formatLineNutrient(line.carbs_g)}
+                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                        g
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
+                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                      fat
+                                    </p>
+                                    <p className="text-sm font-black text-zinc-400">
+                                      {formatLineNutrient(line.fat_g)}
+                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                        g
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-2 grid grid-cols-3 gap-2 border-t border-white/5 pt-2">
+                                  <div>
+                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                      fiber
+                                    </p>
+                                    <p className="text-xs font-semibold text-emerald-400/70">
+                                      {line.fiber_g != null
+                                        ? `${formatLineNutrient(line.fiber_g)}`
+                                        : "—"}
+                                      {line.fiber_g != null ? (
+                                        <span className="text-[10px] text-zinc-500">g</span>
+                                      ) : null}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                      sodium
+                                    </p>
+                                    <p className="text-xs font-semibold text-zinc-300">
+                                      {line.sodium_mg != null && line.sodium_mg > 0
+                                        ? `${Math.round(line.sodium_mg)} mg`
+                                        : "—"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                      sugar
+                                    </p>
+                                    <p className="text-xs font-semibold text-zinc-400">
+                                      {line.sugar_g != null
+                                        ? `${formatLineNutrient(line.sugar_g)}`
+                                        : "—"}
+                                      {line.sugar_g != null ? (
+                                        <span className="text-[10px] text-zinc-500">g</span>
+                                      ) : null}
+                                    </p>
                                   </div>
                                 </div>
                               </div>
@@ -917,9 +1223,19 @@ export function MealLogClient({
                               <span className="text-xs font-bold text-zinc-500">Sodium</span>
                               <p className="text-sm font-black text-zinc-300">{Math.round(result.totals.sodium_mg ?? 0)}<span className="text-[10px] ml-0.5 font-bold uppercase">mg</span></p>
                             </div>
-                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
-                              <span className="text-xs font-bold text-zinc-500">Sugar</span>
-                              <p className="text-sm font-black text-zinc-500">{result.totals.sugar_g ?? 0}<span className="text-[10px] ml-0.5 font-bold">g</span></p>
+                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-start justify-between gap-3">
+                              <span className="text-xs font-bold text-zinc-500">Sugars</span>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-zinc-500">
+                                  {result.totals.sugar_g ?? 0}
+                                  <span className="text-[10px] ml-0.5 font-bold">g total</span>
+                                </p>
+                                {result.totals.added_sugar_g != null ? (
+                                  <p className="mt-0.5 text-[10px] font-bold text-zinc-600">
+                                    ~{Math.round(result.totals.added_sugar_g)} g added
+                                  </p>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                           
@@ -942,12 +1258,17 @@ export function MealLogClient({
             </div>
             
             <div className="lg:col-span-4 space-y-6">
-              <WeightLogCard unitSystem={unitSystem} key={`weight-${todayKey}`} />
+              <WeightLogCard
+                unitSystem={unitSystem}
+                weightTrendOnHomeEnabled={weightTrendOnHomeEnabled}
+                key={`weight-${todayKey}`}
+              />
               <AdaptiveTargetCard key={`adaptive-${todayKey}`} />
               <WeekInsightsCard
                 dailyTargetKcal={dailyTargetKcal}
                 dailyTargetProteinG={dailyTargetProteinG}
                 weeklyCoachingFocus={weeklyCoachingFocus}
+                weeklyImplementationIntention={weeklyImplementationIntention}
                 loading={weekBatchLoading}
                 batchError={weekBatchError}
                 data={weekInsightData}
@@ -1007,12 +1328,17 @@ export function MealLogClient({
               </div>
               <h3 className="font-bold text-white">Recent Activity</h3>
             </div>
-            <Link href="/history" className="text-xs font-bold text-zinc-500 hover:text-white transition-colors">View All</Link>
+            <Link
+              href="/history"
+              className="rounded-md text-xs font-bold text-zinc-500 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            >
+              View All
+            </Link>
           </div>
           
           <ul className="space-y-4">
-            {recentMeals.slice(0, 4).map((m) => (
-              <li key={m.id} className="group/item flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-all hover:bg-white/10">
+            {recentList.slice(0, 4).map((m) => (
+              <li key={m.id} className="group/item flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-colors duration-200 hover:bg-white/10">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-white">{m.rawInput}</p>
                   <p className="mt-1 text-xs text-zinc-500">
@@ -1023,13 +1349,13 @@ export function MealLogClient({
                 </div>
                 <button 
                   onClick={() => logAgain(m.rawInput)}
-                  className="rounded-xl bg-zinc-800 p-2 text-zinc-400 opacity-0 group-hover/item:opacity-100 hover:text-white transition-all"
+                  className="focus-ring tap-target rounded-xl bg-zinc-800 p-2 text-zinc-400 opacity-100 transition-colors duration-200 hover:text-white sm:opacity-0 sm:group-hover/item:opacity-100"
                 >
                   <Plus className="h-4 w-4" />
                 </button>
               </li>
             ))}
-            {recentMeals.length === 0 && (
+            {recentList.length === 0 && (
               <p className="py-8 text-center text-xs text-zinc-600">No recent meals. Time to eat something!</p>
             )}
           </ul>
@@ -1050,10 +1376,10 @@ export function MealLogClient({
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {savedMeals.slice(0, 6).map((s) => (
+            {savedList.slice(0, 6).map((s) => (
               <li 
                 key={s.id}
-                className="relative flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-all hover:border-white/10 hover:bg-white/10"
+                className="relative flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-[color,background-color,border-color] duration-200 hover:border-white/10 hover:bg-white/10"
               >
                 <div className="mb-4">
                   <p className="text-sm font-bold text-white mb-1">{s.title}</p>
@@ -1063,20 +1389,20 @@ export function MealLogClient({
                   <button 
                     onClick={() => runAnalyze(s.rawInput, { savedId: s.id })}
                     disabled={busy}
-                    className="flex-1 rounded-xl bg-zinc-800 py-2 text-[10px] font-bold text-white hover:bg-emerald-500 transition-colors disabled:opacity-50"
+                    className="focus-ring tap-target flex-1 rounded-xl bg-zinc-800 py-2 text-[10px] font-bold text-white transition-colors duration-200 hover:bg-emerald-500 disabled:opacity-50"
                   >
                     Log
                   </button>
                   <button 
                     onClick={() => removeSaved(s.id)}
-                    className="rounded-xl bg-zinc-950 p-2 text-zinc-600 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                    className="focus-ring tap-target rounded-xl bg-zinc-950 p-2 text-zinc-600 transition-colors duration-200 hover:bg-red-500/20 hover:text-red-400"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
               </li>
             ))}
-            {savedMeals.length === 0 && (
+            {savedList.length === 0 && (
               <div className="col-span-full py-8 text-center">
                 <p className="text-xs text-zinc-600">No favorites yet.</p>
                 <p className="mt-1 text-[10px] text-zinc-700">Save a meal you eat often to see it here.</p>

@@ -72,14 +72,14 @@ export function WeekCalorieStrip({
               role="tab"
               aria-selected={selected}
               onClick={() => onSelectDateKey(key)}
-              className={`group relative flex min-w-[5.2rem] flex-col items-center rounded-2xl p-4 transition-all ${
+              className={`focus-ring tap-target group relative flex min-w-[5.2rem] flex-col items-center rounded-2xl p-4 transition-[color,background-color,border-color,box-shadow] duration-200 ${
                 selected
                   ? isSurplus 
                     ? "bg-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)] ring-1 ring-amber-400"
                     : "bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400"
                   : isSurplus
-                    ? "bg-amber-950/20 border border-amber-500/20 hover:bg-amber-900/40"
-                    : "bg-zinc-900/60 border border-white/5 hover:bg-zinc-800/60"
+                    ? "border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40"
+                    : "border border-white/5 bg-zinc-900/60 hover:bg-zinc-800/60"
               }`}
             >
               <span className={`text-[10px] font-black uppercase tracking-wider ${
@@ -111,7 +111,7 @@ export function WeekCalorieStrip({
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${Math.round(targetRatio * 100)}%` }}
-                    className={`h-full rounded-full transition-all duration-500 ${
+                    className={`h-full rounded-full transition-[width,background-color,box-shadow] duration-500 ${
                       selected 
                         ? (isSurplus ? "bg-amber-950" : "bg-emerald-950") 
                         : (isSurplus ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" : "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]")

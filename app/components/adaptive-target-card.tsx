@@ -86,8 +86,8 @@ export function AdaptiveTargetCard() {
   };
 
   if (loading) return (
-    <div className="bento-card border border-white/5 bg-zinc-900/40 p-6 animate-pulse h-48 flex items-center justify-center">
-      <Brain className="h-8 w-8 text-zinc-800 animate-pulse" />
+    <div className="bento-card border border-white/5 bg-zinc-900/40 p-6 h-48 flex items-center justify-center">
+      <Brain className="h-8 w-8 text-zinc-700" />
     </div>
   );
 
@@ -136,7 +136,7 @@ export function AdaptiveTargetCard() {
         
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
             <span className="text-[9px] font-black uppercase tracking-tighter text-emerald-500">Live Engine</span>
           </div>
           <span className="text-[8px] text-zinc-600 mt-1 uppercase font-bold tracking-tight">Confidence: {Math.round(data.confidenceScore * 100)}%</span>
@@ -191,16 +191,8 @@ export function AdaptiveTargetCard() {
           </button>
         </div>
 
-        {/* Sync Progress Indicator if needed */}
         {needsSync && !synced && (
-           <div className="absolute bottom-0 left-0 h-[1px] bg-emerald-500/20 w-full overflow-hidden">
-             <motion.div 
-               initial={{ x: "-100%" }}
-               animate={{ x: "0%" }}
-               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-               className="h-full w-1/3 bg-emerald-500"
-             />
-           </div>
+           <div className="absolute bottom-0 left-0 h-[1px] w-full bg-emerald-500/40" />
         )}
       </div>
 

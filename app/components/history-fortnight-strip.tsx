@@ -5,6 +5,8 @@ import { rolling14WindowBoundsIso } from "@/lib/meals/local-date";
 import { fortnightRhythmBlurb } from "@/lib/meals/fortnight-rhythm-blurb";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
+import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
+import { HistoryInsightsCrossLinks } from "./history-insights-cross-links";
 import { Activity, Clock, Zap, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,10 +19,12 @@ type FortnightPayload = {
 
 type HistoryFortnightStripProps = {
   dailyTargetKcal: number | null;
+  className?: string;
 };
 
 export function HistoryFortnightStrip({
   dailyTargetKcal,
+  className,
 }: HistoryFortnightStripProps) {
   const online = useOnline();
   const syncTick = useMealsSyncTick();
@@ -89,7 +93,10 @@ export function HistoryFortnightStrip({
   }, [load, online, syncTick]);
 
   return (
-    <div className="bento-card border-white/5 bg-zinc-900/40 p-6">
+    <div
+      id={HISTORY_INSIGHT_ANCHORS.fortnight}
+      className={`bento-card scroll-mt-28 border-white/5 bg-zinc-900/40 p-6 ${className ?? ""}`}
+    >
       <div className="flex items-start gap-4 mb-6">
         <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 shrink-0">
           <Activity className="h-5 w-5" />
@@ -172,7 +179,7 @@ export function HistoryFortnightStrip({
                  <Info className="h-3 w-3 text-violet-400" />
                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Rhythm Insight</p>
                </div>
-               <p className="text-xs font-medium leading-relaxed text-zinc-400">
+               <p className="text-base font-medium leading-relaxed text-zinc-400">
                  {fortnightRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
                </p>
             </div>

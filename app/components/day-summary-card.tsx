@@ -2,6 +2,7 @@
 
 import { dayHeadingLabel } from "@/lib/meals/local-date";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
+import { explainTheDayLines } from "@/lib/meals/explain-the-day";
 import { motion } from "framer-motion";
 import { Zap, Target, Flame, Info } from "lucide-react";
 
@@ -80,6 +81,16 @@ export function DaySummaryCard({
 
   const proteinLogged = summary?.totals.protein_g ?? 0;
   const proteinTarget = dailyTargetProteinG ?? 150;
+
+  const explainLines =
+    summary && !showSpinner
+      ? explainTheDayLines({
+          summary,
+          totalKcal: logged,
+          dailyTargetKcal,
+          dailyTargetProteinG,
+        })
+      : [];
 
   return (
     <motion.div 
@@ -167,16 +178,29 @@ export function DaySummaryCard({
               <div className="mt-6 flex items-center gap-3 py-2 px-1 border-t border-white/5">
                 <Zap className={`h-3.5 w-3.5 ${isSurplus ? "text-amber-500" : "text-emerald-500"}`} />
                 <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                  {summary.mealCount} operations identified
+                  {summary.mealCount} meal{summary.mealCount === 1 ? "" : "s"} logged
                 </p>
               </div>
 
-              {/* Secondary Registry (Micros Lite) */}
+              {explainLines.length > 0 ? (
+                <div className="mt-5 space-y-2 border-l-2 border-emerald-500/25 pl-3">
+                  {explainLines.map((line, i) => (
+                    <p
+                      key={i}
+                      className="text-xs font-medium leading-relaxed text-zinc-400"
+                    >
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Micronutrients (when FDC-backed estimates exist) */}
               <div className="mt-8">
                 <div className="mb-4 flex items-center gap-2">
                   <div className="h-[1px] flex-1 bg-white/5" />
                   <p className="text-[8px] font-black uppercase tracking-[0.4em] text-zinc-600">
-                    Telemetric Matrix
+                    Fiber · sodium · sugars
                   </p>
                   <div className="h-[1px] flex-1 bg-white/5" />
                 </div>
@@ -191,22 +215,26 @@ export function DaySummaryCard({
                     <p className="text-sm font-black text-zinc-300">{Math.round(summary.totals.sodium_mg)}<span className="text-[9px] ml-0.5 font-bold uppercase">mg</span></p>
                   </div>
                   <div className="rounded-xl bg-zinc-950/30 p-3 border border-white/5">
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block mb-1">Sugar</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600 block mb-1">Total sugars</span>
                     <p className="text-sm font-black text-zinc-500">{Math.round(summary.totals.sugar_g)}<span className="text-[9px] ml-0.5 font-bold">g</span></p>
+                    {summary.totals.added_sugar_g != null ? (
+                      <p className="mt-1 text-[10px] font-bold text-zinc-600">
+                        Added ~{Math.round(summary.totals.added_sugar_g)} g
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
-                {/* Intelligence Blurb */}
+                {/* Day notes (soft thresholds — not medical guidance) */}
                 {(isSurplus || summary.totals.sodium_mg > 2300 || summary.totals.sugar_g > 50) && (
                   <div className="mt-4 flex flex-col gap-2 rounded-xl bg-amber-500/5 p-3 border border-amber-500/10">
                     <div className="flex items-start gap-3">
                       <Info className="h-3.5 w-3.5 text-amber-500 mt-0.5" />
                       <div className="flex flex-col gap-1.5">
                         <p className="text-[10px] font-medium leading-relaxed text-amber-200/70">
-                          <span className="font-black text-amber-500 uppercase tracking-tighter mr-1">Alert:</span>
-                          {isSurplus && `Calorie exceedance detected (${Math.round(logged - target)} kcal over). `}
-                          {summary.totals.sodium_mg > 2300 && "Elevated Sodium levels detected relative to standard baseline. "}
-                          {summary.totals.sugar_g > 50 && "High glycemic load identified for this cycle."}
+                          {isSurplus && `Roughly ${Math.round(logged - target)} kcal above your usual target today. `}
+                          {summary.totals.sodium_mg > 2300 && "Sodium for the day is above a common 2,300 mg reference — often normal if you ate out or packaged foods. "}
+                          {summary.totals.sugar_g > 50 && "Total sugars from logged items are on the higher side for one day."}
                         </p>
 
                         <div className="flex flex-wrap gap-2">

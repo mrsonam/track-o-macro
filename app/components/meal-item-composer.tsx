@@ -42,7 +42,7 @@ export function MealItemComposer({
         {rows.map((row, index) => (
           <li
             key={row.id}
-            className="rounded-2xl border border-white/5 bg-zinc-950/50 p-4 transition-all hover:bg-zinc-950/80"
+            className="rounded-2xl border border-white/5 bg-zinc-950/50 p-4 transition-colors duration-200 hover:bg-zinc-950/80"
           >
             <div className="flex flex-wrap items-end gap-2">
               <label className="min-w-[4.5rem] flex-1 sm:max-w-[6rem]">
@@ -104,7 +104,7 @@ export function MealItemComposer({
                   type="button"
                   disabled={disabled || rows.length <= 1}
                   onClick={() => removeRow(row.id)}
-                  className="rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 hover:bg-red-500/10 hover:text-red-400 transition-all disabled:opacity-20"
+                  className="focus-ring tap-target rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-600 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-20"
                   aria-label={`Remove item ${index + 1}`}
                 >
                   Terminate
@@ -118,7 +118,7 @@ export function MealItemComposer({
         type="button"
         disabled={disabled}
         onClick={addRow}
-        className="self-start relative flex items-center gap-2 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-emerald-400 hover:bg-emerald-500/10 transition-all active:scale-[0.98] disabled:opacity-30"
+        className="focus-ring tap-target relative flex items-center gap-2 self-start rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5 text-[11px] font-black uppercase tracking-widest text-emerald-400 transition-[colors,transform] duration-200 hover:bg-emerald-500/10 active:scale-[0.98] disabled:opacity-30"
       >
         <span className="text-sm">+</span> Add Entry Part
       </button>

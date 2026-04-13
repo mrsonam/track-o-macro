@@ -33,7 +33,11 @@ export type AvocavoBatchItem = {
     carbohydrates?: number;
     fiber?: number;
     sodium?: number;
+    /** Total sugars (g); some responses use singular `sugar`. */
     sugars?: number;
+    sugar?: number;
+    /** Added sugars when USDA / FDC provides the field */
+    added_sugars?: number | null;
   };
   metadata?: {
     usda_match?: { fdc_id?: number; description?: string };

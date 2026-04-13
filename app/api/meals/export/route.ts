@@ -64,6 +64,8 @@ export async function GET(request: Request) {
         totalCarbsG: true,
         totalFatG: true,
         createdAt: true,
+        tags: true,
+        placeLabel: true,
       },
     });
 
@@ -76,6 +78,8 @@ export async function GET(request: Request) {
         m.totalProteinG != null ? Number(m.totalProteinG) : null,
       totalCarbsG: m.totalCarbsG != null ? Number(m.totalCarbsG) : null,
       totalFatG: m.totalFatG != null ? Number(m.totalFatG) : null,
+      tags: m.tags,
+      placeLabel: m.placeLabel,
     }));
 
     const csv = formatMealsCsv(rows);

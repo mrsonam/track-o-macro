@@ -47,6 +47,7 @@ export async function GET(request: Request) {
         totalFiberG: true,
         totalSodiumMg: true,
         totalSugarG: true,
+        totalAddedSugarG: true,
       },
       _count: { _all: true },
     });
@@ -58,6 +59,11 @@ export async function GET(request: Request) {
     const fiber_g = Number(agg._sum.totalFiberG ?? 0);
     const sodium_mg = Number(agg._sum.totalSodiumMg ?? 0);
     const sugar_g = Number(agg._sum.totalSugarG ?? 0);
+    const addedSum = agg._sum.totalAddedSugarG;
+    const added_sugar_g =
+      addedSum != null
+        ? Math.round(Number(addedSum) * 10) / 10
+        : null;
 
     return NextResponse.json({
       from: fromD.toISOString(),
@@ -71,6 +77,7 @@ export async function GET(request: Request) {
         fiber_g: Math.round(fiber_g * 10) / 10,
         sodium_mg: Math.round(sodium_mg),
         sugar_g: Math.round(sugar_g * 10) / 10,
+        ...(added_sugar_g != null ? { added_sugar_g } : {}),
       },
     });
   } catch (e) {
