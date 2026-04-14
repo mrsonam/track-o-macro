@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isDbUnavailableError } from "@/lib/db-errors";
@@ -20,10 +21,12 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   try {
-    const result = await prisma.fluidLog.deleteMany({
-      where: { id, userId: session.user.id },
-    });
-    if (result.count === 0) {
+    // Use raw delete so builds do not depend on a freshly generated `fluidLog`
+    // delegate (CI can otherwise typecheck against a stale Prisma client).
+    const count = await prisma.$executeRaw(
+      Prisma.sql`DELETE FROM "fluid_logs" WHERE "id" = CAST(${id} AS uuid) AND "user_id" = CAST(${session.user.id} AS uuid)`,
+    );
+    if (count === 0) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     return new NextResponse(null, { status: 204 });
