@@ -8,7 +8,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "seed:sonamsrp8": "tsx scripts/seed-sonamsrp8.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -34,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
