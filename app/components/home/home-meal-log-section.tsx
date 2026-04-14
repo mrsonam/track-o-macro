@@ -6,6 +6,7 @@ import { isDbUnavailableError } from "@/lib/db-errors";
 import { parseWeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
 import { DEFAULT_HYDRATION_GOAL_ML } from "@/lib/hydration/defaults";
 import { type UnitSystem } from "@/lib/profile/units";
+import { loadHomeWeekPrefetch } from "@/lib/meals/load-home-week-prefetch";
 
 /** Home dashboard data — streamed inside Suspense so the route shell can paint first. */
 export async function HomeMealLogSection() {
@@ -101,6 +102,19 @@ export async function HomeMealLogSection() {
       ? Number(profile.targetHydrationMl)
       : DEFAULT_HYDRATION_GOAL_ML;
 
+  let homeWeekPrefetch = null;
+  try {
+    homeWeekPrefetch = await loadHomeWeekPrefetch(
+      userId,
+      profile?.activeDays14Enabled ?? false,
+    );
+  } catch (e) {
+    if (isDbUnavailableError(e)) {
+      redirect("/error/database");
+    }
+    throw e;
+  }
+
   return (
     <MealLogClient
       dailyTargetKcal={dailyTargetKcal}
@@ -119,6 +133,7 @@ export async function HomeMealLogSection() {
         totalKcal: Number(m.totalKcal),
         createdAt: m.createdAt.toISOString(),
       }))}
+      initialWeekPrefetch={homeWeekPrefetch}
     />
   );
 }

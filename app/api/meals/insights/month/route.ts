@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isDbUnavailableError } from "@/lib/db-errors";
@@ -10,6 +10,7 @@ import { isValidIanaTimeZone } from "@/lib/meals/validate-iana-time-zone";
 const MAX_MONTH_SPAN_MS = 40 * 24 * 60 * 60 * 1000;
 
 export async function GET(request: Request) {
+  await connection();
   try {
     const session = await getSession();
     if (!session?.user?.id) {

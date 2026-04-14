@@ -12,8 +12,10 @@ import {
   rolling7WindowBoundsIso,
   rolling14WindowBoundsIso,
 } from "@/lib/meals/local-date";
-import type { RollingWeekSummaryData } from "@/app/components/rolling-week-summary-body";
+import type { RollingWeekSummaryData } from "@/lib/meals/rolling-week-summary-data";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
+import { parseRollingWeekInsightPayload } from "@/lib/meals/parse-rolling-week-insight-payload";
+import type { HomeWeekPrefetch } from "@/lib/meals/load-home-week-prefetch";
 import {
   ANALYZE_QUEUE_BROADCAST,
   dequeueAnalyze,
@@ -124,40 +126,14 @@ type MealLogClientProps = {
   unitSystem?: UnitSystem;
   savedMeals?: SavedMealItem[];
   recentMeals?: RecentMealItem[];
+  /** Week strip + rolling insights prefetched on the server (request TZ). */
+  initialWeekPrefetch?: HomeWeekPrefetch | null;
 };
 
 function truncate(s: string, max: number) {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max).trim()}…`;
-}
-
-function parseRollingWeekInsightPayload(
-  json: Record<string, unknown>,
-): RollingWeekSummaryData | null {
-  const mealCount = Number(json.mealCount);
-  const daysInWindow = Number(json.daysInWindow);
-  const daysWithLogs = Number(json.daysWithLogs);
-  const totals = json.totals;
-  const averages = json.averages;
-  if (
-    !Number.isFinite(mealCount) ||
-    !totals ||
-    typeof totals !== "object" ||
-    !averages ||
-    typeof averages !== "object"
-  ) {
-    return null;
-  }
-  return {
-    mealCount,
-    daysInWindow,
-    daysWithLogs,
-    totals: totals as RollingWeekSummaryData["totals"],
-    averages: averages as RollingWeekSummaryData["averages"],
-    drifts: json.drifts as RollingWeekSummaryData["drifts"],
-    patterns: json.patterns as RollingWeekSummaryData["patterns"],
-  };
 }
 
 function defaultFavoriteTitle(raw: string) {
@@ -203,7 +179,13 @@ export function MealLogClient({
   unitSystem = "metric",
   savedMeals = [],
   recentMeals = [],
+  initialWeekPrefetch = null,
 }: MealLogClientProps) {
+  const initialPrefetchKeys =
+    initialWeekPrefetch?.dateKeys?.length === 7
+      ? [...initialWeekPrefetch.dateKeys]
+      : null;
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [text, setText] = useState("");
   const [isMounted, setIsMounted] = useState(false);
@@ -217,9 +199,6 @@ export function MealLogClient({
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const [todayKey, setTodayKey] = useState(0);
   const syncTick = useMealsSyncTick();
-  const [selectedDateKey, setSelectedDateKey] = useState(() =>
-    formatLocalYmd(new Date()),
-  );
   const [lastLoggedRaw, setLastLoggedRaw] = useState<string | null>(null);
   const [savePanelOpen, setSavePanelOpen] = useState(false);
   const [favTitle, setFavTitle] = useState("");
@@ -269,29 +248,80 @@ export function MealLogClient({
     });
   }, []);
 
-  const dateKeys = rolling7DateKeys();
-  const weekKey = dateKeys.join("|");
+  const [rollingDateKeys, setRollingDateKeys] = useState<string[]>(
+    () => initialPrefetchKeys ?? rolling7DateKeys(),
+  );
+  const [selectedDateKey, setSelectedDateKey] = useState(() => {
+    const keys = initialPrefetchKeys ?? rolling7DateKeys();
+    return keys[keys.length - 1]!;
+  });
+  const weekKey = rollingDateKeys.join("|");
   const [summariesByKey, setSummariesByKey] = useState<
     Record<string, MealDaySummary | null | undefined>
-  >({});
-  const [weekBatchLoading, setWeekBatchLoading] = useState(true);
+  >(() => initialWeekPrefetch?.summariesByKey ?? {});
+  const [weekBatchLoading, setWeekBatchLoading] = useState(
+    () => !initialWeekPrefetch,
+  );
   const [weekBatchError, setWeekBatchError] = useState<string | null>(null);
   const [weekInsightsApi, setWeekInsightsApi] =
-    useState<RollingWeekSummaryData | null>(null);
+    useState<RollingWeekSummaryData | null>(
+      () => initialWeekPrefetch?.weekInsights ?? null,
+    );
 
-  const prevWeekKeyRef = useRef<string | null>(null);
+  const prefetchWeekKeyJoined =
+    initialPrefetchKeys?.join("|") ?? null;
+  const prevWeekKeyRef = useRef<string | null>(prefetchWeekKeyJoined);
+  const skipInitialWeekFetchRef = useRef(!!initialWeekPrefetch);
 
   useEffect(() => {
     let cancelled = false;
     const ac = new AbortController();
-    const keys = rolling7DateKeys();
+
+    const clientTz =
+      typeof Intl !== "undefined"
+        ? Intl.DateTimeFormat().resolvedOptions().timeZone
+        : "UTC";
+    const prefetchTz = initialWeekPrefetch?.timeZone;
+    const prefetchKeysJoined =
+      initialWeekPrefetch?.dateKeys?.length === 7
+        ? initialWeekPrefetch.dateKeys.join("|")
+        : null;
+
+    if (
+      prefetchTz &&
+      prefetchKeysJoined &&
+      prefetchTz !== clientTz &&
+      rollingDateKeys.join("|") === prefetchKeysJoined
+    ) {
+      const k = rolling7DateKeys();
+      const clientWeekJoined = k.join("|");
+      // If calendar labels match both zones, resetting keys is a no-op that would
+      // re-trigger this branch forever (new array reference each time). Refetch only.
+      if (clientWeekJoined !== prefetchKeysJoined) {
+        setRollingDateKeys(k);
+        setSelectedDateKey(k[k.length - 1]!);
+        setSummariesByKey(Object.fromEntries(k.map((x) => [x, undefined])));
+        setWeekBatchLoading(true);
+        setWeekInsightsApi(null);
+        setWeekBatchError(null);
+        skipInitialWeekFetchRef.current = false;
+        return () => {
+          cancelled = true;
+          ac.abort();
+        };
+      }
+      skipInitialWeekFetchRef.current = false;
+    }
+
+    const keys = rollingDateKeys;
     const ranges = keys.map((k) => {
       const { fromIso, toIso } = localDayBoundsIsoFromYmd(k);
       return { from: fromIso, to: toIso };
     });
 
-    const weekChanged = prevWeekKeyRef.current !== weekKey;
-    prevWeekKeyRef.current = weekKey;
+    const weekKeyLocal = keys.join("|");
+    const weekChanged = prevWeekKeyRef.current !== weekKeyLocal;
+    prevWeekKeyRef.current = weekKeyLocal;
 
     if (weekChanged) {
       setWeekBatchLoading(true);
@@ -299,6 +329,21 @@ export function MealLogClient({
       setWeekInsightsApi(null);
       setSummariesByKey(Object.fromEntries(keys.map((k) => [k, undefined])));
     }
+
+    if (
+      skipInitialWeekFetchRef.current &&
+      initialWeekPrefetch &&
+      prefetchTz === clientTz &&
+      weekKeyLocal === prefetchKeysJoined
+    ) {
+      skipInitialWeekFetchRef.current = false;
+      setWeekBatchLoading(false);
+      return () => {
+        cancelled = true;
+        ac.abort();
+      };
+    }
+    skipInitialWeekFetchRef.current = false;
 
     async function run() {
       try {
@@ -434,7 +479,13 @@ export function MealLogClient({
       cancelled = true;
       ac.abort();
     };
-  }, [weekKey, todayKey, syncTick, activeDays14Enabled]);
+  }, [
+    rollingDateKeys,
+    todayKey,
+    syncTick,
+    activeDays14Enabled,
+    initialWeekPrefetch,
+  ]);
 
   const weekInsightData = useMemo(() => {
     if (weekInsightsApi) return weekInsightsApi;
@@ -903,7 +954,7 @@ export function MealLogClient({
         <div className="flex flex-col gap-6">
           {/* Top Progress Bar for Selected Date */}
           <WeekCalorieStrip
-            dateKeys={dateKeys}
+            dateKeys={rollingDateKeys}
             selectedDateKey={selectedDateKey}
             onSelectDateKey={setSelectedDateKey}
             dailyTargetKcal={dailyTargetKcal}
