@@ -1,4 +1,8 @@
-import { Prisma } from "@prisma/client";
+/**
+ * Adaptive TDEE from intake + weight change over a window.
+ * TDEE ≈ avgIntake − (Δkg × 7700) / spanDays — but raw values can go negative when
+ * short-term scale swings (water) dominate; we cap implied shift and reject absurd results.
+ */
 
 export interface MetabolicDataPoint {
   date: string;
@@ -14,74 +18,121 @@ export interface MetabolicResult {
   daysAnalyzed: number;
 }
 
-const KCAL_PER_KG_FAT_TISSUE = 7700; // Average estimate for body mass change
+const KCAL_PER_KG_FAT_TISSUE = 7700;
+
+/** Max implied kcal/day from mass change (limits water-weight blowups). */
+const MAX_IMPLIED_SHIFT_KCAL_PER_DAY = 1500;
+
+/** Plausible maintenance band for display (kcal/day). */
+const MIN_MAINTENANCE_KCAL = 900;
+const MAX_MAINTENANCE_KCAL = 7000;
+
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 /**
- * Calculates Adaptive TDEE based on a 14-day window of food and weight data.
- * The logic is: TDEE = AvgIntake - (WeightChange * 7700 / Days)
+ * Calculates Adaptive TDEE from daily buckets between first and last weight log.
+ * The logic is: TDEE ≈ AvgIntake − (WeightChange × 7700 / spanDays)
  */
 export function calculateMetabolicAdaptation(
-  data: MetabolicDataPoint[]
+  data: MetabolicDataPoint[],
 ): MetabolicResult {
-  const pointsWithWeight = data.filter(p => p.weightKg !== undefined);
-  
+  const pointsWithWeight = data.filter((p) => p.weightKg !== undefined);
+
   if (pointsWithWeight.length < 2) {
     return {
       adaptiveTDEE: null,
       confidenceScore: 0,
       weightDeltaKg: null,
       averageIntake: null,
-      daysAnalyzed: data.length
+      daysAnalyzed: data.length,
     };
   }
 
-  // 1. Calculate Weight Change (Linear Regression or start-end delta)
-  // For simplicity and resilience to few data points, we use the average of first 3 and last 3 weight logs if available
-  const sortedWeights = [...pointsWithWeight].sort((a, b) => 
-    new Date(a.date).getTime() - new Date(b.date).getTime()
+  const sortedWeights = [...pointsWithWeight].sort((a, b) =>
+    a.date.localeCompare(b.date),
   );
-  
+
   const initialWeight = sortedWeights[0].weightKg!;
   const finalWeight = sortedWeights[sortedWeights.length - 1].weightKg!;
   const totalWeightDelta = finalWeight - initialWeight;
-  
-  const firstDate = new Date(sortedWeights[0].date);
-  const lastDate = new Date(sortedWeights[sortedWeights.length - 1].date);
-  const timeSpanDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
-  
+
+  const firstDateStr = sortedWeights[0].date;
+  const lastDateStr = sortedWeights[sortedWeights.length - 1].date;
+
+  const firstDate = new Date(`${firstDateStr}T12:00:00.000Z`);
+  const lastDate = new Date(`${lastDateStr}T12:00:00.000Z`);
+  const timeSpanDays = Math.max(
+    1,
+    (lastDate.getTime() - firstDate.getTime()) / MS_PER_DAY,
+  );
+
   if (timeSpanDays < 3) {
     return {
       adaptiveTDEE: null,
-      confidenceScore: 0.2, // Low confidence if span is too short
+      confidenceScore: 0.2,
       weightDeltaKg: totalWeightDelta,
       averageIntake: null,
-      daysAnalyzed: data.length
+      daysAnalyzed: data.length,
     };
   }
 
-  // 2. Average Intake over the same span
-  const intakeSum = data.reduce((acc, p) => acc + p.kcal, 0);
-  const averageIntake = intakeSum / data.length;
+  // Intake only for days between first and last weight (inclusive), aligned with Δweight window
+  const inSpan = data.filter(
+    (p) => p.date >= firstDateStr && p.date <= lastDateStr,
+  );
+  const intakeSum = inSpan.reduce((acc, p) => acc + p.kcal, 0);
+  const spanDayBuckets = Math.max(1, inSpan.length);
+  const averageIntake = intakeSum / spanDayBuckets;
 
-  // 3. Calculate Metabolic Offset
-  // Mass change in calories: (delta kg * 7700)
-  // Calories shifted per day: (delta kg * 7700) / span
-  const calorieShiftPerDay = (totalWeightDelta * KCAL_PER_KG_FAT_TISSUE) / timeSpanDays;
-  
-  // TDEE = Maintenance. If weight went up, TDEE is lower than intake.
-  const adaptiveTDEE = averageIntake - calorieShiftPerDay;
+  if (!Number.isFinite(averageIntake) || averageIntake < 300) {
+    return {
+      adaptiveTDEE: null,
+      confidenceScore: 0.15,
+      weightDeltaKg: totalWeightDelta,
+      averageIntake: null,
+      daysAnalyzed: data.length,
+    };
+  }
 
-  // 4. Confidence Score
-  // Higher if we have more points and longer span
+  const rawShiftPerDay =
+    (totalWeightDelta * KCAL_PER_KG_FAT_TISSUE) / timeSpanDays;
+
+  // Cap implied energy imbalance from scale so water swings don't yield negative TDEE
+  const cappedShiftPerDay = Math.max(
+    -MAX_IMPLIED_SHIFT_KCAL_PER_DAY,
+    Math.min(MAX_IMPLIED_SHIFT_KCAL_PER_DAY, rawShiftPerDay),
+  );
+
+  let adaptiveTDEE = averageIntake - cappedShiftPerDay;
+
+  const wasCapped = Math.abs(cappedShiftPerDay - rawShiftPerDay) > 1e-6;
+
+  if (
+    !Number.isFinite(adaptiveTDEE) ||
+    adaptiveTDEE < MIN_MAINTENANCE_KCAL ||
+    adaptiveTDEE > MAX_MAINTENANCE_KCAL
+  ) {
+    return {
+      adaptiveTDEE: null,
+      confidenceScore: wasCapped ? 0.25 : 0.2,
+      weightDeltaKg: totalWeightDelta,
+      averageIntake: Math.round(averageIntake),
+      daysAnalyzed: data.length,
+    };
+  }
+
   const dayCoverage = Math.min(data.length / 14, 1);
   const weightDensity = Math.min(pointsWithWeight.length / 7, 1);
-  const confidenceScore = (dayCoverage * 0.6) + (weightDensity * 0.4);
+  let confidenceScore = dayCoverage * 0.6 + weightDensity * 0.4;
+  if (wasCapped) {
+    confidenceScore *= 0.75;
+  }
 
   return {
     adaptiveTDEE: Math.round(adaptiveTDEE),
-    confidenceScore,
+    confidenceScore: Math.min(1, confidenceScore),
     weightDeltaKg: totalWeightDelta,
     averageIntake: Math.round(averageIntake),
-    daysAnalyzed: data.length
+    daysAnalyzed: data.length,
   };
 }

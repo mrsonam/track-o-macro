@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { calculateMetabolicAdaptation, MetabolicDataPoint } from "@/lib/intelligence/metabolic-engine";
-import { startOfDay, subDays } from "date-fns";
+import {
+  calculateMetabolicAdaptation,
+  type MetabolicDataPoint,
+} from "@/lib/intelligence/metabolic-engine";
+
+/** UTC calendar day `YYYY-MM-DD` — matches `createdAt.toISOString().slice(0, 10)` bucketing. */
+function utcDateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 export async function GET() {
   const session = await getSession();
@@ -12,7 +19,9 @@ export async function GET() {
 
   try {
     const daysToLookBack = 14;
-    const startDate = startOfDay(subDays(new Date(), daysToLookBack));
+    const startDate = new Date();
+    startDate.setUTCHours(0, 0, 0, 0);
+    startDate.setUTCDate(startDate.getUTCDate() - daysToLookBack);
 
     // 1. Fetch data
     const [meals, weightLogs, profile] = await Promise.all([
@@ -47,27 +56,30 @@ export async function GET() {
       })
     ]);
 
-    // 2. Aggregate into Data Points by Day
+    // 2. Aggregate into Data Points by Day (UTC dates — aligned with meal / weight timestamps)
     const dataMap = new Map<string, MetabolicDataPoint>();
-    
-    // Initialize days
+
     for (let i = 0; i < daysToLookBack; i++) {
-       const dateStr = startOfDay(subDays(new Date(), i)).toISOString().split('T')[0];
-       dataMap.set(dateStr, { date: dateStr, kcal: 0 });
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      d.setUTCDate(d.getUTCDate() - i);
+      const dateStr = utcDateKey(d);
+      dataMap.set(dateStr, { date: dateStr, kcal: 0 });
     }
 
     // Add meals
-    meals.forEach(meal => {
-      const dateStr = meal.createdAt.toISOString().split('T')[0];
+    meals.forEach((meal) => {
+      const dateStr = utcDateKey(meal.createdAt);
       if (dataMap.has(dateStr)) {
         const point = dataMap.get(dateStr)!;
-        point.kcal += Number(meal.totalKcal);
+        const k = Number(meal.totalKcal);
+        point.kcal += Number.isFinite(k) ? Math.max(0, k) : 0;
       }
     });
 
     // Add weights (use the latest weight of the day if multiple)
-    weightLogs.forEach(log => {
-      const dateStr = log.loggedAt.toISOString().split('T')[0];
+    weightLogs.forEach((log) => {
+      const dateStr = utcDateKey(log.loggedAt);
       if (dataMap.has(dateStr)) {
         dataMap.get(dateStr)!.weightKg = Number(log.weightKg);
       }

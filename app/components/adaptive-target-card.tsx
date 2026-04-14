@@ -53,13 +53,15 @@ export function AdaptiveTargetCard() {
   };
 
   const handleSync = async () => {
-    if (!data?.adaptiveTDEE) return;
+    if (!data) return;
+    const tdee = data.adaptiveTDEE;
+    if (tdee == null || tdee < 800) return;
     
     setSyncing(true);
     setError(null);
     
     const newTarget = calculateRecommendedTarget(
-      data.adaptiveTDEE, 
+      tdee,
       data.goalIntent ?? "maintain", 
       data.goalPace ?? "moderate"
     );
@@ -91,7 +93,7 @@ export function AdaptiveTargetCard() {
     </div>
   );
 
-  if (!data || data.adaptiveTDEE === null) {
+  if (!data || data.adaptiveTDEE === null || data.adaptiveTDEE < 800) {
     return (
       <div className="bento-card border border-white/5 bg-zinc-900/40 p-6 overflow-hidden relative">
         <div className="flex items-center gap-2 mb-2">
@@ -99,7 +101,7 @@ export function AdaptiveTargetCard() {
           <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Metabolic Logic</h3>
         </div>
         <p className="text-xs text-zinc-500 leading-relaxed italic">
-          Insufficient data points to compute baseline. Log food and weight for 7 consecutive days to activate adaptive monitoring.
+          Insufficient or noisy data to estimate maintenance (need consistent logs, or the model was capped). Keep logging intake and weight for a longer stretch.
         </p>
       </div>
     );
