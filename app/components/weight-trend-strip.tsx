@@ -14,6 +14,7 @@ type Props = {
 
 export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
   const [points, setPoints] = useState<WeightTrendPoint[] | null>(null);
+  const [goalWeightKg, setGoalWeightKg] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,16 +33,21 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
         points?: WeightTrendPoint[];
+        goalWeightKg?: unknown;
       };
       if (!res.ok) {
         setError(typeof json.error === "string" ? json.error : "Could not load");
         setPoints(null);
+        setGoalWeightKg(null);
         return;
       }
       setPoints(Array.isArray(json.points) ? json.points : []);
+      const g = Number(json.goalWeightKg);
+      setGoalWeightKg(Number.isFinite(g) && g > 0 ? g : null);
     } catch {
       setError("Network error");
       setPoints(null);
+      setGoalWeightKg(null);
     } finally {
       setLoading(false);
     }
@@ -68,14 +74,21 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
           </h2>
           <p className="mt-1 text-xs font-medium leading-relaxed text-zinc-500">
             Daily weights collapsed to one value per day; curve is EMA-smoothed to
-            dampen noise.{" "}
+            dampen noise. Set an optional{" "}
             <Link
               href="/settings"
               className="text-violet-400/90 underline-offset-2 hover:underline"
             >
-              Optional home sparkline
+              target weight
             </Link>{" "}
-            in settings.
+            for a reference line.{" "}
+            <Link
+              href="/settings"
+              className="text-violet-400/90 underline-offset-2 hover:underline"
+            >
+              Home sparkline
+            </Link>{" "}
+            is optional.
           </p>
         </div>
       </div>
@@ -91,6 +104,7 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
           points={points}
           unitSystem={unitSystem}
           variant="panel"
+          goalWeightKg={goalWeightKg}
         />
       ) : (
         <div className="flex items-start gap-2 rounded-xl border border-white/5 bg-zinc-950/50 p-4 text-xs font-medium text-zinc-500">

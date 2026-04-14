@@ -104,6 +104,15 @@ export function SettingsForm({ profile }: Props) {
   const [weightTrendOnHomeEnabled, setWeightTrendOnHomeEnabled] = useState(
     () => profile?.weightTrendOnHomeEnabled === true,
   );
+  const [goalWeightKg, setGoalWeightKg] = useState(() => {
+    if (profile?.goalWeightKg == null) return "";
+    const kg = Number(profile.goalWeightKg);
+    if (!Number.isFinite(kg)) return "";
+    const u = (profile?.unitSystem as UnitSystem) ?? "metric";
+    return u === "imperial"
+      ? String(kgToLbs(kg).toFixed(1))
+      : kg.toFixed(1);
+  });
   const [weeklyImplementationIntention, setWeeklyImplementationIntention] =
     useState(() => profile?.weeklyImplementationIntention ?? "");
   const [targetHydrationMl, setTargetHydrationMl] = useState(() =>
@@ -171,6 +180,28 @@ export function SettingsForm({ profile }: Props) {
       return;
     }
 
+    let goalWeightPayload: number | null | undefined;
+    const goalTrim = goalWeightKg.trim();
+    if (goalTrim === "") {
+      goalWeightPayload = null;
+    } else {
+      let gg = parseFloat(goalTrim);
+      if (Number.isNaN(gg)) {
+        setError("Target weight must be a number or empty.");
+        return;
+      }
+      if (unitSystem === "imperial") {
+        gg = lbsToKg(gg);
+      }
+      if (gg < 25 || gg > 400) {
+        setError(
+          "Target weight must be between 25 and 400 kg equivalent, or clear the field.",
+        );
+        return;
+      }
+      goalWeightPayload = gg;
+    }
+
     const avoidParsed = parseFoodAvoidList(foodAvoidText);
     setSaving(true);
     try {
@@ -196,6 +227,7 @@ export function SettingsForm({ profile }: Props) {
             planTrim === "" ? null : planTrim,
           activeDays14Enabled,
           weightTrendOnHomeEnabled,
+          goalWeightKg: goalWeightPayload,
           unitSystem,
           targetHydrationMl: hydrationGoalPayload,
         }),
@@ -242,6 +274,18 @@ export function SettingsForm({ profile }: Props) {
                   } else {
                     setHeightCm(String(Number(inchesToCm(Number(heightCm)).toFixed(0))));
                     setWeightKg(String(Number(lbsToKg(Number(weightKg)).toFixed(1))));
+                  }
+                  if (goalWeightKg.trim() !== "") {
+                    const gg = parseFloat(goalWeightKg);
+                    if (!Number.isNaN(gg)) {
+                      const kgVal =
+                        unitSystem === "imperial" ? lbsToKg(gg) : gg;
+                      setGoalWeightKg(
+                        next === "imperial"
+                          ? String(kgToLbs(kgVal).toFixed(1))
+                          : String(kgVal.toFixed(1)),
+                      );
+                    }
                   }
                   setUnitSystem(next);
                 }}
@@ -392,6 +436,28 @@ export function SettingsForm({ profile }: Props) {
           </motion.label>
         )}
       </AnimatePresence>
+
+      <label className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
+          <Scale className="h-3 w-3" /> Target weight (optional)
+        </div>
+        <input
+          type="number"
+          inputMode="decimal"
+          min={unitSystem === "metric" ? 25 : 55}
+          max={unitSystem === "metric" ? 400 : 880}
+          step="0.1"
+          placeholder="e.g. goal on the scale"
+          value={goalWeightKg}
+          onChange={(e) => setGoalWeightKg(e.target.value)}
+          className="form-field"
+        />
+        <span className="text-[10px] font-medium leading-relaxed text-zinc-600">
+          Shows as a dashed reference line on the weight trajectory (Trends) and on
+          the home sparkline when enabled. Clear the field to remove the line. Not
+          medical advice.
+        </span>
+      </label>
 
       <div className="bento-card border border-white/5 bg-zinc-900/30 p-8 space-y-8">
         <div className="flex items-center gap-4">

@@ -49,6 +49,7 @@ export function WeightLogCard({
   const [trendPoints, setTrendPoints] = useState<WeightTrendPoint[] | null>(
     null,
   );
+  const [goalWeightKg, setGoalWeightKg] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchLogs() {
@@ -82,9 +83,14 @@ export function WeightLogCard({
         });
         const json = (await res.json().catch(() => ({}))) as {
           points?: WeightTrendPoint[];
+          goalWeightKg?: unknown;
         };
         if (!cancelled && res.ok && Array.isArray(json.points)) {
           setTrendPoints(json.points);
+          const g = Number(json.goalWeightKg);
+          setGoalWeightKg(Number.isFinite(g) && g > 0 ? g : null);
+        } else if (!cancelled) {
+          setGoalWeightKg(null);
         }
       } catch {
         if (!cancelled) setTrendPoints(null);
@@ -287,6 +293,7 @@ export function WeightLogCard({
                       points={trendPoints}
                       unitSystem={unitSystem}
                       variant="compact"
+                      goalWeightKg={goalWeightKg}
                     />
                   </div>
                 ) : (

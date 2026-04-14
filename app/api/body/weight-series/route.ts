@@ -37,14 +37,20 @@ export async function GET(request: Request) {
   from.setDate(from.getDate() - days);
 
   try {
-    const rows = await prisma.weightLog.findMany({
-      where: {
-        userId: session.user.id,
-        loggedAt: { gte: from },
-      },
-      orderBy: { loggedAt: "asc" },
-      select: { loggedAt: true, weightKg: true },
-    });
+    const [rows, profile] = await Promise.all([
+      prisma.weightLog.findMany({
+        where: {
+          userId: session.user.id,
+          loggedAt: { gte: from },
+        },
+        orderBy: { loggedAt: "asc" },
+        select: { loggedAt: true, weightKg: true },
+      }),
+      prisma.userProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { goalWeightKg: true },
+      }),
+    ]);
 
     const logs = rows.map((r) => ({
       loggedAt: r.loggedAt,
@@ -54,12 +60,21 @@ export async function GET(request: Request) {
     const daily = collapseLogsToDaily(logs, timeZone);
     const points = buildSmoothedTrend(daily, alpha);
 
+    const goalWeightKg =
+      profile?.goalWeightKg != null
+        ? Number(profile.goalWeightKg)
+        : null;
+
     return NextResponse.json({
       timeZone,
       daysRequested: days,
       alpha,
       pointCount: points.length,
       points,
+      goalWeightKg:
+        goalWeightKg != null && Number.isFinite(goalWeightKg)
+          ? goalWeightKg
+          : null,
     });
   } catch (e) {
     if (isDbUnavailableError(e)) {

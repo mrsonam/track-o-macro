@@ -82,6 +82,8 @@ model UserProfile {
   activeDays14Enabled     Boolean   @default(false) @map("active_days_14_enabled")
   /// Epic 6 — optional smoothed weight sparkline on the home weight card (trend lives on /trends by default)
   weightTrendOnHomeEnabled Boolean  @default(false) @map("weight_trend_on_home_enabled")
+  /// Epic 6 — optional target weight (kg) for trajectory reference line on charts; null = no line
+  goalWeightKg            Decimal?  @map("goal_weight_kg")
   bmrKcal                 Decimal?  @map("bmr_kcal")
   tdeeKcal                Decimal?  @map("tdee_kcal")
   targetKcal              Decimal?  @map("target_kcal")

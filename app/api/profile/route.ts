@@ -80,6 +80,8 @@ const patchBodySchema = z.object({
   activeDays14Enabled: z.boolean().optional(),
   /** Epic 6 — optional smoothed weight sparkline on home body card */
   weightTrendOnHomeEnabled: z.boolean().optional(),
+  /** Epic 6 — optional target weight (kg) for chart reference line */
+  goalWeightKg: z.number().min(25).max(400).optional().nullable(),
   unitSystem: z.enum(["metric", "imperial"]).optional(),
   targetKcal: z.number().min(800).max(10000).optional().nullable(),
   /** Daily fluid goal (ml); null clears to app default */
@@ -246,6 +248,7 @@ export async function PATCH(request: Request) {
     data.weeklyImplementationIntention !== undefined ||
     data.activeDays14Enabled !== undefined ||
     data.weightTrendOnHomeEnabled !== undefined ||
+    data.goalWeightKg !== undefined ||
     data.unitSystem !== undefined ||
     hasPreferenceFields;
 
@@ -376,6 +379,14 @@ export async function PATCH(request: Request) {
         ...(data.weightTrendOnHomeEnabled !== undefined
           ? { weightTrendOnHomeEnabled: data.weightTrendOnHomeEnabled }
           : {}),
+        ...(data.goalWeightKg !== undefined
+          ? {
+              goalWeightKg:
+                data.goalWeightKg == null
+                  ? null
+                  : new Prisma.Decimal(data.goalWeightKg),
+            }
+          : {}),
         ...(nextTargetHydrationMl !== undefined
           ? { targetHydrationMl: nextTargetHydrationMl }
           : {}),
@@ -417,6 +428,14 @@ export async function PATCH(request: Request) {
           : {}),
         ...(data.weightTrendOnHomeEnabled !== undefined
           ? { weightTrendOnHomeEnabled: data.weightTrendOnHomeEnabled }
+          : {}),
+        ...(data.goalWeightKg !== undefined
+          ? {
+              goalWeightKg:
+                data.goalWeightKg == null
+                  ? null
+                  : new Prisma.Decimal(data.goalWeightKg),
+            }
           : {}),
         ...(nextTargetHydrationMl !== undefined
           ? { targetHydrationMl: nextTargetHydrationMl }

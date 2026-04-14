@@ -13,6 +13,8 @@ type Props = {
   unitSystem: UnitSystem;
   variant: "compact" | "panel";
   className?: string;
+  /** Goal weight in kg; horizontal reference line when in range */
+  goalWeightKg?: number | null;
 };
 
 function toDisplay(kg: number, unitSystem: UnitSystem): number {
@@ -26,6 +28,7 @@ export function WeightTrendSparkline({
   unitSystem,
   variant,
   className = "",
+  goalWeightKg = null,
 }: Props) {
   const gradId = useId().replace(/:/g, "");
   const layout = useMemo(() => {
@@ -35,6 +38,16 @@ export function WeightTrendSparkline({
     const raw = points.map((p) => toDisplay(p.rawKg, unitSystem));
     let min = Math.min(...smoothed, ...raw);
     let max = Math.max(...smoothed, ...raw);
+    const goalDisplay =
+      goalWeightKg != null &&
+      Number.isFinite(goalWeightKg) &&
+      goalWeightKg > 0
+        ? toDisplay(goalWeightKg, unitSystem)
+        : null;
+    if (goalDisplay != null) {
+      min = Math.min(min, goalDisplay);
+      max = Math.max(max, goalDisplay);
+    }
     if (min === max) {
       min -= 0.5;
       max += 0.5;
@@ -74,6 +87,8 @@ export function WeightTrendSparkline({
     }));
 
     const fmt = (v: number) => v.toFixed(1);
+    const goalY =
+      goalDisplay != null ? yAt(goalDisplay) : null;
     return {
       h,
       pathD: pathD.trim(),
@@ -83,8 +98,10 @@ export function WeightTrendSparkline({
       lastLabel: fmt(smoothed[n - 1]),
       firstDate: points[0].dateKey,
       lastDate: points[n - 1].dateKey,
+      goalY,
+      goalLabel: goalDisplay != null ? fmt(goalDisplay) : null,
     };
-  }, [points, unitSystem, variant]);
+  }, [points, unitSystem, variant, goalWeightKg]);
 
   if (points.length < 2) {
     return (
@@ -111,6 +128,18 @@ export function WeightTrendSparkline({
           </linearGradient>
         </defs>
         <path d={layout.areaD} fill={`url(#${gradId})`} stroke="none" />
+        {layout.goalY != null && (
+          <line
+            x1={6}
+            y1={layout.goalY}
+            x2={W - 6}
+            y2={layout.goalY}
+            stroke="rgb(52 211 153)"
+            strokeOpacity={0.45}
+            strokeWidth={variant === "compact" ? 1.25 : 1.5}
+            strokeDasharray="5 5"
+          />
+        )}
         <path
           d={layout.pathD}
           fill="none"
@@ -133,13 +162,20 @@ export function WeightTrendSparkline({
           ))}
       </svg>
       {variant === "panel" && (
-        <div className="mt-2 flex justify-between text-[10px] font-bold text-zinc-500">
-          <span>
+        <div className="mt-2 grid grid-cols-1 gap-1 text-[10px] font-bold text-zinc-500 sm:grid-cols-3 sm:items-center sm:gap-2">
+          <span className="text-left sm:col-start-1">
             {layout.firstDate}{" "}
             <span className="text-zinc-400">{layout.firstLabel}</span>{" "}
             {getWeightLabel(unitSystem)}
           </span>
-          <span>
+          {layout.goalLabel != null ? (
+            <span className="text-center text-emerald-400/80 sm:col-start-2">
+              Goal {layout.goalLabel} {getWeightLabel(unitSystem)}
+            </span>
+          ) : (
+            <span className="hidden sm:col-start-2 sm:block" aria-hidden />
+          )}
+          <span className="text-left sm:col-start-3 sm:text-right">
             {layout.lastDate}{" "}
             <span className="text-violet-300/90">{layout.lastLabel}</span>{" "}
             {getWeightLabel(unitSystem)}

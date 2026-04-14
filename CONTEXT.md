@@ -207,7 +207,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 
 **Shipped (Epic 4 “intelligence” slice — v1):**
 
-- **Micronutrients lite** — Fiber, sodium, total sugars, and **added sugars** (when USDA/resolver provides them) aggregated per meal and per day; **week** card shows 7-day **averages** when totals exist. Line items persist `fiber_g`, `sodium_mg`, `sugar_g`, `added_sugar_g` on `meal_line_items`; meal totals mirror `total_*` fields.
+- **Micronutrients lite** — Fiber, sodium, total sugars, and **added sugars** (when USDA/resolver provides them) aggregated per meal and per day; **week** card shows 7-day **averages** when totals exist. Line items persist `fiber_g`, `sodium_mg`, `sugar_g`, `added_sugar_g` on `meal_line_items`; meal totals mirror `total_`* fields.
 - **Pattern copy (rolling window)** — `/api/meals/insights` returns `patterns.weekendDriftLine`, `patterns.mealTimingBandLine`, and `patterns.lateEatingLine` (weekend vs weekday kcal; **local-time** four bands — morning / midday / early evening / late night — with **dominant-band** copy when ≥3 meals; late-night **after 9 p.m.** line when it does not duplicate the dominant-band story). **Timezone** from the request applies to all of the above.
 - **“Explain the day”** — `explainTheDayLines()` on the home **day** card: calorie driver, **protein distribution** (when one meal is a large share of the day’s protein across ≥2 meals), protein vs guide, fiber, sodium/sugar context in UI thresholds, **total vs added sugar** copy when data exists, calories near target, and **same-day meal-timing** lines from `dayMealTimingLines()` (via batch `includeTiming` + IANA zone). Capped at **five** short lines.
 
@@ -290,6 +290,38 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 
 **Review questions:** Is weight in MVP?
 
+### Epic 6 — implementation status (slices 1–2 shipped)
+
+**Shipped (slice 1):**
+
+- **Data model** — `WeightLog` (`weight_logs`): `weight_kg`, optional `body_fat_pct`, `logged_at`; user-scoped with indexes.
+- **APIs** — `GET` / `POST` `/api/body/weight` (list + create entries); `GET` `/api/body/weight-series` (daily collapse + EMA-smoothed series for charts; query includes `timeZone`).
+- **Smoothing & series** — `lib/body/weight-trend-series.ts`: one weight per local calendar day (last log wins), then **EMA** on the daily series for a less noisy curve; `formatYmdInTimeZone` for zoned day keys.
+- **Home** — `WeightLogCard`: log weight, recent entries, unit-aware display; optional **compact smoothed sparkline** when **`user_profiles.weight_trend_on_home_enabled`** is true (Settings toggle). Full chart story: **Trends → Weight** section.
+- **Trends** — `WeightTrendStrip` + `WeightTrendSparkline` on `/trends` (`#history-weight-trend` via `HISTORY_INSIGHT_ANCHORS.weightTrend`); section navigator includes **Weight**.
+- **Settings** — `PATCH` `/api/profile` persists `weightTrendOnHomeEnabled` (default false).
+- **Intelligence (light)** — `GET` `/api/intelligence/metabolic` joins recent meals with **weight logs** for coarse intake vs. scale trajectory (where data exists).
+
+**Shipped (slice 2 — goal reference line):**
+
+- **Profile** — optional **`goal_weight_kg`** on `user_profiles` (nullable); **Settings → Target weight (optional)**; cleared field removes the line from charts.
+- **API** — `GET` `/api/body/weight-series` includes **`goalWeightKg`** (from profile) so clients don’t need an extra round trip.
+- **UI** — `WeightTrendSparkline` draws a **dashed emerald reference line** and shows **Goal** in the panel legend; home compact sparkline uses the same line when a goal is set.
+
+**Explicitly not shipped (still Epic 6 backlog):**
+
+- Non-scale outcomes (energy, hunger, workouts, **steps** without integrations).
+- Photo / measurement timeline and granular privacy controls.
+- Apple Health / Google Fit sync.
+- Export of weight series or formal “weight report” PDF.
+
+**Suggested next slices (prioritize if outcomes > new logging features):**
+
+1. **Decide MVP stance** — Answer “is weight in MVP?” for onboarding/marketing; optional gentle reminder copy (non-judgmental).
+2. **Trends depth** — Maintenance **band** or rate-of-change callouts (building on goal line + smoothed curve).
+3. **Hydration / fluids** — Already on home (`FluidLog`, hydration card); **adjacent** outcome tracking, not a substitute for Epic 6 non-scale list above.
+4. **Integrations** — When ready, steps + weight import (Epic 6 + Epic 10 performance).
+
 ---
 
 ## Epic 7 — History, insights & exports
@@ -367,4 +399,3 @@ For each epic under discussion, capture:
 - **Auth:** NextAuth (JWT sessions, credentials provider). Env: `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (production).
 - **Data:** Postgres via Prisma (`DATABASE_URL` / `DIRECT_URL`). Tables include `users`, `user_profiles`, `meals`, etc.
 - **Access control:** Prefer server-side checks (`getSession`) + Prisma `where: { userId }`. Legacy Supabase RLS policies are irrelevant when using only Prisma with a DB role that bypasses RLS.
-
