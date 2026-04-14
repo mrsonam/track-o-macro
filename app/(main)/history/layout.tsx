@@ -4,6 +4,8 @@ export default function HistoryLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-6 pb-28 pt-10 sm:px-6">{children}</div>
+    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-8 sm:px-6">
+      {children}
+    </div>
   );
 }

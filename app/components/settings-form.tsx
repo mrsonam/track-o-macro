@@ -16,6 +16,7 @@ import {
   parseWeeklyCoachingFocus,
   WEEKLY_COACHING_FOCUS_UI,
 } from "@/lib/meals/weekly-coaching-focus";
+import { IMPLEMENTATION_INTENTION_STARTERS } from "@/lib/meals/implementation-intention-bridge";
 import { 
   Dna, 
   Activity, 
@@ -314,7 +315,9 @@ export function SettingsForm({ profile }: Props) {
               <button
                 key={id}
                 type="button"
-                onClick={() => setSex(id as any)}
+                onClick={() =>
+                  setSex(id as "male" | "female" | "unspecified")
+                }
                 className={`focus-ring tap-target flex-1 rounded-xl px-4 py-3 text-xs font-bold transition-colors duration-200 ${
                   sex === id ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
                 }`}
@@ -518,6 +521,23 @@ export function SettingsForm({ profile }: Props) {
           <span className="text-[10px] font-medium leading-relaxed text-zinc-600">
             Optional. A short concrete plan pairs with suggestions on the home and trends week cards. Not medical advice.
           </span>
+          <div className="mt-3 space-y-2">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+              Templates
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {IMPLEMENTATION_INTENTION_STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  type="button"
+                  onClick={() => setWeeklyImplementationIntention(starter)}
+                  className="rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-left text-[11px] font-medium leading-snug text-zinc-400 transition-colors hover:border-emerald-500/35 hover:text-zinc-200"
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          </div>
         </label>
 
         <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/5 bg-zinc-950/50 p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PwaRegistration } from "./components/PwaRegistration";
@@ -58,7 +59,9 @@ export default function RootLayout({
       <body className="flex min-h-full min-h-dvh flex-col font-sans">
         <Providers>
           <PwaRegistration />
-          {children}
+          <Suspense fallback={<div className="min-h-dvh w-full" aria-hidden />}>
+            {children}
+          </Suspense>
         </Providers>
       </body>
     </html>

@@ -2,12 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import {
-  calorieGoalBlurb,
-} from "@/lib/meals/goal-insight-blurbs";
 import { activeDays14Blurb } from "@/lib/meals/active-days-14-blurb";
-import { loggingRhythmBlurb } from "@/lib/meals/logging-rhythm-blurb";
 import { computeTryThisWeek } from "@/lib/meals/try-this-week-suggestion";
+import { computePlanSuggestionBridge } from "@/lib/meals/implementation-intention-bridge";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
 import {
   TrendingUp,
@@ -105,8 +102,15 @@ export function RollingWeekSummaryBody({
     ],
   );
 
-  const rhythmBlurb = loggingRhythmBlurb(data.daysWithLogs, data.daysInWindow);
   const planText = weeklyImplementationIntention?.trim() ?? "";
+
+  const planSuggestionBridge = useMemo(() => {
+    if (!planText || !tryWeek.text) return null;
+    return computePlanSuggestionBridge(planText, {
+      text: tryWeek.text,
+      ifThen: tryWeek.ifThen,
+    });
+  }, [planText, tryWeek.text, tryWeek.ifThen]);
 
   return (
     <div className={isDetailed ? "space-y-5" : "space-y-3"}>
@@ -299,6 +303,13 @@ export function RollingWeekSummaryBody({
           <p className={`font-medium leading-relaxed text-zinc-300 ${isDetailed ? "text-base" : "text-xs"}`}>
             {tryWeek.text}
           </p>
+          {planSuggestionBridge ? (
+            <p
+              className={`mt-3 border-l-2 border-emerald-500/20 pl-3 leading-relaxed text-zinc-500 ${isDetailed ? "text-sm" : "text-[11px]"}`}
+            >
+              {planSuggestionBridge}
+            </p>
+          ) : null}
           {tryWeek.ifThen ? (
             <p className="mt-3 border-t border-white/5 pt-3 text-[11px] leading-relaxed text-zinc-500">
               <span className="font-bold text-zinc-400">If–then: </span>

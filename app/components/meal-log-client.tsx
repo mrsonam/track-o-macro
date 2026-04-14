@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
+import { formatLocaleTime12h } from "@/lib/datetime/format-locale-time-12h";
+import { DEFAULT_HYDRATION_GOAL_ML } from "@/lib/hydration/defaults";
 import {
   formatLocalYmd,
   localDayBoundsIsoFromYmd,
@@ -44,6 +46,7 @@ import {
 } from "@/lib/nutrition/source-detail";
 import { MealItemComposer } from "./meal-item-composer";
 import { MealPortionHints } from "./meal-portion-hints";
+import { PORTION_QUICK_SNIPPETS } from "@/lib/meals/portion-hints";
 import {
   composerHasAnalyzableContent,
   composerRowsToRawInput,
@@ -108,6 +111,8 @@ export type SavedMealItem = {
 type MealLogClientProps = {
   dailyTargetKcal?: number | null;
   dailyTargetProteinG?: number | null;
+  /** Resolved daily fluid goal (ml), including profile default */
+  dailyTargetHydrationMl?: number;
   loggingStyle?: LoggingStyle | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
   /** Epic 5 — user-authored if–then plan for the week card */
@@ -189,6 +194,7 @@ async function readJsonBody(res: Response): Promise<{
 export function MealLogClient({
   dailyTargetKcal = null,
   dailyTargetProteinG = null,
+  dailyTargetHydrationMl = DEFAULT_HYDRATION_GOAL_ML,
   loggingStyle = null,
   weeklyCoachingFocus = null,
   weeklyImplementationIntention = null,
@@ -312,6 +318,7 @@ export function MealLogClient({
             body: JSON.stringify({
               ranges,
               includeTiming: true,
+              includeHydration: true,
               timeZone,
             }),
             ...fetchOpts,
@@ -327,6 +334,7 @@ export function MealLogClient({
                 totals: MealDaySummary["totals"];
                 timing?: MealDaySummary["timing"];
                 drivers?: MealDaySummary["drivers"];
+                hydrationTotalMl?: number;
               }
             | { ok: false; error?: string }
           >;
@@ -357,6 +365,9 @@ export function MealLogClient({
               totals: r.totals,
               ...(r.timing ? { timing: r.timing } : {}),
               ...(r.drivers ? { drivers: r.drivers } : {}),
+              ...(typeof r.hydrationTotalMl === "number"
+                ? { hydrationTotalMl: r.hydrationTotalMl }
+                : {}),
             };
           }
         });
@@ -896,6 +907,8 @@ export function MealLogClient({
             selectedDateKey={selectedDateKey}
             onSelectDateKey={setSelectedDateKey}
             dailyTargetKcal={dailyTargetKcal}
+            dailyTargetHydrationMl={dailyTargetHydrationMl}
+            unitSystem={unitSystem}
             summariesByKey={summariesByKey}
             batchLoading={weekBatchLoading}
           />
@@ -933,7 +946,9 @@ export function MealLogClient({
                       </div>
                       <div>
                         <h2 className="text-xl font-bold text-white">Log Meal</h2>
-                        <p className="text-xs text-zinc-400">Natural language analysis</p>
+                        <p className="text-xs text-zinc-400">
+                          Free text or Build (rows)
+                        </p>
                       </div>
                     </div>
                     
@@ -981,6 +996,33 @@ export function MealLogClient({
                       {/* Visual Feedback Line */}
                       <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
                     </div>
+
+                    {logInputMode === "free" ? (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                          Portion shortcuts
+                        </p>
+                        <p className="text-[10px] leading-relaxed text-zinc-500">
+                          Tap to append a line. Estimates only — same as typing
+                          grams or cups yourself.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {PORTION_QUICK_SNIPPETS.map((s) => (
+                            <button
+                              key={s.label}
+                              type="button"
+                              disabled={busy}
+                              onClick={() => appendToMeal(s.text)}
+                              className="focus-ring tap-target rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] px-3 py-1.5 text-[11px] font-semibold text-emerald-200/90 transition-colors duration-200 hover:border-emerald-500/35 hover:bg-emerald-500/10 disabled:opacity-40"
+                            >
+                              + {s.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <MealPortionHints />
 
                     <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1344,7 +1386,9 @@ export function MealLogClient({
                   <p className="mt-1 text-xs text-zinc-500">
                     <span className="font-bold text-emerald-500">{Math.round(m.totalKcal)} kcal</span>
                     <span className="mx-2 opacity-20">|</span>
-                    {isMounted ? new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "--:--"}
+                    {isMounted
+                      ? formatLocaleTime12h(m.createdAt)
+                      : "—"}
                   </p>
                 </div>
                 <button 

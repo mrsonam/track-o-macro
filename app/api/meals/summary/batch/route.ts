@@ -38,6 +38,8 @@ export async function POST(request: Request) {
   let body: {
     ranges?: RangeInput[];
     includeTiming?: boolean;
+    /** When false, skips fluid aggregates (default: true). */
+    includeHydration?: boolean;
     timeZone?: string;
   };
   try {
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
 
   const userId = session.user.id;
   const includeTiming = body.includeTiming === true;
+  const includeHydration = body.includeHydration !== false;
   const timeZone =
     typeof body.timeZone === "string" && isValidIanaTimeZone(body.timeZone)
       ? body.timeZone
@@ -89,23 +92,38 @@ export async function POST(request: Request) {
         }
         const { fromD, toD } = v;
         try {
-          const agg = await prisma.meal.aggregate({
-            where: {
-              userId,
-              createdAt: { gte: fromD, lt: toD },
-            },
-            _sum: {
-              totalKcal: true,
-              totalProteinG: true,
-              totalCarbsG: true,
-              totalFatG: true,
-              totalFiberG: true,
-              totalSodiumMg: true,
-              totalSugarG: true,
-              totalAddedSugarG: true,
-            },
-            _count: { _all: true },
-          });
+          const [agg, fluidAgg] = await Promise.all([
+            prisma.meal.aggregate({
+              where: {
+                userId,
+                createdAt: { gte: fromD, lt: toD },
+              },
+              _sum: {
+                totalKcal: true,
+                totalProteinG: true,
+                totalCarbsG: true,
+                totalFatG: true,
+                totalFiberG: true,
+                totalSodiumMg: true,
+                totalSugarG: true,
+                totalAddedSugarG: true,
+              },
+              _count: { _all: true },
+            }),
+            includeHydration
+              ? prisma.fluidLog.aggregate({
+                  where: {
+                    userId,
+                    loggedAt: { gte: fromD, lt: toD },
+                  },
+                  _sum: { volumeMl: true },
+                })
+              : Promise.resolve({ _sum: { volumeMl: null } }),
+          ]);
+
+          const hydrationTotalMl = includeHydration
+            ? Math.round(Number(fluidAgg._sum.volumeMl ?? 0) * 10) / 10
+            : undefined;
 
           const kcal = Number(agg._sum.totalKcal ?? 0);
           const protein_g = Number(agg._sum.totalProteinG ?? 0);
@@ -214,6 +232,7 @@ export async function POST(request: Request) {
             },
             ...(timing ? { timing } : {}),
             drivers,
+            ...(hydrationTotalMl !== undefined ? { hydrationTotalMl } : {}),
           };
         } catch {
           return { ok: false as const, error: "Query failed" };

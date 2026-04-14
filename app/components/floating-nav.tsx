@@ -10,8 +10,8 @@ export function FloatingNav() {
 
   const links = [
     { href: "/", icon: Home, label: "Home" },
-    { href: "/history", icon: History, label: "History" },
     { href: "/trends", icon: TrendingUp, label: "Trends" },
+    { href: "/history", icon: History, label: "History" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ];
 

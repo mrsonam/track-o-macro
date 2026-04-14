@@ -1,5 +1,5 @@
-// Calorie Agent — install + offline shell + analyze + history queue background sync
-const CACHE_NAME = "calorie-agent-sw-v3";
+// Calorie Agent — install + offline shell + analyze queue background sync
+const CACHE_NAME = "calorie-agent-sw-v4";
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
@@ -9,7 +9,6 @@ const PRECACHE = [
 
 /** Tells open tabs to flush IndexedDB meal queue (same-origin cookies on fetch). */
 const ANALYZE_QUEUE_SYNC_TAG = "analyze-queue";
-const HISTORY_ACTION_QUEUE_SYNC_TAG = "history-action-queue";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -36,10 +35,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("sync", (event) => {
-  if (
-    event.tag !== ANALYZE_QUEUE_SYNC_TAG &&
-    event.tag !== HISTORY_ACTION_QUEUE_SYNC_TAG
-  ) {
+  if (event.tag !== ANALYZE_QUEUE_SYNC_TAG) {
     return;
   }
   event.waitUntil(
@@ -47,11 +43,7 @@ self.addEventListener("sync", (event) => {
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clientList) => {
         for (const client of clientList) {
-          if (event.tag === ANALYZE_QUEUE_SYNC_TAG) {
-            client.postMessage({ type: "FLUSH_ANALYZE_QUEUE" });
-          } else {
-            client.postMessage({ type: "FLUSH_HISTORY_ACTION_QUEUE" });
-          }
+          client.postMessage({ type: "FLUSH_ANALYZE_QUEUE" });
         }
       }),
   );

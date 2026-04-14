@@ -1,24 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { rolling7WindowBoundsIso } from "@/lib/meals/local-date";
 import { weeklyRecapLines } from "@/lib/meals/weekly-recap-lines";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
 import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
-import { Award, Info, ShieldAlert, Zap, AlertCircle } from "lucide-react";
+import { Award, Info, ShieldAlert, Zap, AlertCircle, ListTodo } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HistoryInsightsCrossLinks } from "./history-insights-cross-links";
-
 type HistoryWeeklyRecapStripProps = {
   dailyTargetKcal: number | null;
   dailyTargetProteinG: number | null;
+  /** Epic 5 — same optional if–then as home / trends week cards */
+  weeklyImplementationIntention?: string | null;
   className?: string;
 };
 
 export function HistoryWeeklyRecapStrip({
   dailyTargetKcal,
   dailyTargetProteinG,
+  weeklyImplementationIntention = null,
   className,
 }: HistoryWeeklyRecapStripProps) {
   const online = useOnline();
@@ -105,6 +107,8 @@ export function HistoryWeeklyRecapStrip({
   const quietWeek =
     hadMeals && wins.length === 0 && friction.length === 0;
 
+  const planFoot = weeklyImplementationIntention?.trim() ?? "";
+
   return (
     <div
       id={HISTORY_INSIGHT_ANCHORS.weekRecap}
@@ -187,7 +191,8 @@ export function HistoryWeeklyRecapStrip({
             {!hadMeals ? (
               <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
                 <p className="text-sm font-medium text-zinc-500 leading-relaxed italic">
-                  "The engine requires data to find patterns."<br/>
+                  &ldquo;The engine requires data to find patterns.&rdquo;
+                  <br />
                   <span className="mt-2 block not-italic font-bold text-zinc-600 uppercase tracking-widest text-[10px]">No meals recorded in window</span>
                 </p>
               </div>
@@ -273,6 +278,32 @@ export function HistoryWeeklyRecapStrip({
                 </div>
               </div>
             )}
+
+            {hadMeals && planFoot ? (
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 sm:p-5">
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+                    <ListTodo className="h-4 w-4" />
+                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/90">
+                    Your plan this week
+                  </p>
+                </div>
+                <p className="text-sm font-medium leading-relaxed text-zinc-200">
+                  {planFoot}
+                </p>
+                <p className="mt-3 text-[10px] font-medium text-zinc-500">
+                  Edit in{" "}
+                  <Link
+                    href="/settings"
+                    className="font-bold text-emerald-500/90 underline decoration-emerald-500/30 underline-offset-2 hover:text-emerald-400"
+                  >
+                    Settings
+                  </Link>
+                  .
+                </p>
+              </div>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>

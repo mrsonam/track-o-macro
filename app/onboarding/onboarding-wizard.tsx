@@ -6,13 +6,15 @@ import { signOut } from "next-auth/react";
 import type { OnboardingDraft } from "@/lib/profile/types";
 import { AuthShell } from "@/components/auth-shell";
 import { ACTIVITY_LABELS } from "@/lib/nutrition/tdee";
-import type { ActivityLevel } from "@/lib/nutrition/tdee";
+import type { ActivityLevel, SexForBmr } from "@/lib/nutrition/tdee";
 import { computeTargets } from "@/lib/profile/compute-profile-targets";
 import { migrateOnboardingStepIndex } from "@/lib/profile/onboarding-step-migrate";
 import {
   DIETARY_PATTERN_LABELS,
   LOGGING_STYLE_LABELS,
   parseFoodAvoidList,
+  type DietaryPattern,
+  type LoggingStyle,
 } from "@/lib/profile/preferences";
 import { 
   Shield, 
@@ -456,10 +458,15 @@ export function OnboardingWizard() {
                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pace Selection</span>
                         </div>
                         <div className="flex gap-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
-                          {["gentle", "moderate", "aggressive"].map((pace) => (
+                          {(["gentle", "moderate", "aggressive"] as const).map((pace) => (
                             <button
                               key={pace}
-                              onClick={() => setDraft(d => ({...d, goalPace: pace as any}))}
+                              onClick={() =>
+                                setDraft((d) => ({
+                                  ...d,
+                                  goalPace: pace,
+                                }))
+                              }
                               className={`flex-1 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                 draft.goalPace === pace ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-600 hover:text-zinc-400"
                               }`}
@@ -518,7 +525,12 @@ export function OnboardingWizard() {
                         {["male", "female"].map((s) => (
                           <button
                             key={s}
-                            onClick={() => setDraft(d => ({...d, sex: s as any}))}
+                            onClick={() =>
+                              setDraft((d) => ({
+                                ...d,
+                                sex: s as SexForBmr,
+                              }))
+                            }
                             className={`flex-1 py-4 rounded-xl text-xs font-bold uppercase ${draft.sex === s ? "bg-emerald-500 text-zinc-950" : "bg-zinc-900 text-zinc-500"}`}
                           >
                             {s}
@@ -559,7 +571,17 @@ export function OnboardingWizard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {Object.entries(LOGGING_STYLE_LABELS).map(([id, opt]) => (
                             <label key={id} className={choiceClass(draft.loggingStyle === id)}>
-                              <input type="radio" className="sr-only" checked={draft.loggingStyle === id} onChange={() => setDraft(d => ({...d, loggingStyle: id as any}))} />
+                              <input
+                                type="radio"
+                                className="sr-only"
+                                checked={draft.loggingStyle === id}
+                                onChange={() =>
+                                  setDraft((d) => ({
+                                    ...d,
+                                    loggingStyle: id as LoggingStyle,
+                                  }))
+                                }
+                              />
                               <span className="font-bold text-white text-xs">{opt.title}</span>
                               <span className="text-[10px] text-zinc-500 leading-tight mt-1">{opt.desc}</span>
                             </label>
@@ -575,7 +597,17 @@ export function OnboardingWizard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {Object.entries(DIETARY_PATTERN_LABELS).map(([id, opt]) => (
                             <label key={id} className={choiceClass(draft.dietaryPattern === id)}>
-                              <input type="radio" className="sr-only" checked={draft.dietaryPattern === id} onChange={() => setDraft(d => ({...d, dietaryPattern: id as any}))} />
+                              <input
+                                type="radio"
+                                className="sr-only"
+                                checked={draft.dietaryPattern === id}
+                                onChange={() =>
+                                  setDraft((d) => ({
+                                    ...d,
+                                    dietaryPattern: id as DietaryPattern,
+                                  }))
+                                }
+                              />
                               <span className="font-bold text-white text-xs">{opt.title}</span>
                             </label>
                           ))}

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /** Partial Prerendering + `use cache` (Next.js 16+). */
+  cacheComponents: true,
   turbopack: {},
 
   async headers() {

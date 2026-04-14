@@ -124,7 +124,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 - Natural-language meal logging (aligned with current product direction).
 - Recent foods, favorites, templates, multi-item meals.
 - Portion UX: household units, grams; optional hand-size guides (clearly labeled as estimates).
-- Duplicate / edit / split meals.
+- Edit / delete past meals (from History).
 - Offline-first logging queue (PWA strength).
 
 **Review questions:** Voice logging in scope? Barcode scanning later?
@@ -137,17 +137,27 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 - **Home — Recent meals** (last 5): snippet, kcal, time, **Log again** (prefill via `log-prefill`); `router.refresh()` after successful analyze.
 - **Saved meals (favorites)** — CRUD via `/api/saved-meals`; named templates with one-tap log on home.
 - **Quick repeat** — Starter phrases + device-local “My phrases” (`lib/meals/quick-repeat-snippets.ts`); append to the meal box.
-- **History** (`/history`) — Search; **Edit** + recalc (`PATCH /api/meals/[id]`); **Delete**; **Duplicate** (new `POST /api/meals/analyze`); **Split** (`POST /api/meals/[id]/split`) with optional blank-line pre-fill + **Split at cursor** UX.
-- **History — offline** — When offline, server actions are disabled with a banner + tooltips; **Log again** still navigates home with prefilled text.
+- **History** (`/history`) — Search; **Edit** + recalc (`PATCH /api/meals/[id]`); **Delete**; **Log again** (prefill home). No duplicate/split from History (UI removed).
+- **History — offline** — Banner when offline; **Log again** still navigates home with prefilled text. Filters, export, edit, delete need network.
 - **CSV export** — `GET /api/meals/export` (up to 5,000 rows, UTF-8 BOM); **Export CSV** on history.
-- **Offline-first queue (home log)** — IndexedDB queue (`lib/meals/analyze-queue.ts`), background sync / flush when online; history duplicate/split still require network (no queue yet).
+- **Offline-first queue (home log)** — IndexedDB queue (`lib/meals/analyze-queue.ts`), background sync / flush when online.
+
+**Shipped (Epic 2 — portion UX + composer copy):**
+
+- `**PORTION_QUICK_SNIPPETS`** in `lib/meals/portion-hints.ts` — tap-to-append lines on home **Free** mode (grams/cups examples).
+- `**MealPortionHints`** — surfaced on the home log card; copy is utility-first (“rough averages — not label-accurate”).
+- **Composer (`MealItemComposer`)** — labels: “Remove” / “Add row”; helper text explains rows → plain text for analyze.
+
+**Shipped (Epic 2 — History edit + composer layout):**
+
+- **History → Edit** — **Free** (textarea) and **Build** (`MealItemComposer`) toggle; switching modes merges text ↔ rows (`seedComposerRowsFromRawInput` / `composerRowsToRawInput`). Save sends the same `rawInput` to `PATCH /api/meals/[id]` as before.
+- **Composer mobile** — rows stack vertically on small screens; amount/unit in a 2-column grid; **Remove** is full-width on mobile; slightly larger `text-base` inputs on touch (`sm:text-sm` on larger breakpoints).
 
 **Backlog / out of v1 (still under Epic 2 themes):**
 
-- **Portion UX** — Dedicated grams/unit pickers and hand-size guides (product still relies on free-text descriptions).
-- **Multi-item “composer”** — Multiple structured rows per log vs one text field.
+- **Portion UX** — Deeper: per-ingredient gram pickers, barcode, photo (beyond shortcuts + reference table).
+- **Multi-item “composer”** — Optional: History edit layout tweaks beyond current stack, or barcode / photo flows.
 - **Voice / barcode** — See review questions above.
-- **Offline queue for history** — Optional: queue duplicate/split like home analyze when offline.
 
 **Epic 2 closure:** Treat **core logging + reliability (home offline queue) + history maintenance** as the shipped slice. The bullets in the Epic 2 goal list above remain the north star; what is not listed under **Shipped** is explicitly **not** closed.
 
@@ -172,7 +182,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 - **Meal breakdown UI** — After analyze, each line shows **USDA match**, **My food** (custom), or **Estimate**; optional **Open in FoodData Central** (not shown for custom); **Matched food** + confidence lines where applicable (`lib/nutrition/source-detail.ts` + `meal-log-client`).
 - **Summary** — Header copy + counts for USDA / My foods / Estimates.
 - **User-created foods** — `UserFood` model (`user_foods`): per-100g kcal + macros, `label` + `label_norm` (unique per user), `**version`** (integer, incremented on each `PATCH`). CRUD via `/api/user-foods` and **Settings → My foods** (`user-foods-manager.tsx`).
-- **Merge rules** — **User food wins** when the parsed ingredient name (or `search_query`) matches a saved food label (case-insensitive, normalized whitespace). OpenAI path: applied before Avocavo batch. Avocavo-only path: applied after `lineFromAvocavoApiItem` when the line’s `label` matches and `unit === "g"`. Overrides set `detail.conflict_resolution`, `overridden_from`, `previous_fdc_id` when replacing a prior match; `analyzeMealText` receives `userFoods` from `loadUserFoodsForResolve` in analyze, meal PATCH, and split routes.
+- **Merge rules** — **User food wins** when the parsed ingredient name (or `search_query`) matches a saved food label (case-insensitive, normalized whitespace). OpenAI path: applied before Avocavo batch. Avocavo-only path: applied after `lineFromAvocavoApiItem` when the line’s `label` matches and `unit === "g"`. Overrides set `detail.conflict_resolution`, `overridden_from`, `previous_fdc_id` when replacing a prior match; `analyzeMealText` receives `userFoods` from `loadUserFoodsForResolve` in analyze and meal PATCH routes.
 
 **Explicitly out of scope (later):**
 
@@ -228,7 +238,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 
 **Shipped (slice 3 — history week strip parity + shared UI):**
 
-- `GET /api/meals/insights` accepts optional **`timeZone`** (IANA, validated); returns **`daysWithLogs`** via Postgres `timezone(...)` + distinct local dates (falls back to **`UTC`** if missing/invalid).
+- `GET /api/meals/insights` accepts optional `**timeZone`** (IANA, validated); returns `**daysWithLogs`** via Postgres `timezone(...)` + distinct local dates (falls back to `**UTC`** if missing/invalid).
 - **History** “This week” strip reuses the same body as home through `RollingWeekSummaryBody` (rhythm + try-this-week + macro lines).
 
 **Shipped (slice 4 — user-chosen weekly focus):**
@@ -240,7 +250,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 **Shipped (slice 5 — 14-day rhythm on History):**
 
 - `rolling14WindowBoundsIso` / `rollingNDateKeys` in `lib/meals/local-date.ts`.
-- `GET /api/meals/insights` supports **`windowDays=7|14`** (with matching `from`/`to` span); averages use that divisor.
+- `GET /api/meals/insights` supports `**windowDays=7|14`** (with matching `from`/`to` span); averages use that divisor.
 - **History** `HistoryFortnightStrip`: last 14 local days — days with a log, meal count, kcal/day average vs goal, plus `fortnightRhythmBlurb` (recovery-friendly wording, not a streak).
 
 **Shipped (slice 6 — weekly recap on History):**
@@ -256,11 +266,17 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 **Shipped (slice 8 — recovery framing toggle):**
 
 - `user_profiles.active_days_14_enabled` (boolean, default false). **Settings → Daily Performance Focus** checkbox: “Active days (14-day view)”.
-- When enabled, home (`MealLogClient`) and **Trends** rolling week (`HistoryInsightsStrip`) fetch **`/api/meals/insights`** with **`windowDays=14`** and merge **`recovery14`** into `RollingWeekSummaryBody`: **“X of 14 days had at least one log”** plus `lib/meals/active-days-14-blurb.ts` (no streak language).
+- When enabled, home (`MealLogClient`) and **Trends** rolling week (`HistoryInsightsStrip`) fetch `**/api/meals/insights`** with `**windowDays=14`** and merge `**recovery14`** into `RollingWeekSummaryBody`: **“X of 14 days had at least one log”** plus `lib/meals/active-days-14-blurb.ts` (no streak language).
+
+**Shipped (slice 9 — implementation intentions, deeper pairing):**
+
+- `**lib/meals/implementation-intention-bridge.ts`** — deterministic **bridge lines** when both a user **Plan this week (if–then)** and heuristic **Try this week** copy exist (protein / logging rhythm / calories overlap, else neutral). Shown on `**RollingWeekSummaryBody`** between the main suggestion and the if–then line.
+- **Trends → Week in Review** — `**HistoryWeeklyRecapStrip`** repeats the user’s plan in an emerald callout (same copy as home) with a Settings link.
+- **Settings** — three **template** buttons fill the if–then textarea (`IMPLEMENTATION_INTENTION_STARTERS`).
 
 **Suggested next slices (still Epic 5):**
 
-- Deeper **implementation intentions** or AI nudges (optional, tone-guarded).
+- Optional **AI-assisted** nudges (tone-guarded) — only if you want generation beyond heuristics.
 
 ---
 

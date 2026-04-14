@@ -1,39 +1,35 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { stashMealLogPrefill } from "@/lib/meals/log-prefill";
 import { notifyMealsChanged } from "@/lib/meals-sync";
-import { defaultSplitParts } from "@/lib/meals/default-split-parts";
-import {
-  dequeueHistoryAction,
-  enqueueHistoryDuplicate,
-  enqueueHistorySplit,
-  readHistoryActionQueue,
-  HISTORY_ACTION_QUEUE_BROADCAST,
-  type QueuedHistoryAction,
-} from "@/lib/meals/history-action-queue";
-import { registerHistoryActionQueueSync } from "@/lib/meals/register-history-sync";
 import { useOnline } from "@/lib/meals/use-online";
-import { localDayBoundsIsoFromYmd } from "@/lib/meals/local-date";
-import { HISTORY_MEALS_PAGE_SIZE } from "@/lib/meals/history-meals-page";
-import { parseMealTagsFromText } from "@/lib/meals/meal-tags";
+import {
+  composerRowsToRawInput,
+  newComposerRow,
+  seedComposerRowsFromRawInput,
+  type ComposerRow,
+} from "@/lib/meals/meal-composer";
+import { MealItemComposer } from "./meal-item-composer";
+import { formatLocaleTime12h } from "@/lib/datetime/format-locale-time-12h";
+import {
+  dayHeadingLabel,
+  formatLocalYmd,
+  localDayBoundsIsoFromYmd,
+} from "@/lib/meals/local-date";
 import {
   Search,
   Download,
   Trash2,
   Edit3,
-  Copy,
-  Scissors,
   AlertCircle,
   Clock,
   ChevronDown,
-  X,
   Plus,
-  ArrowRight,
-  Tag,
-  MapPin,
   Filter,
+  Keyboard,
+  LayoutGrid,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -42,8 +38,6 @@ export type HistoryMealRow = {
   rawInput: string;
   totalKcal: number;
   createdAt: string;
-  tags: string[];
-  placeLabel: string | null;
 };
 
 export function HistoryMealList({
@@ -58,23 +52,17 @@ export function HistoryMealList({
   const offline = !online;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [historyEditMode, setHistoryEditMode] = useState<"free" | "composer">(
+    "free",
+  );
+  const [historyComposerRows, setHistoryComposerRows] = useState<ComposerRow[]>(
+    () => [newComposerRow(), newComposerRow()],
+  );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [filterTag, setFilterTag] = useState("");
-  const [filterPlace, setFilterPlace] = useState("");
   const [remoteRows, setRemoteRows] = useState<HistoryMealRow[] | null>(null);
   const [remoteHasMore, setRemoteHasMore] = useState(false);
-  const [metaForId, setMetaForId] = useState<string | null>(null);
-  const [metaTagsDraft, setMetaTagsDraft] = useState("");
-  const [metaPlaceDraft, setMetaPlaceDraft] = useState("");
-  const [splittingFor, setSplittingFor] = useState<HistoryMealRow | null>(
-    null,
-  );
-  const [splitPartA, setSplitPartA] = useState("");
-  const [splitPartB, setSplitPartB] = useState("");
-  const [splitDraft, setSplitDraft] = useState("");
-  const splitDraftRef = useRef<HTMLTextAreaElement>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportFromYmd, setExportFromYmd] = useState("");
@@ -83,120 +71,11 @@ export function HistoryMealList({
   const [moreAfterExtra, setMoreAfterExtra] = useState(initialHasMore);
   const [loadMoreBusy, setLoadMoreBusy] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [historyQueue, setHistoryQueue] = useState<QueuedHistoryAction[]>([]);
-  const [historyFlushBusy, setHistoryFlushBusy] = useState(false);
-  const flushingHistoryRef = useRef(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const loadHistoryQueue = useCallback(async () => {
-    setHistoryQueue(await readHistoryActionQueue());
-  }, []);
-
-  const flushHistoryActionQueue = useCallback(async () => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-    if (flushingHistoryRef.current) return;
-    flushingHistoryRef.current = true;
-    setHistoryFlushBusy(true);
-
-    async function runFlush() {
-      let anySuccess = false;
-      for (;;) {
-        const items = await readHistoryActionQueue();
-        if (items.length === 0) break;
-        const item = items[0]!;
-        try {
-          if (item.kind === "duplicate") {
-            const res = await fetch("/api/meals/analyze", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ rawInput: item.rawInput }),
-            });
-            if (res.ok) {
-              await dequeueHistoryAction(item.id);
-              anySuccess = true;
-              setHistoryQueue(await readHistoryActionQueue());
-              continue;
-            }
-            break;
-          }
-          const res = await fetch(`/api/meals/${item.mealId}/split`, {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ partA: item.partA, partB: item.partB }),
-          });
-          if (res.ok) {
-            await dequeueHistoryAction(item.id);
-            anySuccess = true;
-            setHistoryQueue(await readHistoryActionQueue());
-            continue;
-          }
-          break;
-        } catch {
-          break;
-        }
-      }
-      setHistoryQueue(await readHistoryActionQueue());
-      if (anySuccess) {
-        notifyMealsChanged();
-        router.refresh();
-      }
-    }
-
-    try {
-      if (typeof navigator !== "undefined" && navigator.locks?.request) {
-        await navigator.locks.request("calorie-history-action-flush", () =>
-          runFlush(),
-        );
-      } else {
-        await runFlush();
-      }
-    } finally {
-      flushingHistoryRef.current = false;
-      setHistoryFlushBusy(false);
-    }
-  }, [router]);
-
-  useEffect(() => {
-    void loadHistoryQueue();
-  }, [loadHistoryQueue]);
-
-  useEffect(() => {
-    const bc = new BroadcastChannel(HISTORY_ACTION_QUEUE_BROADCAST);
-    bc.onmessage = () => void loadHistoryQueue();
-    return () => bc.close();
-  }, [loadHistoryQueue]);
-
-  useEffect(() => {
-    function onOnline() {
-      void flushHistoryActionQueue();
-    }
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, [flushHistoryActionQueue]);
-
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && navigator.onLine) {
-      void flushHistoryActionQueue();
-    }
-  }, [flushHistoryActionQueue]);
-
-  useEffect(() => {
-    function onSwMessage(e: MessageEvent) {
-      if (e.data?.type === "FLUSH_HISTORY_ACTION_QUEUE") {
-        void flushHistoryActionQueue();
-      }
-    }
-    navigator.serviceWorker?.addEventListener?.("message", onSwMessage);
-    return () => {
-      navigator.serviceWorker?.removeEventListener?.("message", onSwMessage);
-    };
-  }, [flushHistoryActionQueue]);
 
   const mealIdsFingerprint = useMemo(
     () => meals.map((m) => m.id).join(","),
@@ -219,23 +98,31 @@ export function HistoryMealList({
   const filteredMeals = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return displayMeals;
-    return displayMeals.filter(
-      (m) =>
-        m.rawInput.toLowerCase().includes(q) ||
-        m.tags.some((t) => t.toLowerCase().includes(q)) ||
-        (m.placeLabel?.toLowerCase().includes(q) ?? false),
+    return displayMeals.filter((m) =>
+      m.rawInput.toLowerCase().includes(q),
     );
   }, [displayMeals, search]);
+
+  /** Newest day first; meals stay newest-first within each day (matches API order). */
+  const mealsByDay = useMemo(() => {
+    const groups: { dateKey: string; meals: HistoryMealRow[] }[] = [];
+    for (const m of filteredMeals) {
+      const dateKey = formatLocalYmd(new Date(m.createdAt));
+      const last = groups[groups.length - 1];
+      if (last?.dateKey === dateKey) {
+        last.meals.push(m);
+      } else {
+        groups.push({ dateKey, meals: [m] });
+      }
+    }
+    return groups;
+  }, [filteredMeals]);
 
   function buildHistoryQuery(offset: number) {
     const p = new URLSearchParams();
     p.set("offset", String(offset));
     const q = search.trim();
     if (q) p.set("q", q);
-    const tt = filterTag.trim();
-    if (tt) p.set("tag", tt);
-    const pl = filterPlace.trim();
-    if (pl) p.set("place", pl);
     if (exportFromYmd && exportToYmd) {
       const { fromIso } = localDayBoundsIsoFromYmd(exportFromYmd);
       const { toIso } = localDayBoundsIsoFromYmd(exportToYmd);
@@ -260,7 +147,12 @@ export function HistoryMealList({
         credentials: "same-origin",
       });
       const data = (await res.json().catch(() => ({}))) as {
-        meals?: HistoryMealRow[];
+        meals?: {
+          id: string;
+          rawInput: string;
+          totalKcal: number;
+          createdAt: string;
+        }[];
         hasMore?: boolean;
         error?: string;
       };
@@ -274,7 +166,14 @@ export function HistoryMealList({
         setLoadMoreError("Unexpected response");
         return;
       }
-      setRemoteRows(data.meals);
+      setRemoteRows(
+        data.meals.map((m) => ({
+          id: m.id,
+          rawInput: m.rawInput,
+          totalKcal: m.totalKcal,
+          createdAt: m.createdAt,
+        })),
+      );
       setRemoteHasMore(Boolean(data.hasMore));
     } catch {
       setLoadMoreError("Network error");
@@ -286,46 +185,10 @@ export function HistoryMealList({
   function clearServerFilters() {
     setRemoteRows(null);
     setRemoteHasMore(false);
-    setFilterTag("");
-    setFilterPlace("");
     setSearch("");
     setExportFromYmd("");
     setExportToYmd("");
     setLoadMoreError(null);
-  }
-
-  async function saveMealMeta(id: string) {
-    const tags = parseMealTagsFromText(metaTagsDraft);
-    const placeLabel = metaPlaceDraft.trim() ? metaPlaceDraft.trim().slice(0, 128) : null;
-    setBusyId(id);
-    setError(null);
-    try {
-      const res = await fetch(`/api/meals/${id}`, {
-        method: "PATCH",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags, placeLabel }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(typeof json.error === "string" ? json.error : "Could not save");
-        return;
-      }
-      setMetaForId(null);
-      setMetaTagsDraft("");
-      setMetaPlaceDraft("");
-      setRemoteRows((prev) =>
-        prev
-          ? prev.map((m) =>
-              m.id === id ? { ...m, tags, placeLabel } : m,
-            )
-          : null,
-      );
-      notifyMealsChanged();
-      router.refresh();
-    } finally {
-      setBusyId(null);
-    }
   }
 
   function logAgain(rawInput: string) {
@@ -336,52 +199,29 @@ export function HistoryMealList({
   function startEdit(m: HistoryMealRow) {
     setEditingId(m.id);
     setDraft(m.rawInput);
+    setHistoryEditMode("free");
+    setHistoryComposerRows(seedComposerRowsFromRawInput(m.rawInput));
     setError(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setDraft("");
+    setHistoryEditMode("free");
+    setHistoryComposerRows([newComposerRow(), newComposerRow()]);
     setError(null);
   }
 
-  function openSplit(m: HistoryMealRow) {
-    const { partA, partB } = defaultSplitParts(m.rawInput);
-    setSplittingFor(m);
-    setSplitPartA(partA);
-    setSplitPartB(partB);
-    setSplitDraft(m.rawInput.trim());
-    setError(null);
-  }
-
-  function closeSplitModal() {
-    if (splittingFor && busyId === splittingFor.id) return;
-    setSplittingFor(null);
-    setSplitPartA("");
-    setSplitPartB("");
-    setSplitDraft("");
-  }
-
-  function splitAtCursor() {
-    const el = splitDraftRef.current;
-    if (!el) return;
-    const full = el.value;
-    const pos = Math.min(
-      Math.max(0, el.selectionStart ?? 0),
-      full.length,
-    );
-    const a = full.slice(0, pos).trim();
-    const b = full.slice(pos).trim();
-    if (!a || !b) {
-      setError(
-        "Place the cursor between two parts so both sides have text, then try again.",
-      );
-      return;
+  function switchHistoryEditMode(next: "free" | "composer") {
+    if (next === historyEditMode) return;
+    if (next === "free") {
+      const merged = composerRowsToRawInput(historyComposerRows).trim();
+      if (merged) setDraft(merged);
+    } else {
+      const merged = draft.trim();
+      setHistoryComposerRows(seedComposerRowsFromRawInput(merged));
     }
-    setError(null);
-    setSplitPartA(a);
-    setSplitPartB(b);
-    setSplitDraft(`${a}\n\n${b}`);
+    setHistoryEditMode(next);
   }
 
   async function onDelete(id: string) {
@@ -396,84 +236,6 @@ export function HistoryMealList({
         return;
       }
       if (editingId === id) cancelEdit();
-      if (splittingFor?.id === id) {
-        setSplittingFor(null);
-        setSplitPartA("");
-        setSplitPartB("");
-        setSplitDraft("");
-      }
-      notifyMealsChanged();
-      router.refresh();
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function onDuplicate(mealId: string, rawInput: string) {
-    setBusyId(mealId);
-    setError(null);
-    try {
-      if (offline) {
-        await enqueueHistoryDuplicate(rawInput);
-        await registerHistoryActionQueueSync();
-        await loadHistoryQueue();
-        return;
-      }
-      const res = await fetch("/api/meals/analyze", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawInput }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Duplicate failed");
-        return;
-      }
-      notifyMealsChanged();
-      router.refresh();
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function onSplitSubmit() {
-    if (!splittingFor) return;
-    const id = splittingFor.id;
-    const a = splitPartA.trim();
-    const b = splitPartB.trim();
-    if (!a || !b) {
-      setError("Enter two non-empty parts.");
-      return;
-    }
-    setBusyId(id);
-    setError(null);
-    try {
-      if (offline) {
-        await enqueueHistorySplit(id, a, b);
-        await registerHistoryActionQueueSync();
-        await loadHistoryQueue();
-        setSplittingFor(null);
-        setSplitPartA("");
-        setSplitPartB("");
-        setSplitDraft("");
-        return;
-      }
-      const res = await fetch(`/api/meals/${id}/split`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ partA: a, partB: b }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Split failed");
-        return;
-      }
-      setSplittingFor(null);
-      setSplitPartA("");
-      setSplitPartB("");
-      setSplitDraft("");
       notifyMealsChanged();
       router.refresh();
     } finally {
@@ -493,7 +255,12 @@ export function HistoryMealList({
           { credentials: "same-origin" },
         );
         const data = (await res.json().catch(() => ({}))) as {
-          meals?: HistoryMealRow[];
+          meals?: {
+            id: string;
+            rawInput: string;
+            totalKcal: number;
+            createdAt: string;
+          }[];
           hasMore?: boolean;
           error?: string;
         };
@@ -507,7 +274,13 @@ export function HistoryMealList({
           setLoadMoreError("Unexpected response");
           return;
         }
-        setRemoteRows((prev) => [...(prev ?? []), ...data.meals!]);
+        const mapped = data.meals.map((m) => ({
+          id: m.id,
+          rawInput: m.rawInput,
+          totalKcal: m.totalKcal,
+          createdAt: m.createdAt,
+        }));
+        setRemoteRows((prev) => [...(prev ?? []), ...mapped]);
         setRemoteHasMore(Boolean(data.hasMore));
         return;
       }
@@ -517,7 +290,12 @@ export function HistoryMealList({
         credentials: "same-origin",
       });
       const data = (await res.json().catch(() => ({}))) as {
-        meals?: HistoryMealRow[];
+        meals?: {
+          id: string;
+          rawInput: string;
+          totalKcal: number;
+          createdAt: string;
+        }[];
         hasMore?: boolean;
         error?: string;
       };
@@ -531,7 +309,12 @@ export function HistoryMealList({
         setLoadMoreError("Unexpected response");
         return;
       }
-      const batch = data.meals;
+      const batch = data.meals.map((m) => ({
+        id: m.id,
+        rawInput: m.rawInput,
+        totalKcal: m.totalKcal,
+        createdAt: m.createdAt,
+      }));
       setExtraMeals((prev) => [...prev, ...batch]);
       setMoreAfterExtra(Boolean(data.hasMore));
     } catch {
@@ -589,7 +372,10 @@ export function HistoryMealList({
   }
 
   async function onSaveRecalculate(id: string) {
-    const text = draft.trim();
+    const text =
+      historyEditMode === "composer"
+        ? composerRowsToRawInput(historyComposerRows).trim()
+        : draft.trim();
     if (!text) return;
     setBusyId(id);
     setError(null);
@@ -619,14 +405,19 @@ export function HistoryMealList({
       {/* Search and Action Bar */}
       <section className="bg-zinc-950/50 rounded-3xl p-6 border border-white/[0.05] glass-pane">
         <div className="flex flex-col lg:flex-row lg:items-center gap-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-zinc-500" />
+          <div className="flex min-w-0 flex-1 items-stretch rounded-2xl border border-white/5 bg-zinc-950 shadow-lg transition-all hover:bg-white/5 focus-within:border-emerald-500/50 focus-within:ring-4 focus-within:ring-emerald-500/10">
+            <span
+              className="flex shrink-0 items-center justify-center pl-4 pr-2 text-zinc-500"
+              aria-hidden
+            >
+              <Search className="h-5 w-5 shrink-0" />
+            </span>
             <input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search text, tags, or place…"
-              className="input-field pl-12 pr-4"
+              placeholder="Search meal text…"
+              className="min-w-0 flex-1 border-0 bg-transparent py-3 pr-4 text-white outline-none placeholder:text-zinc-500"
             />
           </div>
           
@@ -657,33 +448,6 @@ export function HistoryMealList({
               {exportBusy ? "Exporting..." : "Export CSV"}
             </button>
           </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <label className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 flex items-center gap-1">
-              <Tag className="h-3 w-3" /> Tag (exact)
-            </span>
-            <input
-              type="text"
-              value={filterTag}
-              onChange={(e) => setFilterTag(e.target.value)}
-              placeholder="e.g. meal-prep"
-              className="form-field-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> Place / restaurant
-            </span>
-            <input
-              type="text"
-              value={filterPlace}
-              onChange={(e) => setFilterPlace(e.target.value)}
-              placeholder="Contains…"
-              className="form-field-sm"
-            />
-          </label>
         </div>
 
         {/* Date Filter Strip */}
@@ -720,7 +484,8 @@ export function HistoryMealList({
           </div>
         </div>
         <p className="mt-4 text-[10px] font-medium leading-relaxed text-zinc-600">
-          Apply filters runs a server query (tags, place, date range, search text). Quick search above also narrows the current list on the client.
+          Apply filters runs a server query (date range and search text). Quick
+          search above also narrows the current list on the client.
         </p>
       </section>
 
@@ -728,8 +493,11 @@ export function HistoryMealList({
       <AnimatePresence>
         {offline && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 flex items-center gap-3 text-amber-500">
-            <AlertCircle className="h-5 w-5" />
-            <p className="text-xs font-bold">You are currently offline. Some actions will be queued.</p>
+            <AlertCircle className="h-5 w-5 shrink-0" />
+            <p className="text-xs font-bold leading-relaxed">
+              You are offline. Filters, export, and editing saved meals need a
+              connection.
+            </p>
           </motion.div>
         )}
         {error && (
@@ -740,57 +508,124 @@ export function HistoryMealList({
         )}
       </AnimatePresence>
 
-      {/* Meals List */}
-      <ul className="grid grid-cols-1 gap-4">
-        <AnimatePresence mode="popLayout">
-          {filteredMeals.map((m) => {
-            const isEditing = editingId === m.id;
-            const busy = busyId === m.id;
-            
-            return (
-              <motion.li
-                key={m.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="group relative rounded-3xl border border-white/[0.05] bg-zinc-900/50 p-6 transition-[color,background-color,border-color] duration-200 hover:border-white/[0.1] hover:bg-zinc-900/80"
-              >
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                  <div className="flex-1 min-w-0">
-                    <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-950 text-zinc-500">
-                        <Clock className="h-4 w-4" />
-                      </div>
-                      <time className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        {isMounted ? (
-                          <>
-                            {new Date(m.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })} · {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </>
-                        ) : (
-                          "Loading clock..."
-                        )}
-                      </time>
-                    </div>
+      {/* Meals by day */}
+      {mealsByDay.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-white/10 bg-zinc-950/30 px-6 py-12 text-center text-sm text-zinc-500">
+          No meals in this view. Try clearing filters or search.
+        </p>
+      ) : (
+      <div className="flex flex-col gap-10">
+        {mealsByDay.map((group) => (
+          <section key={group.dateKey} className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-white/[0.06] pb-2">
+              <h2 className="text-sm font-bold tracking-tight text-white sm:text-base">
+                {dayHeadingLabel(group.dateKey)}
+              </h2>
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                {group.meals.length === 1
+                  ? "1 meal"
+                  : `${group.meals.length} meals`}{" "}
+                <span className="font-mono text-zinc-500">·</span>{" "}
+                <span className="tabular-nums text-zinc-500">
+                  {Math.round(
+                    group.meals.reduce((s, x) => s + x.totalKcal, 0),
+                  )}{" "}
+                  kcal
+                </span>
+              </p>
+            </div>
+            <ul className="grid grid-cols-1 gap-4">
+              <AnimatePresence mode="popLayout">
+                {group.meals.map((m) => {
+                  const isEditing = editingId === m.id;
+                  const busy = busyId === m.id;
+
+                  return (
+                    <motion.li
+                      key={m.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="group relative rounded-3xl border border-white/[0.05] bg-zinc-900/50 p-6 transition-[color,background-color,border-color] duration-200 hover:border-white/[0.1] hover:bg-zinc-900/80"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-3 flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-950 text-zinc-500">
+                              <Clock className="h-4 w-4" />
+                            </div>
+                            <time
+                              dateTime={m.createdAt}
+                              className="text-[10px] font-black uppercase tracking-widest text-zinc-500"
+                            >
+                              {isMounted
+                                ? formatLocaleTime12h(m.createdAt)
+                                : "—"}
+                            </time>
+                          </div>
                     
                     {isEditing ? (
                       <div className="mt-4 flex flex-col gap-4">
-                        <textarea
-                          value={draft}
-                          onChange={(e) => setDraft(e.target.value)}
-                          className="form-field resize-none p-4"
-                          rows={3}
-                        />
-                        <div className="flex gap-2">
-                          <button 
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
+                            Edit as free text or structured rows
+                          </p>
+                          <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/80 p-1 ring-1 ring-white/[0.06]">
+                            <button
+                              type="button"
+                              onClick={() => switchHistoryEditMode("free")}
+                              className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors duration-200 ${
+                                historyEditMode === "free"
+                                  ? "bg-zinc-800 text-white shadow-lg"
+                                  : "text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            >
+                              <Keyboard className="h-3.5 w-3.5" />
+                              Free
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => switchHistoryEditMode("composer")}
+                              className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-colors duration-200 ${
+                                historyEditMode === "composer"
+                                  ? "bg-zinc-800 text-white shadow-lg"
+                                  : "text-zinc-500 hover:text-zinc-300"
+                              }`}
+                            >
+                              <LayoutGrid className="h-3.5 w-3.5" />
+                              Build
+                            </button>
+                          </div>
+                        </div>
+                        {historyEditMode === "free" ? (
+                          <textarea
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            className="form-field resize-none p-4 text-base leading-relaxed sm:text-sm"
+                            rows={4}
+                          />
+                        ) : (
+                          <MealItemComposer
+                            rows={historyComposerRows}
+                            onChange={setHistoryComposerRows}
+                            disabled={busy || offline}
+                          />
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
                             onClick={() => onSaveRecalculate(m.id)}
-                            className="focus-ring tap-target rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950 transition-colors duration-200 hover:bg-emerald-400"
+                            disabled={busy || offline}
+                            className="focus-ring tap-target rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-bold text-zinc-950 transition-colors duration-200 hover:bg-emerald-400 disabled:opacity-50 sm:py-2"
                           >
-                            Save
+                            Save & recalculate
                           </button>
-                          <button 
+                          <button
+                            type="button"
                             onClick={cancelEdit}
-                            className="focus-ring tap-target rounded-xl bg-zinc-800 px-4 py-2 text-xs font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
+                            disabled={busy}
+                            className="focus-ring tap-target rounded-xl bg-zinc-800 px-4 py-2.5 text-xs font-bold text-white transition-colors duration-200 hover:bg-zinc-700 disabled:opacity-50 sm:py-2"
                           >
                             Cancel
                           </button>
@@ -798,73 +633,9 @@ export function HistoryMealList({
                       </div>
                     ) : (
                       <>
-                        <h4 className="text-lg font-bold text-white leading-snug">{m.rawInput}</h4>
-                        {m.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {m.tags.map((t) => (
-                              <span
-                                key={t}
-                                className="rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-400/90"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {m.placeLabel ? (
-                          <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-zinc-500">
-                            <MapPin className="h-3.5 w-3.5 shrink-0 text-zinc-600" />
-                            {m.placeLabel}
-                          </p>
-                        ) : null}
-                        {metaForId === m.id && (
-                          <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/80 p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
-                              Tags & place
-                            </p>
-                            <label className="block text-[10px] font-bold text-zinc-600 mb-1">
-                              Tags (comma or space)
-                            </label>
-                            <input
-                              type="text"
-                              value={metaTagsDraft}
-                              onChange={(e) => setMetaTagsDraft(e.target.value)}
-                              className="form-field-sm mb-3 w-full"
-                              placeholder="lunch, dining-out"
-                            />
-                            <label className="block text-[10px] font-bold text-zinc-600 mb-1">
-                              Restaurant / place
-                            </label>
-                            <input
-                              type="text"
-                              value={metaPlaceDraft}
-                              onChange={(e) => setMetaPlaceDraft(e.target.value)}
-                              className="form-field-sm mb-3 w-full"
-                              placeholder="Optional"
-                            />
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => void saveMealMeta(m.id)}
-                                disabled={busy}
-                                className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-zinc-950 disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setMetaForId(null);
-                                  setMetaTagsDraft("");
-                                  setMetaPlaceDraft("");
-                                }}
-                                className="rounded-xl bg-zinc-800 px-4 py-2 text-xs font-bold text-white"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                        <h4 className="text-lg font-bold text-white leading-snug">
+                          {m.rawInput}
+                        </h4>
                       </>
                     )}
                   </div>
@@ -877,72 +648,46 @@ export function HistoryMealList({
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-1">
-                      <button 
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <button
+                        type="button"
                         onClick={() => logAgain(m.rawInput)}
-                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-white"
-                        title="Log Again"
+                        disabled={busy}
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                        title="Log again (prefill on Home)"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
-                      <button 
-                        onClick={() => void onDuplicate(m.id, m.rawInput)}
-                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-violet-400"
-                        title="Duplicate"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => openSplit(m)}
-                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-blue-400"
-                        title="Split"
-                      >
-                        <Scissors className="h-4 w-4" />
-                      </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (metaForId === m.id) {
-                            setMetaForId(null);
-                            setMetaTagsDraft("");
-                            setMetaPlaceDraft("");
-                          } else {
-                            setMetaForId(m.id);
-                            setMetaTagsDraft(m.tags.join(", "));
-                            setMetaPlaceDraft(m.placeLabel ?? "");
-                          }
-                        }}
-                        className={`focus-ring tap-target rounded-xl bg-zinc-950 p-3 transition-colors duration-200 ${
-                          metaForId === m.id
-                            ? "text-emerald-400"
-                            : "text-zinc-500 hover:text-emerald-400/90"
-                        }`}
-                        title="Tags & place"
-                      >
-                        <Tag className="h-4 w-4" />
-                      </button>
-                      <button 
                         onClick={() => startEdit(m)}
-                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-emerald-400"
-                        title="Edit"
+                        disabled={busy || offline}
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-emerald-400 disabled:pointer-events-none disabled:opacity-40"
+                        title={offline ? "Editing requires a connection" : "Edit"}
                       >
                         <Edit3 className="h-4 w-4" />
                       </button>
-                      <button 
-                         onClick={() => onDelete(m.id)}
-                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-red-400"
-                        title="Delete"
+                      <button
+                        type="button"
+                        onClick={() => onDelete(m.id)}
+                        disabled={busy || offline}
+                        className="focus-ring tap-target rounded-xl bg-zinc-950 p-3 text-zinc-500 transition-colors duration-200 hover:text-red-400 disabled:pointer-events-none disabled:opacity-40"
+                        title={offline ? "Delete requires a connection" : "Delete"}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 </div>
-              </motion.li>
-            );
-          })}
-        </AnimatePresence>
-      </ul>
+                    </motion.li>
+                  );
+                })}
+              </AnimatePresence>
+            </ul>
+          </section>
+        ))}
+      </div>
+      )}
 
       {/* Load More */}
       {showLoadMore && (
@@ -956,75 +701,6 @@ export function HistoryMealList({
           </button>
         </div>
       )}
-
-      {/* Split Modal Overlay */}
-      <AnimatePresence>
-        {splittingFor && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-zinc-950/80 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-2xl rounded-3xl bg-zinc-900 p-8 shadow-2xl border border-white/[0.05] relative"
-            >
-              <button
-                type="button"
-                onClick={closeSplitModal}
-                className="focus-ring tap-target absolute right-6 top-6 rounded-xl p-2 text-zinc-500 transition-colors duration-200 hover:text-white"
-                aria-label="Close split dialog"
-              >
-                <X className="h-6 w-6" />
-              </button>
-              
-              <h3 className="text-2xl font-black text-white mb-2">Split Meal</h3>
-              <p className="text-xs text-zinc-400 mb-8 uppercase tracking-widest font-black">Divide into two separate logs</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="flex flex-col gap-4">
-                  <div className="rounded-2xl bg-zinc-950 p-4 border border-white/5">
-                    <span className="text-[10px] font-black uppercase text-zinc-500">Part A</span>
-                    <textarea 
-                      value={splitPartA}
-                      onChange={(e) => setSplitPartA(e.target.value)}
-                      className="w-full bg-transparent mt-2 text-white outline-none resize-none"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-                
-                <div className="hidden md:flex flex-col justify-center items-center text-zinc-800">
-                  <ArrowRight className="h-10 w-10" />
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  <div className="rounded-2xl bg-zinc-950 p-4 border border-white/5">
-                    <span className="text-[10px] font-black uppercase text-zinc-500">Part B</span>
-                    <textarea 
-                      value={splitPartB}
-                      onChange={(e) => setSplitPartB(e.target.value)}
-                      className="w-full bg-transparent mt-2 text-white outline-none resize-none"
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 flex gap-3">
-                <button type="button" onClick={onSplitSubmit} className="btn-primary flex-1">
-                  Commit Split
-                </button>
-                <button
-                  type="button"
-                  onClick={closeSplitModal}
-                  className="focus-ring tap-target rounded-2xl bg-zinc-800 px-8 py-4 font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

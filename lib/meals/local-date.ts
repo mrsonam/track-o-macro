@@ -67,6 +67,34 @@ export function rolling14WindowBoundsIso(): { fromIso: string; toIso: string } {
   return { fromIso, toIso };
 }
 
+const SHORT_WEEKDAYS = [
+  "Sun",
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+] as const;
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+/**
+ * Human-readable day heading for a `YYYY-MM-DD` key. Uses fixed English labels
+ * (not `toLocaleDateString`) so SSR and the browser match (avoids hydration errors).
+ */
 export function dayHeadingLabel(dateKey: string): string {
   const today = formatLocalYmd(new Date());
   if (dateKey === today) return "Today";
@@ -77,9 +105,6 @@ export function dayHeadingLabel(dateKey: string): string {
 
   const d = parseLocalYmd(dateKey);
   if (Number.isNaN(d.getTime())) return dateKey;
-  return d.toLocaleDateString(undefined, {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  const day = d.getDate();
+  return `${SHORT_WEEKDAYS[d.getDay()]} ${day} ${SHORT_MONTHS[d.getMonth()]}`;
 }

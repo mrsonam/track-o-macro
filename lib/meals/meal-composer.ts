@@ -106,3 +106,19 @@ export function newComposerRow(): ComposerRow {
     food: "",
   };
 }
+
+/**
+ * Seed composer rows from saved meal text (one line → one row, unit "count").
+ * Preserves each line as a single phrase so the merged text matches the original.
+ */
+export function seedComposerRowsFromRawInput(raw: string): ComposerRow[] {
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return [newComposerRow(), newComposerRow()];
+  return lines.map((line) => {
+    const r = newComposerRow();
+    r.unit = "count";
+    r.qty = "";
+    r.food = line;
+    return r;
+  });
+}

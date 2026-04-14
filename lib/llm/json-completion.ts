@@ -64,7 +64,7 @@ export async function chatJsonCompletion<T extends z.ZodTypeAny>(options: {
 }): Promise<z.infer<T>> {
   const { openai, model, messages, schema, sampling } = options;
 
-  let useJsonFormat = shouldUseJsonObjectResponseFormat();
+  const useJsonFormat = shouldUseJsonObjectResponseFormat();
   let completion: OpenAI.Chat.ChatCompletion;
 
   try {

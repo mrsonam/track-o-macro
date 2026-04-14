@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const offsetRaw = url.searchParams.get("offset");
-  let offset = Number.parseInt(offsetRaw ?? "0", 10);
+  const offset = Number.parseInt(offsetRaw ?? "0", 10);
   if (
     !Number.isFinite(offset) ||
     offset < 0 ||

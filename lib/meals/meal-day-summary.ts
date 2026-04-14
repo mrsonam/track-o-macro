@@ -33,4 +33,6 @@ export type MealDaySummary = {
     /** Meal with highest logged protein that day (for distribution copy) */
     protein?: MealDriver;
   };
+  /** Total fluid volume logged that local day (ml), from batch summary */
+  hydrationTotalMl?: number;
 };

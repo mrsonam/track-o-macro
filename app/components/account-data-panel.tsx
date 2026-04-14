@@ -111,13 +111,14 @@ export function AccountDataPanel() {
             <p className="text-sm text-zinc-400 leading-relaxed max-w-md">
               Extract up to 5,000 recent entries in a standard UTF-8 CSV package. Compatible with all major analytical software.
             </p>
-            <a
+            <Link
               href="/api/meals/export"
+              prefetch={false}
               className="tap-target flex items-center justify-center gap-3 rounded-2xl bg-zinc-800 px-8 py-4 text-sm font-bold text-white shadow-xl transition-colors duration-200 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             >
               <Download className="h-4 w-4" />
               Download Payload
-            </a>
+            </Link>
           </div>
         </div>
       </section>

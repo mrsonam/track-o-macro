@@ -15,12 +15,12 @@ export function MealPortionHints() {
             ▶
           </span>
         </div>
-        Archive Reference: Portions
+        Portion & unit reference
       </summary>
       
       <p className="mt-4 text-[11px] font-medium leading-relaxed text-zinc-500 max-w-sm">
-        Standardized database unit conversions. Use as baseline parameters for 
-        precision logging.
+        Rough averages for logging — not label-accurate. Use a scale when you need
+        exact grams.
       </p>
 
       <div className="mt-4 overflow-x-auto">
@@ -43,7 +43,7 @@ export function MealPortionHints() {
       </div>
 
       <p className="mt-6 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/70 ml-1">
-        Common Food Registry
+        Common foods (~grams)
       </p>
       <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[11px] text-zinc-400">
         {PORTION_COMMON_FOODS.map((r) => (

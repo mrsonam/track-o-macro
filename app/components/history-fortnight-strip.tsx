@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type SVGProps } from "react";
 import { rolling14WindowBoundsIso } from "@/lib/meals/local-date";
 import { fortnightRhythmBlurb } from "@/lib/meals/fortnight-rhythm-blurb";
 import { useOnline } from "@/lib/meals/use-online";
@@ -190,7 +190,7 @@ export function HistoryFortnightStrip({
   );
 }
 
-function BarChart3(props: any) {
+function BarChart3(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       {...props}
