@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { SettingsForm } from "@/app/components/settings-form";
@@ -10,6 +11,7 @@ import { userProfileForClient } from "@/lib/profile/user-profile-for-client";
 import { ChevronLeft, Settings as SettingsIcon } from "lucide-react";
 
 export async function SettingsPageContent() {
+  await connection();
   const session = await getSession();
   if (!session?.user?.id) {
     redirect("/login?next=/settings");
@@ -34,7 +36,14 @@ export async function SettingsPageContent() {
           <h2 className="text-xl font-bold text-white">Profile & Goals</h2>
           <div className="h-[1px] flex-1 bg-white/5" />
         </div>
-        <SettingsForm profile={userProfileForClient(profile)} />
+        <SettingsForm
+          key={
+            profile
+              ? `${profile.userId}-${profile.updatedAt.toISOString()}`
+              : "no-profile"
+          }
+          profile={userProfileForClient(profile)}
+        />
       </section>
 
       <section>

@@ -120,6 +120,7 @@ export function SettingsForm({ profile }: Props) {
   );
 
   async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
     setError(null);
     let h = parseFloat(heightCm);
     let w = parseFloat(weightKg);
@@ -232,10 +233,22 @@ export function SettingsForm({ profile }: Props) {
           targetHydrationMl: hydrationGoalPayload,
         }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        profile?: {
+          activeDays14Enabled?: boolean;
+          weightTrendOnHomeEnabled?: boolean;
+        };
+      };
       if (!res.ok) {
         setError(data.error ?? "Could not save");
         return;
+      }
+      if (data.profile) {
+        setActiveDays14Enabled(data.profile.activeDays14Enabled === true);
+        setWeightTrendOnHomeEnabled(
+          data.profile.weightTrendOnHomeEnabled === true,
+        );
       }
       router.refresh();
     } catch {

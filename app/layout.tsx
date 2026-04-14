@@ -44,6 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} min-h-full antialiased dark`}
       style={{ colorScheme: "dark" }}
     >
