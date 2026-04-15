@@ -29,10 +29,8 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "no-cache, no-store, must-revalidate",
           },
-          {
-            key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self'",
-          },
+          // Do not send a restrictive CSP on the SW response — it applies to fetch() in
+          // the worker and blocked fonts.googleapis.com / vercel.live, breaking first load.
         ],
       },
     ];
