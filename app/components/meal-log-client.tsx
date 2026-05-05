@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
-import { formatLocaleTime12h } from "@/lib/datetime/format-locale-time-12h";
 import { DEFAULT_HYDRATION_GOAL_ML } from "@/lib/hydration/defaults";
 import {
   formatLocalYmd,
@@ -33,22 +31,12 @@ import { DaySummaryCard } from "./day-summary-card";
 import { WeekCalorieStrip } from "./week-calorie-strip";
 import { WeekInsightsCard } from "./week-insights-card";
 import {
-  STARTER_QUICK_PATTERNS,
-  addQuickSnippet,
-  loadQuickSnippets,
-  persistQuickSnippets,
-  removeQuickSnippet,
-  type QuickSnippet,
-} from "@/lib/meals/quick-repeat-snippets";
-import {
   fdcDescriptionText,
   formatSourceConfidence,
   resolveUsdaLink,
   sourceNoteFromDetail,
 } from "@/lib/nutrition/source-detail";
 import { MealItemComposer } from "./meal-item-composer";
-import { MealPortionHints } from "./meal-portion-hints";
-import { PORTION_QUICK_SNIPPETS } from "@/lib/meals/portion-hints";
 import {
   composerHasAnalyzableContent,
   composerRowsToRawInput,
@@ -59,15 +47,11 @@ import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
 import { 
   Sparkles, 
   History as HistoryIcon, 
-  Star, 
   Plus, 
   Keyboard, 
   ChevronRight, 
-  Clock,
   LayoutGrid,
   Zap,
-  MoreHorizontal,
-  Trash2,
   Edit2,
   AlertCircle,
   Scale
@@ -79,6 +63,23 @@ import { HydrationCard } from "./hydration-card";
 import { AdaptiveTargetCard } from "./adaptive-target-card";
 
 type LogInputMode = "free" | "composer";
+type UsdaSuggestionItem = {
+  label: string;
+  fdcId: number;
+  kcalPer100g: number | null;
+  proteinPer100g: number | null;
+  carbsPer100g: number | null;
+  fatPer100g: number | null;
+};
+type SelectedFoodHint = {
+  label: string;
+  labelNorm: string;
+  fdcId: number;
+  kcalPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+};
 
 type AnalyzeResponse = {
   mealId: string;
@@ -134,12 +135,6 @@ function truncate(s: string, max: number) {
   const t = s.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, max).trim()}…`;
-}
-
-function defaultFavoriteTitle(raw: string) {
-  const t = raw.trim().replace(/\s+/g, " ");
-  if (t.length <= 44) return t;
-  return `${t.slice(0, 41).trim()}…`;
 }
 
 function formatLineNutrient(n: number | undefined, fractionDigits = 0) {
@@ -200,9 +195,6 @@ export function MealLogClient({
   const [todayKey, setTodayKey] = useState(0);
   const syncTick = useMealsSyncTick();
   const [lastLoggedRaw, setLastLoggedRaw] = useState<string | null>(null);
-  const [savePanelOpen, setSavePanelOpen] = useState(false);
-  const [favTitle, setFavTitle] = useState("");
-  const [saveBusy, setSaveBusy] = useState(false);
   const [editingSavedId, setEditingSavedId] = useState<string | null>(null);
   const [editSavedTitle, setEditSavedTitle] = useState("");
   const [editSavedRaw, setEditSavedRaw] = useState("");
@@ -210,12 +202,19 @@ export function MealLogClient({
   const [analyzeQueue, setAnalyzeQueue] = useState<QueuedMeal[]>([]);
   const [flushBusy, setFlushBusy] = useState(false);
   const flushingRef = useRef(false);
-  const [quickSnippets, setQuickSnippets] = useState<QuickSnippet[]>([]);
   const [logInputMode, setLogInputMode] = useState<LogInputMode>("free");
   const [composerRows, setComposerRows] = useState<ComposerRow[]>(() => [
     newComposerRow(),
     newComposerRow(),
   ]);
+  const [freeTextSuggestions, setFreeTextSuggestions] = useState<
+    UsdaSuggestionItem[]
+  >([]);
+  const [freeTextQuery, setFreeTextQuery] = useState("");
+  const [showFreeTextSuggestions, setShowFreeTextSuggestions] = useState(false);
+  const [selectedFoodHints, setSelectedFoodHints] = useState<
+    Record<string, SelectedFoodHint>
+  >({});
 
   const [recentList, setRecentList] = useState<RecentMealItem[]>(recentMeals);
   const [savedList, setSavedList] = useState<SavedMealItem[]>(savedMeals);
@@ -229,8 +228,45 @@ export function MealLogClient({
   }, [savedMeals]);
 
   useEffect(() => {
-    setQuickSnippets(loadQuickSnippets());
-  }, []);
+    if (logInputMode !== "free") {
+      setFreeTextSuggestions([]);
+      setFreeTextQuery("");
+      setShowFreeTextSuggestions(false);
+      return;
+    }
+    const q = freeTextQuery.trim();
+    if (q.length < 2) {
+      setFreeTextSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const url = new URL(
+            "/api/nutrition/usda-search",
+            window.location.origin,
+          );
+          url.searchParams.set("q", q);
+          const res = await fetch(url.toString(), { credentials: "same-origin" });
+          const json = (await res.json().catch(() => ({}))) as {
+            items?: UsdaSuggestionItem[];
+          };
+          console.log("[avocavo-search][client] suggestions:", json);
+          setFreeTextSuggestions(
+            Array.isArray(json.items)
+              ? json.items.filter(
+                  (item): item is UsdaSuggestionItem =>
+                    !!item && typeof item.label === "string" && item.label.length > 0,
+                )
+              : [],
+          );
+        } catch {
+          setFreeTextSuggestions([]);
+        }
+      })();
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [freeTextQuery, logInputMode]);
 
   useEffect(() => {
     const v = takeMealLogPrefill();
@@ -380,6 +416,7 @@ export function MealLogClient({
                 timing?: MealDaySummary["timing"];
                 drivers?: MealDaySummary["drivers"];
                 hydrationTotalMl?: number;
+                appleHealth?: MealDaySummary["appleHealth"];
               }
             | { ok: false; error?: string }
           >;
@@ -413,6 +450,7 @@ export function MealLogClient({
               ...(typeof r.hydrationTotalMl === "number"
                 ? { hydrationTotalMl: r.hydrationTotalMl }
                 : {}),
+              ...(r.appleHealth ? { appleHealth: r.appleHealth } : {}),
             };
           }
         });
@@ -656,7 +694,6 @@ export function MealLogClient({
   const busy =
     loading ||
     loggingSavedId !== null ||
-    saveBusy ||
     editSavedBusy;
 
   const effectiveMealRaw = useMemo(() => {
@@ -665,9 +702,6 @@ export function MealLogClient({
     }
     return text.trim();
   }, [logInputMode, composerRows, text]);
-
-  const rawForFavorite = effectiveMealRaw || lastLoggedRaw || "";
-  const canSaveFavorite = Boolean(rawForFavorite);
 
   function switchInputMode(next: LogInputMode) {
     if (next === logInputMode) return;
@@ -695,7 +729,10 @@ export function MealLogClient({
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawInput: trimmed }),
+        body: JSON.stringify({
+          rawInput: trimmed,
+          selectedFoodHints: Object.values(selectedFoodHints),
+        }),
       });
       const { data, emptyBody, parseFailed } = await readJsonBody(res);
       if (!res.ok) {
@@ -745,6 +782,7 @@ export function MealLogClient({
       if (mode === "form") {
         setText("");
         setComposerRows([newComposerRow(), newComposerRow()]);
+        setSelectedFoodHints({});
       }
     } catch {
       await enqueueAnalyze(trimmed);
@@ -782,62 +820,90 @@ export function MealLogClient({
     });
   }
 
-  function appendToMeal(fragment: string) {
-    const t = fragment.trim();
-    if (!t) return;
-    setError(null);
-    setResult(null);
-    if (logInputMode === "composer") {
-      const merged = composerRowsToRawInput(composerRows).trim();
-      setLogInputMode("free");
-      setText(merged ? `${merged}\n${t}` : t);
-    } else {
-      setText((prev) => {
-        const p = prev.trim();
-        if (!p) return t;
-        return `${p}\n${t}`;
-      });
+  function rememberSelectedFoodHint(item: UsdaSuggestionItem) {
+    const labelNorm = item.label.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!labelNorm) return;
+    if (
+      item.kcalPer100g == null ||
+      item.proteinPer100g == null ||
+      item.carbsPer100g == null ||
+      item.fatPer100g == null
+    ) {
+      return;
     }
-    queueMicrotask(() => {
-      const el = textareaRef.current;
-      if (!el) return;
-      el.focus();
-      const len = el.value.length;
-      el.setSelectionRange(len, len);
+    setSelectedFoodHints((prev) => ({
+      ...prev,
+      [labelNorm]: {
+        label: item.label,
+        labelNorm,
+        fdcId: item.fdcId,
+        kcalPer100g: item.kcalPer100g,
+        proteinPer100g: item.proteinPer100g,
+        carbsPer100g: item.carbsPer100g,
+        fatPer100g: item.fatPer100g,
+      },
+    }));
+  }
+
+  function extractTextareaIngredientQuery(value: string, caret: number): string {
+    const before = value.slice(0, Math.max(0, caret));
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const currentLine = before.slice(lineStart);
+    const token = currentLine.split(",").pop()?.trim() ?? "";
+    return token;
+  }
+
+  function pruneSelectedHintsForText(value: string) {
+    const normalizedText = value.toLowerCase().replace(/\s+/g, " ").trim();
+    setSelectedFoodHints((prev) => {
+      const entries = Object.entries(prev);
+      if (entries.length === 0) return prev;
+      const kept = entries.filter(([, hint]) =>
+        normalizedText.includes(hint.labelNorm),
+      );
+      if (kept.length === entries.length) return prev;
+      return Object.fromEntries(kept);
     });
   }
 
-  function saveBoxAsQuickPhrase() {
-    const raw = effectiveMealRaw;
-    if (raw.length < 3) {
-      setError("Type a short phrase before saving.");
-      return;
-    }
-    setError(null);
-    const next = addQuickSnippet(
-      quickSnippets,
-      defaultFavoriteTitle(raw),
-      raw,
-    );
-    setQuickSnippets(next);
-    persistQuickSnippets(next);
+  function onFreeTextChange(value: string, caret: number) {
+    setText(value);
+    pruneSelectedHintsForText(value);
+    const q = extractTextareaIngredientQuery(value, caret);
+    setFreeTextQuery(q);
+    setShowFreeTextSuggestions(q.length >= 2);
   }
 
-  function removeQuickPhrase(id: string) {
-    const next = removeQuickSnippet(quickSnippets, id);
-    setQuickSnippets(next);
-    persistQuickSnippets(next);
-  }
+  function applyFreeTextSuggestion(label: string) {
+    const picked = freeTextSuggestions.find((s) => s.label === label);
+    if (picked) rememberSelectedFoodHint(picked);
+    const el = textareaRef.current;
+    if (!el) return;
+    const value = text;
+    const caret = el.selectionStart ?? value.length;
+    const before = value.slice(0, caret);
+    const after = value.slice(caret);
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const currentLine = before.slice(lineStart);
+    const lastComma = currentLine.lastIndexOf(",");
+    const tokenStartInLine = lastComma >= 0 ? lastComma + 1 : 0;
+    const absoluteTokenStart = lineStart + tokenStartInLine;
+    const prefix = value.slice(0, absoluteTokenStart);
+    const suffix = after;
+    const spacer = prefix.endsWith(" ") || prefix.endsWith(",") ? "" : " ";
+    const next = `${prefix}${spacer}${label}${suffix}`;
 
-  function openSavePanel() {
-    setEditingSavedId(null);
-    setFavTitle(defaultFavoriteTitle(rawForFavorite));
-    setSavePanelOpen(true);
-    setError(null);
+    setText(next);
+    setFreeTextQuery(label);
+    setShowFreeTextSuggestions(false);
+    queueMicrotask(() => {
+      const nextCaret = (prefix + spacer + label).length;
+      el.focus();
+      el.setSelectionRange(nextCaret, nextCaret);
+    });
   }
 
   function beginEditSaved(s: SavedMealItem) {
-    setSavePanelOpen(false);
     setEditingSavedId(s.id);
     setEditSavedTitle(s.title);
     setEditSavedRaw(s.rawInput);
@@ -886,45 +952,6 @@ export function MealLogClient({
     }
   }
 
-  async function submitSaveFavorite() {
-    if (!rawForFavorite) return;
-    setSaveBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/saved-meals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawInput: rawForFavorite,
-          title: favTitle.trim() || undefined,
-        }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        item?: { id: string; title: string; rawInput: string };
-      };
-      if (!res.ok) {
-        setError(data.error ?? "Could not save favorite");
-        return;
-      }
-      if (data.item) {
-        setSavedList((prev) => [
-          ...prev,
-          {
-            id: data.item!.id,
-            title: data.item!.title,
-            rawInput: data.item!.rawInput,
-          },
-        ]);
-      }
-      setSavePanelOpen(false);
-    } catch {
-      setError("Network error");
-    } finally {
-      setSaveBusy(false);
-    }
-  }
-
   async function removeSaved(id: string) {
     if (!confirm("Remove this saved meal?")) return;
     setError(null);
@@ -945,7 +972,7 @@ export function MealLogClient({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-8 sm:px-6">
+    <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6">
       <motion.header 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -964,7 +991,7 @@ export function MealLogClient({
             batchLoading={weekBatchLoading}
           />
 
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent my-2" />
+          <div className="my-2 h-px w-full bg-gradient-to-r from-transparent via-black/10 to-transparent" />
           
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
             {/* Primary Metrics & Action Column */}
@@ -987,27 +1014,27 @@ export function MealLogClient({
               {/* Injected Log Meal Section for Balance */}
               <motion.div 
                 layout
-                className="rounded-3xl glass-pane p-1 shadow-2xl overflow-hidden"
+                className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/90 p-1 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.55)]"
               >
                 <div className="p-4 sm:p-6 lg:p-8">
                   <div className="mb-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eaf7df] text-[#4f9d45]">
                         <Plus className="h-6 w-6" />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-white">Log Meal</h2>
-                        <p className="text-xs text-zinc-400">
+                        <h2 className="font-mono text-xl font-black tracking-tight text-[#171412]">Log Meal</h2>
+                        <p className="text-xs font-semibold text-zinc-500">
                           Free text or Build (rows)
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 rounded-2xl bg-zinc-950/50 p-1">
+                    <div className="flex items-center gap-1 rounded-2xl bg-[#f2eadb] p-1">
                       <button
                         onClick={() => switchInputMode("free")}
                         className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
-                          logInputMode === "free" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                          logInputMode === "free" ? "bg-[#171412] text-white shadow-xl" : "text-zinc-500 hover:text-[#171412]"
                         }`}
                       >
                         <Keyboard className="h-3.5 w-3.5" />
@@ -1016,7 +1043,7 @@ export function MealLogClient({
                       <button
                         onClick={() => switchInputMode("composer")}
                         className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
-                          logInputMode === "composer" ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                          logInputMode === "composer" ? "bg-[#171412] text-white shadow-xl" : "text-zinc-500 hover:text-[#171412]"
                         }`}
                       >
                         <LayoutGrid className="h-3.5 w-3.5" />
@@ -1028,54 +1055,106 @@ export function MealLogClient({
                   <form onSubmit={onSubmit} className="flex flex-col gap-6">
                     <div className="relative">
                       {logInputMode === "free" ? (
-                        <textarea
-                          ref={textareaRef}
-                          value={text}
-                          onChange={(e) => setText(e.target.value)}
-                          rows={4}
-                          placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
-                          className="w-full resize-none rounded-3xl border border-white/5 bg-zinc-950/50 px-6 py-5 text-lg leading-relaxed text-white placeholder:text-zinc-600 focus:border-emerald-500/50 focus:outline-none focus:ring-4 focus:ring-emerald-500/5"
-                        />
+                        <div className="relative">
+                          <textarea
+                            ref={textareaRef}
+                            value={text}
+                            onChange={(e) =>
+                              onFreeTextChange(
+                                e.target.value,
+                                e.target.selectionStart ?? e.target.value.length,
+                              )
+                            }
+                            onFocus={() =>
+                              setShowFreeTextSuggestions(
+                                freeTextQuery.trim().length >= 2,
+                              )
+                            }
+                            onBlur={() => {
+                              setTimeout(() => setShowFreeTextSuggestions(false), 120);
+                            }}
+                            rows={4}
+                            placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
+                            className={`w-full resize-none rounded-3xl border border-black/10 bg-[#fffdf7] px-6 py-5 text-lg leading-relaxed text-[#171412] placeholder:text-zinc-400 focus:border-[#4f9d45]/60 focus:outline-none focus:ring-4 focus:ring-[#4f9d45]/15 ${Object.keys(selectedFoodHints).length > 0 ? "md:pr-52" : ""}`}
+                          />
+                          {Object.keys(selectedFoodHints).length > 0 ? (
+                            <div className="pointer-events-none absolute right-3 top-3 hidden max-w-[10.5rem] flex-col gap-1.5 md:flex">
+                              {Object.values(selectedFoodHints)
+                                .slice(0, 5)
+                                .map((hint) => (
+                                  <div
+                                    key={`side-${hint.labelNorm}`}
+                                    className="truncate rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-right text-[10px] font-bold text-[#356d30]"
+                                  >
+                                    {Math.round(hint.kcalPer100g)} kcal
+                                  </div>
+                                ))}
+                            </div>
+                          ) : null}
+                          {showFreeTextSuggestions &&
+                          freeTextSuggestions.length > 0 ? (
+                            <ul className="absolute z-40 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]">
+                              {freeTextSuggestions
+                                .filter(
+                                  (item): item is UsdaSuggestionItem =>
+                                    !!item &&
+                                    typeof item.label === "string" &&
+                                    item.label.length > 0,
+                                )
+                                .map((item, index) => (
+                                <li key={`free-${item.fdcId}-${item.label}-${index}`}>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      applyFreeTextSuggestion(item.label);
+                                    }}
+                                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f7f3e9]"
+                                  >
+                                    <span className="flex items-center justify-between gap-3">
+                                      <span className="truncate">{item.label}</span>
+                                      {item.kcalPer100g != null ? (
+                                        <span className="shrink-0 text-[11px] font-bold text-[#4f9d45]">
+                                          {Math.round(item.kcalPer100g)} kcal
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </div>
                       ) : (
                         <MealItemComposer
                           rows={composerRows}
                           onChange={setComposerRows}
+                          onSuggestionPicked={rememberSelectedFoodHint}
                           disabled={busy}
                         />
                       )}
                       
                       {/* Visual Feedback Line */}
-                      <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+                      <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-[#4f9d45]/30 to-transparent" />
                     </div>
 
-                    {logInputMode === "free" ? (
-                      <div className="flex flex-col gap-2">
-                        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-                          Portion shortcuts
-                        </p>
-                        <p className="text-[10px] leading-relaxed text-zinc-500">
-                          Tap to append a line. Estimates only — same as typing
-                          grams or cups yourself.
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {PORTION_QUICK_SNIPPETS.map((s) => (
-                            <button
-                              key={s.label}
-                              type="button"
-                              disabled={busy}
-                              onClick={() => appendToMeal(s.text)}
-                              className="focus-ring tap-target rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] px-3 py-1.5 text-[11px] font-semibold text-emerald-200/90 transition-colors duration-200 hover:border-emerald-500/35 hover:bg-emerald-500/10 disabled:opacity-40"
-                            >
-                              + {s.label}
-                            </button>
-                          ))}
+                    <div className="flex flex-col gap-6">
+                      {Object.keys(selectedFoodHints).length > 0 ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {Object.values(selectedFoodHints)
+                            .slice(0, 6)
+                            .map((hint) => (
+                              <span
+                                key={hint.labelNorm}
+                                className="rounded-2xl border border-[#4f9d45]/20 bg-[#eaf7df] px-3 py-1 text-[11px] font-bold text-[#356d30]"
+                              >
+                                {hint.label}: {Math.round(hint.kcalPer100g)} kcal
+                              </span>
+                            ))}
                         </div>
-                      </div>
-                    ) : null}
+                      ) : null}
 
-                    <MealPortionHints />
-
-                    <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <AnimatePresence>
                           {lastLoggedRaw && (
@@ -1085,7 +1164,7 @@ export function MealLogClient({
                               exit={{ opacity: 0, scale: 0.9 }}
                               type="button"
                               onClick={() => logAgain(lastLoggedRaw)}
-                              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-300 transition-colors duration-200 hover:bg-zinc-700 hover:text-white"
+                              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-[#171412] px-4 py-2 text-xs font-bold text-white transition-colors duration-200 hover:bg-black"
                             >
                               <HistoryIcon className="h-3.5 w-3.5" />
                               Repeat Last
@@ -1093,36 +1172,9 @@ export function MealLogClient({
                           )}
                         </AnimatePresence>
                         
-                        {STARTER_QUICK_PATTERNS.slice(0, 3).map((p) => (
-                          <button
-                            key={p.label}
-                            type="button"
-                            onClick={() => appendToMeal(p.text)}
-                            className="focus-ring tap-target rounded-2xl border border-white/5 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-400 transition-colors duration-200 hover:bg-white/10 hover:text-white"
-                          >
-                            + {p.label}
-                          </button>
-                        ))}
-                        
-                        <button
-                          type="button"
-                          className="focus-ring tap-target flex h-8 w-8 items-center justify-center rounded-full bg-zinc-900/50 text-zinc-600 transition-colors duration-200 hover:text-zinc-400"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <button
-                          type="button"
-                          disabled={!canSaveFavorite || busy}
-                          onClick={openSavePanel}
-                          className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 disabled:opacity-30 disabled:grayscale"
-                        >
-                          <Star className="h-3.5 w-3.5" />
-                          Save Favorite
-                        </button>
-                        
                         <button
                           type="submit"
                           disabled={loading || !effectiveMealRaw.trim()}
@@ -1142,6 +1194,7 @@ export function MealLogClient({
                         </button>
                       </div>
                     </div>
+                    </div>
                   </form>
                 </div>
               </motion.div>
@@ -1155,119 +1208,122 @@ export function MealLogClient({
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="bento-card border border-emerald-500/20 bg-emerald-500/[0.02] p-6 lg:p-8">
-                      <div className="mb-6 flex items-center justify-between">
+                    <div className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-white/90 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.55)] sm:p-6 lg:p-8">
+                      <div className="mb-6 flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500 text-zinc-950 shadow-lg shadow-emerald-500/20">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4f9d45] text-white shadow-[0_14px_30px_-18px_rgba(79,157,69,0.85)]">
                             <Sparkles className="h-5 w-5" />
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-white">Latest Analysis</h3>
-                            <p className="text-xs text-zinc-500">Nutritional breakdown for your last log</p>
+                            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.28em] text-[#356d30]">
+                              AI meal receipt
+                            </p>
+                            <h3 className="font-mono text-2xl font-black tracking-tight text-[#171412]">Latest Analysis</h3>
+                            <p className="mt-1 text-xs font-medium text-zinc-600">Estimated from your last log.</p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setResult(null)}
-                          className="rounded-full bg-white/5 p-2 text-zinc-400 hover:text-white transition-colors"
-                          title="Clear Result"
+                          className="focus-ring tap-target rounded-full bg-white/70 p-2 text-zinc-500 transition-colors hover:bg-white hover:text-[#171412]"
+                          title="Clear result"
                         >
                           <Plus className="h-5 w-5 rotate-45" />
                         </button>
                       </div>
 
-                      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Calories</p>
-                          <p className="mt-1 text-2xl font-black text-white">{result.totals.kcal}<span className="text-xs font-medium ml-1 text-zinc-500">kcal</span></p>
+                      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="rounded-[1.5rem] border border-black/10 bg-[#fffdf7] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Calories</p>
+                          <p className="mt-2 font-mono text-4xl font-black leading-none text-[#171412]">{Math.round(result.totals.kcal)}<span className="ml-1 text-xs font-black uppercase text-zinc-500">kcal</span></p>
                         </div>
-                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Protein</p>
-                          <p className="mt-1 text-2xl font-black text-emerald-400">{result.totals.protein_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        <div className="rounded-[1.5rem] border border-[#4f9d45]/20 bg-[#eaf7df] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-[#356d30]">Protein</p>
+                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.protein_g}<span className="ml-1 text-xs font-black text-[#356d30]">g</span></p>
                         </div>
-                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Carbs</p>
-                          <p className="mt-1 text-2xl font-black text-white/90">{result.totals.carbs_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        <div className="rounded-[1.5rem] border border-sky-500/20 bg-[#dff1ff] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-sky-900/70">Carbs</p>
+                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.carbs_g}<span className="ml-1 text-xs font-black text-sky-800">g</span></p>
                         </div>
-                        <div className="rounded-2xl bg-zinc-950/50 p-4 border border-white/5">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Fat</p>
-                          <p className="mt-1 text-2xl font-black text-zinc-400">{result.totals.fat_g}<span className="text-xs font-medium ml-1 text-zinc-500">g</span></p>
+                        <div className="rounded-[1.5rem] border border-black/10 bg-[#f7f3e9] p-4">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-[#6d6251]">Fat</p>
+                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.fat_g}<span className="ml-1 text-xs font-black text-[#6d6251]">g</span></p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.45fr_0.85fr]">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-1">Detailed Breakdown</p>
+                          <p className="mb-4 px-1 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Ingredient lines</p>
                           <div className="space-y-3">
                             {result.lines.map((line, i) => (
                               <div
                                 key={i}
-                                className="rounded-2xl border border-white/5 bg-white/5 p-4 transition-colors hover:bg-white/[0.07]"
+                                className="rounded-2xl border border-black/10 bg-white/70 p-4 transition-colors hover:bg-white"
                               >
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                   <div className="min-w-0">
-                                    <p className="truncate text-sm font-bold text-white">
+                                    <p className="truncate text-sm font-black text-[#171412]">
                                       {line.label}
                                     </p>
-                                    <p className="text-[10px] font-medium uppercase tracking-tighter text-zinc-500">
+                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                                       {line.quantity} {line.unit}
                                     </p>
                                   </div>
-                                  <div className="flex shrink-0 items-center gap-1.5 self-start sm:self-center">
-                                    <div className="h-1 w-1 rounded-full bg-emerald-500/40" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500/60">
+                                  <div className="flex shrink-0 items-center gap-1.5 self-start rounded-full bg-[#eaf7df] px-2 py-1 text-[#356d30] sm:self-center">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-[#4f9d45]" />
+                                    <p className="text-[9px] font-black uppercase tracking-widest">
                                       {line.source}
                                     </p>
                                   </div>
                                 </div>
                                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
-                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                  <div className="rounded-xl bg-[#f7f3e9] px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-wide text-zinc-500">
                                       kcal
                                     </p>
-                                    <p className="text-sm font-black text-white">
+                                    <p className="font-mono text-sm font-black text-[#171412]">
                                       {formatLineNutrient(line.kcal)}
                                     </p>
                                   </div>
-                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
-                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                  <div className="rounded-xl bg-[#eaf7df] px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-wide text-[#356d30]/75">
                                       protein
                                     </p>
-                                    <p className="text-sm font-black text-emerald-400/90">
+                                    <p className="font-mono text-sm font-black text-[#171412]">
                                       {formatLineNutrient(line.protein_g)}
-                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                      <span className="text-[10px] font-semibold text-[#356d30]">
                                         g
                                       </span>
                                     </p>
                                   </div>
-                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
-                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                  <div className="rounded-xl bg-[#dff1ff] px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-wide text-sky-900/65">
                                       carbs
                                     </p>
-                                    <p className="text-sm font-black text-zinc-100">
+                                    <p className="font-mono text-sm font-black text-[#171412]">
                                       {formatLineNutrient(line.carbs_g)}
-                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                      <span className="text-[10px] font-semibold text-sky-800">
                                         g
                                       </span>
                                     </p>
                                   </div>
-                                  <div className="rounded-lg bg-zinc-950/40 px-2 py-1.5">
-                                    <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-600">
+                                  <div className="rounded-xl bg-[#f7f3e9] px-3 py-2">
+                                    <p className="text-[9px] font-black uppercase tracking-wide text-[#6d6251]">
                                       fat
                                     </p>
-                                    <p className="text-sm font-black text-zinc-400">
+                                    <p className="font-mono text-sm font-black text-[#171412]">
                                       {formatLineNutrient(line.fat_g)}
-                                      <span className="text-[10px] font-semibold text-zinc-500">
+                                      <span className="text-[10px] font-semibold text-[#6d6251]">
                                         g
                                       </span>
                                     </p>
                                   </div>
                                 </div>
-                                <div className="mt-2 grid grid-cols-3 gap-2 border-t border-white/5 pt-2">
+                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-black/10 pt-3">
                                   <div>
-                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                    <p className="text-[9px] font-black uppercase text-zinc-500">
                                       fiber
                                     </p>
-                                    <p className="text-xs font-semibold text-emerald-400/70">
+                                    <p className="font-mono text-xs font-black text-[#356d30]">
                                       {line.fiber_g != null
                                         ? `${formatLineNutrient(line.fiber_g)}`
                                         : "—"}
@@ -1277,20 +1333,20 @@ export function MealLogClient({
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                    <p className="text-[9px] font-black uppercase text-zinc-500">
                                       sodium
                                     </p>
-                                    <p className="text-xs font-semibold text-zinc-300">
+                                    <p className="font-mono text-xs font-black text-[#171412]">
                                       {line.sodium_mg != null && line.sodium_mg > 0
                                         ? `${Math.round(line.sodium_mg)} mg`
                                         : "—"}
                                     </p>
                                   </div>
                                   <div>
-                                    <p className="text-[9px] font-bold uppercase text-zinc-600">
+                                    <p className="text-[9px] font-black uppercase text-zinc-500">
                                       sugar
                                     </p>
-                                    <p className="text-xs font-semibold text-zinc-400">
+                                    <p className="font-mono text-xs font-black text-zinc-600">
                                       {line.sugar_g != null
                                         ? `${formatLineNutrient(line.sugar_g)}`
                                         : "—"}
@@ -1306,25 +1362,25 @@ export function MealLogClient({
                         </div>
 
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-1">Secondary Metrics</p>
+                          <p className="mb-4 px-1 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Extra nutrients</p>
                           <div className="space-y-3">
-                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
-                              <span className="text-xs font-bold text-zinc-500">Fiber</span>
-                              <p className="text-sm font-black text-emerald-400/80">{result.totals.fiber_g ?? 0}<span className="text-[10px] ml-0.5 font-bold">g</span></p>
+                            <div className="flex items-center justify-between rounded-2xl border border-[#4f9d45]/15 bg-white/65 p-4">
+                              <span className="text-xs font-black text-zinc-600">Fiber</span>
+                              <p className="font-mono text-sm font-black text-[#356d30]">{result.totals.fiber_g ?? 0}<span className="ml-0.5 text-[10px] font-bold">g</span></p>
                             </div>
-                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-center justify-between">
-                              <span className="text-xs font-bold text-zinc-500">Sodium</span>
-                              <p className="text-sm font-black text-zinc-300">{Math.round(result.totals.sodium_mg ?? 0)}<span className="text-[10px] ml-0.5 font-bold uppercase">mg</span></p>
+                            <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-white/65 p-4">
+                              <span className="text-xs font-black text-zinc-600">Sodium</span>
+                              <p className="font-mono text-sm font-black text-[#171412]">{Math.round(result.totals.sodium_mg ?? 0)}<span className="ml-0.5 text-[10px] font-bold uppercase">mg</span></p>
                             </div>
-                            <div className="rounded-2xl bg-zinc-950/30 p-4 border border-white/5 flex items-start justify-between gap-3">
-                              <span className="text-xs font-bold text-zinc-500">Sugars</span>
+                            <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-500/20 bg-white/65 p-4">
+                              <span className="text-xs font-black text-zinc-600">Sugars</span>
                               <div className="text-right">
-                                <p className="text-sm font-black text-zinc-500">
+                                <p className="font-mono text-sm font-black text-[#171412]">
                                   {result.totals.sugar_g ?? 0}
-                                  <span className="text-[10px] ml-0.5 font-bold">g total</span>
+                                  <span className="ml-0.5 text-[10px] font-bold text-zinc-500">g total</span>
                                 </p>
                                 {result.totals.added_sugar_g != null ? (
-                                  <p className="mt-0.5 text-[10px] font-bold text-zinc-600">
+                                  <p className="mt-0.5 text-[10px] font-bold text-[#6d6251]">
                                     ~{Math.round(result.totals.added_sugar_g)} g added
                                   </p>
                                 ) : null}
@@ -1333,9 +1389,9 @@ export function MealLogClient({
                           </div>
                           
                           {result.assumptions && result.assumptions.length > 0 && (
-                            <div className="mt-6 rounded-2xl bg-amber-500/5 p-4 border border-amber-500/10">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-amber-500 mb-2">Analysis Assumptions</p>
-                              <ul className="space-y-1.5">
+                            <div className="mt-6 rounded-2xl border border-black/10 bg-[#f7f3e9] p-4">
+                              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-[#6d6251]">Analysis Assumptions</p>
+                              <ul className="space-y-1.5 [&_li]:font-medium [&_li]:text-[#6d6251]">
                                 {result.assumptions.map((a, i) => (
                                   <li key={i} className="text-[10px] leading-relaxed text-amber-200/50">• {a}</li>
                                 ))}
@@ -1379,7 +1435,7 @@ export function MealLogClient({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-8 rounded-3xl border border-blue-500/20 bg-blue-500/10 p-4 text-blue-400 flex items-center justify-between"
+            className="mb-8 flex items-center justify-between rounded-3xl border border-sky-500/20 bg-sky-500/10 p-4 text-sky-700"
           >
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5" />
@@ -1402,7 +1458,7 @@ export function MealLogClient({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="mb-8 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-red-400 flex items-center gap-3"
+            className="mb-8 flex items-center gap-3 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-red-600"
           >
             <AlertCircle className="h-5 w-5 shrink-0" />
             <p className="text-sm font-medium">{error}</p>
@@ -1410,150 +1466,7 @@ export function MealLogClient({
         )}
       </AnimatePresence>
 
-      {/* Bento Secondary Grid */}
-      <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* Recent Activity */}
-        <div className="bento-card group">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-400 group-hover:bg-emerald-500/10 group-hover:text-emerald-400 transition-colors">
-                <Clock className="h-5 w-5" />
-              </div>
-              <h3 className="font-bold text-white">Recent Activity</h3>
-            </div>
-            <Link
-              href="/history"
-              className="rounded-md text-xs font-bold text-zinc-500 transition-colors duration-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
-            >
-              View All
-            </Link>
-          </div>
-          
-          <ul className="space-y-4">
-            {recentList.slice(0, 4).map((m) => (
-              <li key={m.id} className="group/item flex items-center justify-between rounded-2xl bg-white/5 p-4 transition-colors duration-200 hover:bg-white/10">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-white">{m.rawInput}</p>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    <span className="font-bold text-emerald-500">{Math.round(m.totalKcal)} kcal</span>
-                    <span className="mx-2 opacity-20">|</span>
-                    {isMounted
-                      ? formatLocaleTime12h(m.createdAt)
-                      : "—"}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => logAgain(m.rawInput)}
-                  className="focus-ring tap-target rounded-xl bg-zinc-800 p-2 text-zinc-400 opacity-100 transition-colors duration-200 hover:text-white sm:opacity-0 sm:group-hover/item:opacity-100"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-            {recentList.length === 0 && (
-              <p className="py-8 text-center text-xs text-zinc-600">No recent meals. Time to eat something!</p>
-            )}
-          </ul>
-        </div>
-
-        {/* Templates / Favorites */}
-        <div className="bento-card group">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-400 group-hover:bg-lime-500/10 group-hover:text-lime-400 transition-colors">
-                <Star className="h-5 w-5" />
-              </div>
-              <h3 className="font-bold text-white">Quick Templates</h3>
-            </div>
-            {savePanelOpen && (
-              <div className="text-xs font-bold text-emerald-500 animate-pulse">Save Mode Active</div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {savedList.slice(0, 6).map((s) => (
-              <li 
-                key={s.id}
-                className="relative flex flex-col justify-between rounded-2xl border border-white/5 bg-white/5 p-4 transition-[color,background-color,border-color] duration-200 hover:border-white/10 hover:bg-white/10"
-              >
-                <div className="mb-4">
-                  <p className="text-sm font-bold text-white mb-1">{s.title}</p>
-                  <p className="line-clamp-2 text-[10px] text-zinc-500 leading-relaxed">{s.rawInput}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => runAnalyze(s.rawInput, { savedId: s.id })}
-                    disabled={busy}
-                    className="focus-ring tap-target flex-1 rounded-xl bg-zinc-800 py-2 text-[10px] font-bold text-white transition-colors duration-200 hover:bg-emerald-500 disabled:opacity-50"
-                  >
-                    Log
-                  </button>
-                  <button 
-                    onClick={() => removeSaved(s.id)}
-                    className="focus-ring tap-target rounded-xl bg-zinc-950 p-2 text-zinc-600 transition-colors duration-200 hover:bg-red-500/20 hover:text-red-400"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              </li>
-            ))}
-            {savedList.length === 0 && (
-              <div className="col-span-full py-8 text-center">
-                <p className="text-xs text-zinc-600">No favorites yet.</p>
-                <p className="mt-1 text-[10px] text-zinc-700">Save a meal you eat often to see it here.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-
-      {/* Save Panel Popover */}
-      <AnimatePresence>
-        {savePanelOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed inset-x-4 bottom-24 z-40 mx-auto w-full max-w-sm"
-          >
-            <div className="rounded-[2.5rem] bg-zinc-900 p-8 shadow-2xl ring-2 ring-emerald-500/50">
-              <h3 className="text-xl font-bold text-white mb-2">Save as Template</h3>
-              <p className="text-xs text-zinc-400 mb-6">Give this meal a quick name for future use.</p>
-              
-              <input
-                type="text"
-                value={favTitle}
-                onChange={(e) => setFavTitle(e.target.value)}
-                maxLength={100}
-                className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none mb-6"
-                placeholder="e.g., Post-Workout Bowl"
-                autoFocus
-                disabled={saveBusy}
-              />
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => void submitSaveFavorite()}
-                  disabled={saveBusy || !canSaveFavorite}
-                  className="btn-primary flex-1"
-                >
-                  {saveBusy ? "Saving..." : "Save Template"}
-                </button>
-                <button
-                  onClick={() => setSavePanelOpen(false)}
-                  disabled={saveBusy}
-                  className="rounded-2xl bg-zinc-800 px-6 font-bold text-white hover:bg-zinc-700"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <p className="mt-12 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-700">
+      <p className="mt-12 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
         Engineered for precision • v1.0
       </p>
     </div>

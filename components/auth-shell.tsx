@@ -18,10 +18,10 @@ export function AuthShell({ children, size = "md" }: AuthShellProps) {
         transition={{ duration: 0.4, ease: "easeOut" }}
         className={`w-full ${max} relative`}
       >
-        <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-emerald-500/20 to-violet-500/10 blur-2xl opacity-50" />
+        <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-[#4f9d45]/15 to-sky-500/10 opacity-45 blur-2xl" />
         
-        <div className="relative bento-card border-white/5 bg-zinc-900/40 p-8 sm:p-12 shadow-2xl backdrop-blur-3xl overflow-visible">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-24 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+        <div className="bento-card relative overflow-visible border-black/[0.08] bg-white/88 p-8 shadow-2xl backdrop-blur-3xl sm:p-12">
+          <div className="absolute left-1/2 top-0 h-[2px] w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#4f9d45]/60 to-transparent" />
           {children}
         </div>
       </motion.div>

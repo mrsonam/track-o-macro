@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isOnboardingComplete } from "@/lib/profile/require-onboarding";
 import { analyzeMealText } from "@/lib/meals/analyze-meal-text";
+import { cacheResolvedUsdaLinesAsUserFoods } from "@/lib/meals/cache-resolved-user-foods";
 import { loadUserFoodsForResolve } from "@/lib/meals/load-user-foods";
 import { prismaLineCreates } from "@/lib/meals/line-items-create";
 import { isDbUnavailableError } from "@/lib/db-errors";
+import type { UserFoodResolveInput } from "@/lib/nutrition/resolve-ingredient";
 
 export const maxDuration = 60;
 
@@ -52,7 +54,18 @@ export async function POST(request: Request) {
       );
     }
 
-    let body: { rawInput?: string };
+    let body: {
+      rawInput?: string;
+      selectedFoodHints?: Array<{
+        label?: string;
+        labelNorm?: string;
+        fdcId?: number;
+        kcalPer100g?: number;
+        proteinPer100g?: number;
+        carbsPer100g?: number;
+        fatPer100g?: number;
+      }>;
+    };
     try {
       body = await request.json();
     } catch {
@@ -64,10 +77,43 @@ export async function POST(request: Request) {
       return jsonError("rawInput is required", 400, "VALIDATION_REQUIRED");
     }
 
+    const selectedFoodHints: UserFoodResolveInput[] = Array.isArray(
+      body.selectedFoodHints,
+    )
+      ? body.selectedFoodHints
+          .map((hint, index) => {
+            const label = hint.label?.trim() ?? "";
+            const kcal = Number(hint.kcalPer100g);
+            const protein = Number(hint.proteinPer100g);
+            const carbs = Number(hint.carbsPer100g);
+            const fat = Number(hint.fatPer100g);
+            if (!label) return null;
+            if (![kcal, protein, carbs, fat].every(Number.isFinite)) return null;
+            return {
+              id: `selected-${index}-${label.toLowerCase().replace(/\s+/g, "-")}`,
+              label,
+              kcalPer100g: kcal,
+              proteinPer100g: protein,
+              carbsPer100g: carbs,
+              fatPer100g: fat,
+              version: 1,
+            } satisfies UserFoodResolveInput;
+          })
+          .filter((item): item is UserFoodResolveInput => item != null)
+      : [];
+
     try {
       const userFoods = await loadUserFoodsForResolve(userId);
+      const resolveFoods =
+        selectedFoodHints.length > 0
+          ? [...selectedFoodHints, ...userFoods]
+          : userFoods;
       const { lines, meal_label, assumptions, totals } =
-        await analyzeMealText(rawInput, { userFoods });
+        await analyzeMealText(rawInput, { userFoods: resolveFoods });
+
+      // Write-through cache: persist USDA-resolved lines as user foods so
+      // future analyses can resolve locally without another USDA lookup.
+      await cacheResolvedUsdaLinesAsUserFoods(userId, lines);
 
       const meal = await prisma.meal.create({
         data: {

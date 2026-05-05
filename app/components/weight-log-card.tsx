@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
+import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
 import { 
   Scale, 
   ChevronRight, 
@@ -21,6 +21,7 @@ import {
 } from "@/lib/profile/units";
 import type { WeightTrendPoint } from "@/lib/body/weight-trend-series";
 import { WeightTrendSparkline } from "@/app/components/weight-trend-sparkline";
+import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
 
 type WeightLog = {
   id: string;
@@ -50,13 +51,18 @@ export function WeightLogCard({
     null,
   );
   const [goalWeightKg, setGoalWeightKg] = useState<number | null>(null);
+  const syncTick = useMealsSyncTick();
 
   useEffect(() => {
     async function fetchLogs() {
       try {
-        const res = await fetch("/api/body/weight");
-        const data = await res.json();
-        if (res.ok) {
+        const res = await fetch("/api/body/weight", {
+          credentials: "same-origin",
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          logs?: WeightLog[];
+        };
+        if (res.ok && Array.isArray(data.logs)) {
           setLogs(data.logs);
         }
       } catch (e) {
@@ -65,8 +71,8 @@ export function WeightLogCard({
         setLoading(false);
       }
     }
-    fetchLogs();
-  }, []);
+    void fetchLogs();
+  }, [syncTick]);
 
   useEffect(() => {
     if (!weightTrendOnHomeEnabled) {
@@ -184,26 +190,23 @@ export function WeightLogCard({
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bento-card border border-white/5 bg-zinc-900/40 p-6 overflow-hidden relative"
+      className="bento-card relative overflow-hidden border border-black/10 bg-[#f7f3e9] p-6"
     >
-       {/* Background Accent */}
-       <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
-
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf7df] text-[#4f9d45]">
             <Scale className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-white">Body Composition</h3>
-            <p className="text-[10px] font-bold text-zinc-500">{unitSystem === "imperial" ? "Imperial" : "Metric"} Registry Active</p>
+            <h3 className="font-mono text-sm font-black uppercase tracking-tight text-[#171412]">Body Composition</h3>
+            <p className="text-[10px] font-bold text-[#6d6251]">{unitSystem === "imperial" ? "Imperial" : "Metric"} registry active</p>
           </div>
         </div>
         
         <button 
           onClick={() => setShowInput(!showInput)}
           className={`h-8 w-8 flex items-center justify-center rounded-lg transition-colors ${
-            showInput ? "bg-zinc-800 text-white" : "bg-white/5 text-zinc-400 hover:bg-white/10"
+            showInput ? "bg-[#171412] text-white" : "bg-white/55 text-[#171412] hover:bg-white/80"
           }`}
         >
           <Plus className={`h-4 w-4 transition-transform ${showInput ? "rotate-45" : ""}`} />
@@ -230,7 +233,7 @@ export function WeightLogCard({
                   placeholder={`Weight (${getWeightLabel(unitSystem)})`}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  className="w-full rounded-xl bg-black border border-white/10 px-4 py-3 text-white focus:border-violet-500 outline-none h-12"
+                  className="h-12 w-full rounded-xl border border-black/10 bg-white/80 px-4 py-3 text-[#171412] outline-none focus:border-[#4f9d45]"
                 />
               </div>
               <div className="relative w-32">
@@ -241,14 +244,14 @@ export function WeightLogCard({
                   placeholder="BF %"
                   value={bfInputValue}
                   onChange={(e) => setBfInputValue(e.target.value)}
-                  className="w-full rounded-xl bg-black border border-white/10 px-4 py-3 text-white focus:border-violet-500 outline-none h-12"
+                  className="h-12 w-full rounded-xl border border-black/10 bg-white/80 px-4 py-3 text-[#171412] outline-none focus:border-[#4f9d45]"
                 />
               </div>
             </div>
             
             <button 
               disabled={saving || !inputValue}
-              className="w-full h-12 rounded-xl bg-violet-500 text-white font-black uppercase text-[10px] tracking-widest disabled:opacity-50"
+              className="h-12 w-full rounded-xl bg-[#171412] text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
             >
               {saving ? <Zap className="h-4 w-4 animate-spin mx-auto" /> : "Registry Log Entry"}
             </button>
@@ -258,9 +261,9 @@ export function WeightLogCard({
           <motion.div key="display" className="space-y-4">
             <div className="flex items-end justify-between">
               <div className="flex items-end gap-3">
-                <div className="text-4xl font-black text-white tracking-tighter">
+                <div className="font-mono text-4xl font-black tracking-tighter text-[#171412]">
                   {displayWeight !== null ? displayWeight.toFixed(1) : "—"}
-                  <span className="text-lg font-medium text-zinc-600 ml-1.5">{getWeightLabel(unitSystem)}</span>
+                  <span className="ml-1.5 text-lg font-medium text-[#6d6251]">{getWeightLabel(unitSystem)}</span>
                 </div>
                 
                 {delta !== null && delta !== 0 && (
@@ -277,8 +280,8 @@ export function WeightLogCard({
 
               {latestLog?.bodyFatPct && (
                 <div className="mb-2 text-right">
-                  <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-0.5">Adipose</p>
-                  <p className="text-sm font-black text-violet-400">{Number(latestLog.bodyFatPct).toFixed(1)}%</p>
+                  <p className="mb-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-[#6d6251]">Adipose</p>
+                  <p className="font-mono text-sm font-black text-[#171412]">{Number(latestLog.bodyFatPct).toFixed(1)}%</p>
                 </div>
               )}
             </div>
@@ -297,15 +300,15 @@ export function WeightLogCard({
                     />
                   </div>
                 ) : (
-                  <div className="flex-1 h-3 rounded-full border border-white/5 bg-zinc-950 p-0.5">
-                    <div className="h-full w-full rounded-full bg-gradient-to-r from-violet-500/20 via-violet-500 to-violet-500/20" />
+                    <div className="h-3 flex-1 rounded-full border border-black/10 bg-white/65 p-0.5">
+                    <div className="h-full w-full rounded-full bg-gradient-to-r from-[#4f9d45]/20 via-[#4f9d45] to-[#4f9d45]/20" />
                   </div>
                 )}
                 <div className="flex shrink-0 flex-col items-end">
-                  <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                  <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[#6d6251]">
                     <LineChart className="h-3 w-3" /> Trend Weight
                   </span>
-                  <span className="text-xs font-black text-violet-200">
+                  <span className="font-mono text-xs font-black text-[#171412]">
                     {displayTrendWeight !== null
                       ? displayTrendWeight.toFixed(1)
                       : "—"}{" "}
@@ -317,8 +320,8 @@ export function WeightLogCard({
                 trendPoints &&
                 trendPoints.length >= 2 && (
                   <Link
-                    href={`/trends#${HISTORY_INSIGHT_ANCHORS.weightTrend}`}
-                    className="inline-block text-[9px] font-bold uppercase tracking-widest text-zinc-600 transition-colors hover:text-violet-400/90"
+                    href={`/trends#${TRENDS_INSIGHT_ANCHORS.weightTrend}`}
+                    className="inline-block text-[9px] font-bold uppercase tracking-widest text-[#6d6251] transition-colors hover:text-[#171412]"
                   >
                     Full chart → Trends
                   </Link>
@@ -329,24 +332,24 @@ export function WeightLogCard({
       </AnimatePresence>
       
       {!showInput && logs.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-white/5">
-          <p className="text-[10px] font-black uppercase text-zinc-700 tracking-widest mb-3">Recent Logs</p>
+        <div className="mt-6 border-t border-black/10 pt-4">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#6d6251]">Recent Logs</p>
           <div className="space-y-2">
             {logs.slice(0, 3).map((l) => {
               const weight = unitSystem === "imperial" ? kgToLbs(Number(l.weightKg)) : Number(l.weightKg);
               return (
                 <div key={l.id} className="flex items-center justify-between group cursor-default">
                   <div className="flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-800 group-hover:bg-violet-500 transition-colors" />
-                    <span className="text-xs text-zinc-400 font-medium">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#171412]/25 transition-colors group-hover:bg-[#171412]" />
+                    <span className="text-xs font-medium text-[#6d6251]">
                       {new Date(l.loggedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
                     {l.bodyFatPct && (
-                      <span className="text-[9px] font-bold text-violet-500/40 uppercase">BF: {Number(l.bodyFatPct).toFixed(1)}%</span>
+                      <span className="text-[9px] font-bold uppercase text-[#6d6251]/70">BF: {Number(l.bodyFatPct).toFixed(1)}%</span>
                     )}
-                    <span className="text-xs font-bold text-zinc-200">
+                    <span className="font-mono text-xs font-bold text-[#171412]">
                       {weight.toFixed(1)} {getWeightLabel(unitSystem)}
                     </span>
                   </div>

@@ -7,8 +7,17 @@
 ---
 
 **Project:** Calorie PWA
-**Generated:** 2026-04-13 17:49:46
-**Category:** Financial Dashboard
+**Updated:** 2026-05-05
+**Category:** AI Nutrition Tracking PWA
+**Design Direction:** Fresh food-table analytics
+
+---
+
+## Visual Thesis
+
+TrackOMacro should feel like a bright nutrition workspace laid over a clean kitchen table: white and warm-paper surfaces, black utility controls, green as the active signal, sky blue for hydration/carbs, and only muted amber for warning or surplus states.
+
+The app is not a dark financial dashboard. It is a calm, high-signal food logging tool with dense but readable data.
 
 ---
 
@@ -18,25 +27,39 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#0F172A` | `--color-primary` |
-| Secondary | `#1E293B` | `--color-secondary` |
-| CTA/Accent | `#22C55E` | `--color-cta` |
-| Background | `#020617` | `--color-background` |
-| Text | `#F8FAFC` | `--color-text` |
+| App Background | `#fbfaf5` | `--background` |
+| Foreground / Ink | `#171412` | `--foreground` |
+| Primary Action | `#171412` | `--accent` |
+| Primary Hover | `#2a2420` | `--accent-hover` |
+| Active Signal | `#4f9d45` | `--accent-secondary` |
+| Green Tint | `#eaf7df` | `--color-protein-surface` |
+| Green Hover | `#dff1d1` | `--color-green-hover` |
+| Sky Tint | `#dff1ff` | `--color-carb-surface` |
+| Warm Neutral | `#f7f3e9` | `--color-warm-neutral` |
+| Input Surface | `#fffdf7` | `--surface` |
+| Border | `rgba(23, 20, 18, 0.1)` | `--border-subtle` |
+| Focus Ring | `rgba(79, 157, 69, 0.42)` | `--ring-focus` |
+| Error | `#ef4444` | `--color-error` |
 
-**Color Notes:** Dark bg + green positive indicators
+**Color Notes:**
+
+- Black is the primary command color.
+- Green is the default accent for active, focus, protein, success, and selected standard states.
+- Sky blue supports hydration, carbs, and Apple Health activity.
+- Warm neutral beige supports fat, weight, assumptions, skeletons, and secondary panels.
+- Avoid saturated orange as a default accent. Use amber only for surplus, warning, or exceeded-target states.
+- Never make the interface read as one-note orange, brown, purple, or dark slate.
 
 ### Typography
 
-- **Heading Font:** Fira Code
-- **Body Font:** Fira Sans
-- **Mood:** dashboard, data, analytics, code, technical, precise
-- **Google Fonts:** [Fira Code + Fira Sans](https://fonts.google.com/share?selection.family=Fira+Code:wght@400;500;600;700|Fira+Sans:wght@300;400;500;600;700)
+- **Body Font:** Geist Sans via `--font-geist-sans`
+- **Data / Heading Accent:** Geist Mono via `--font-geist-mono`
+- **Mood:** useful, precise, fresh, compact, food-aware
+- **Headings:** heavy, tight, mostly black
+- **Labels:** 9-11px uppercase with high weight and generous tracking
+- **Numbers:** mono, tabular where possible, high contrast
 
-**CSS Import:**
-```css
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
-```
+Do not return to Fira Code/Fira Sans unless the implementation changes first.
 
 ### Spacing Variables
 
@@ -45,19 +68,18 @@
 | `--space-xs` | `4px` / `0.25rem` | Tight gaps |
 | `--space-sm` | `8px` / `0.5rem` | Icon gaps, inline spacing |
 | `--space-md` | `16px` / `1rem` | Standard padding |
-| `--space-lg` | `24px` / `1.5rem` | Section padding |
-| `--space-xl` | `32px` / `2rem` | Large gaps |
-| `--space-2xl` | `48px` / `3rem` | Section margins |
-| `--space-3xl` | `64px` / `4rem` | Hero padding |
+| `--space-lg` | `24px` / `1.5rem` | Card padding |
+| `--space-xl` | `32px` / `2rem` | Section gaps |
+| `--space-2xl` | `48px` / `3rem` | Major vertical rhythm |
 
 ### Shadow Depths
 
 | Level | Value | Usage |
 |-------|-------|-------|
-| `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` | Subtle lift |
-| `--shadow-md` | `0 4px 6px rgba(0,0,0,0.1)` | Cards, buttons |
-| `--shadow-lg` | `0 10px 15px rgba(0,0,0,0.1)` | Modals, dropdowns |
-| `--shadow-xl` | `0 20px 25px rgba(0,0,0,0.15)` | Hero images, featured cards |
+| `--shadow-sm` | `0 8px 24px -18px rgba(23,20,18,0.35)` | Small controls |
+| `--shadow-md` | `0 18px 60px -38px rgba(23,20,18,0.42)` | Standard bento surfaces |
+| `--shadow-lg` | `0 24px 70px -42px rgba(23,20,18,0.55)` | Feature panels |
+| `--shadow-xl` | `0 30px 90px -50px rgba(23,20,18,0.65)` | Popovers and modals |
 
 ---
 
@@ -66,138 +88,160 @@
 ### Buttons
 
 ```css
-/* Primary Button */
 .btn-primary {
-  background: #22C55E;
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
+  background: #171412;
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 14px 24px;
+  font-weight: 900;
+  box-shadow: 0 16px 32px -18px rgba(23, 20, 18, 0.65);
+  transition: transform 200ms ease, background-color 200ms ease, box-shadow 200ms ease;
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  background: #2a2420;
   transform: translateY(-1px);
 }
 
-/* Secondary Button */
 .btn-secondary {
-  background: transparent;
-  color: #0F172A;
-  border: 2px solid #0F172A;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: all 200ms ease;
-  cursor: pointer;
+  background: #ffffff;
+  color: #171412;
+  border: 1px solid rgba(23, 20, 18, 0.1);
+  border-radius: 16px;
+  padding: 10px 16px;
+  font-weight: 800;
+}
+
+.btn-state-active {
+  background: #4f9d45;
+  color: #ffffff;
 }
 ```
 
-### Cards
+Use Lucide icons in icon buttons. Prefer icon-only controls with labels/tooltips where the action is familiar.
+
+### Cards And Panels
 
 ```css
-.card {
-  background: #020617;
-  border-radius: 12px;
+.bento-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(23, 20, 18, 0.08);
+  border-radius: 24px;
   padding: 24px;
-  box-shadow: var(--shadow-md);
-  transition: all 200ms ease;
-  cursor: pointer;
-}
-
-.card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  box-shadow: 0 18px 60px -38px rgba(23, 20, 18, 0.42);
 }
 ```
+
+- Cards should be used for repeated items, active tools, modals, and data modules.
+- Do not nest cards inside cards.
+- Use full-width bands or unframed layout for page sections.
+- Hover states may change border or background. Avoid scale transforms that move layout.
 
 ### Inputs
 
 ```css
-.input {
-  padding: 12px 16px;
-  border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  font-size: 16px;
-  transition: border-color 200ms ease;
-}
-
-.input:focus {
-  border-color: #0F172A;
-  outline: none;
-  box-shadow: 0 0 0 3px #0F172A20;
-}
-```
-
-### Modals
-
-```css
-.modal-overlay {
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-}
-
-.modal {
-  background: white;
+.input-field {
+  background: #ffffff;
+  color: #171412;
+  border: 1px solid rgba(23, 20, 18, 0.1);
   border-radius: 16px;
-  padding: 32px;
-  box-shadow: var(--shadow-xl);
-  max-width: 500px;
-  width: 90%;
+  padding: 12px 16px;
+}
+
+.input-field:focus {
+  border-color: rgba(79, 157, 69, 0.6);
+  box-shadow: 0 0 0 4px rgba(79, 157, 69, 0.15);
+  outline: none;
 }
 ```
+
+Large meal textareas can use `#fffdf7` and 24px radius.
+
+### Home Dashboard
+
+- First screen is the working dashboard, not a marketing hero.
+- Use a sticky translucent light header over `#fbfaf5`.
+- The main layout is a two-column dashboard on desktop and a single column on mobile.
+- Macro and analysis surfaces should look like food labels: compact labels, large mono values, clear tints.
+- Latest Analysis uses:
+  - white main panel
+  - green icon badge
+  - neutral calorie card
+  - green protein card
+  - sky carbs card
+  - warm-neutral fat card
+  - warm-neutral assumptions area
+- Week day selection uses green for selected normal days and muted amber only for surplus days.
+- Body Composition uses warm neutral, not yellow/orange.
+
+### Navigation
+
+- Header: light, translucent, sticky, black logo mark, green privacy/status accent.
+- Floating nav: compact, high contrast, black active surface.
+- Tap targets must stay at least 44px.
+
+### Status Colors
+
+| State | Color Treatment |
+|-------|-----------------|
+| Success / selected / active | Green `#4f9d45` |
+| Protein | Green tint `#eaf7df` |
+| Hydration / carbs / activity | Sky tint `#dff1ff` |
+| Fat / weight / assumptions | Warm neutral `#f7f3e9` |
+| Surplus / warning | Muted amber only |
+| Error | Red `#ef4444` |
 
 ---
 
 ## Style Guidelines
 
-**Style:** Dark Mode (OLED)
+**Style:** Light food-table dashboard
 
-**Keywords:** Dark theme, low light, high contrast, deep black, midnight blue, eye-friendly, OLED, night mode, power efficient
+**Keywords:** fresh, clean, compact, nutrition label, kitchen table, AI meal receipt, high-contrast numbers, warm paper, green signal, restrained chrome
 
-**Best For:** Night-mode apps, coding platforms, entertainment, eye-strain prevention, OLED devices, low-light
+**Best For:** Meal logging, calorie tracking, macro review, hydration, weight tracking, daily coaching
 
-**Key Effects:** Minimal glow (text-shadow: 0 0 10px), dark-to-light transitions, low white emission, high readability, visible focus
+**Key Effects:** soft paper shadows, subtle hover fills, Framer Motion layout transitions, crisp focus rings, compact status chips
 
 ### Page Pattern
 
-**Pattern Name:** Minimal Single Column
+**Pattern Name:** Operational Nutrition Workspace
 
-- **Conversion Strategy:** Single CTA focus. Large typography. Lots of whitespace. No nav clutter. Mobile-first.
-- **CTA Placement:** Center, large CTA button
-- **Section Order:** 1. Hero headline, 2. Short description, 3. Benefit bullets (3 max), 4. CTA, 5. Footer
+- **Primary job:** help the user log food and understand the latest analysis quickly.
+- **CTA Placement:** primary action at the end of the active logging form.
+- **Section Order:** 1. Day summary, 2. week strip, 3. log meal, 4. latest analysis, 5. body/context panels, 6. recent activity/templates.
+- **Mobile rule:** stack in task order. Do not hide core logging controls behind decorative sections.
 
 ---
 
-## Anti-Patterns (Do NOT Use)
+## Anti-Patterns
 
-- ❌ Light mode default
-- ❌ Slow rendering
-
-### Additional Forbidden Patterns
-
-- ❌ **Emojis as icons** — Use SVG icons (Heroicons, Lucide, Simple Icons)
-- ❌ **Missing cursor:pointer** — All clickable elements must have cursor:pointer
-- ❌ **Layout-shifting hovers** — Avoid scale transforms that shift layout
-- ❌ **Low contrast text** — Maintain 4.5:1 minimum contrast ratio
-- ❌ **Instant state changes** — Always use transitions (150-300ms)
-- ❌ **Invisible focus states** — Focus states must be visible for a11y
+- Dark mode default for the core app
+- Saturated orange as primary, focus, or selected state
+- Purple-blue gradient dominance
+- Decorative blobs, orbs, or bokeh backgrounds
+- Cards inside cards
+- Hero/landing-page composition on dashboard screens
+- Low-contrast gray text on warm surfaces
+- Layout-shifting hover transforms
+- Emojis as icons
+- Invisible focus states
+- Text explaining the design inside the product UI
 
 ---
 
 ## Pre-Delivery Checklist
 
-Before delivering any UI code, verify:
+Before delivering UI code, verify:
 
-- [ ] No emojis used as icons (use SVG instead)
-- [ ] All icons from consistent icon set (Heroicons/Lucide)
-- [ ] `cursor-pointer` on all clickable elements
-- [ ] Hover states with smooth transitions (150-300ms)
-- [ ] Light mode: text contrast 4.5:1 minimum
-- [ ] Focus states visible for keyboard navigation
-- [ ] `prefers-reduced-motion` respected
-- [ ] Responsive: 375px, 768px, 1024px, 1440px
-- [ ] No content hidden behind fixed navbars
-- [ ] No horizontal scroll on mobile
+- [ ] Orange appears only as muted warning/surplus amber, not as a default accent.
+- [ ] Green is the active/focus/success color.
+- [ ] Latest Analysis matches the white, green, sky, warm-neutral macro system.
+- [ ] Light mode contrast meets 4.5:1 for body text.
+- [ ] All icons are from Lucide or the established icon set.
+- [ ] Buttons and icon controls have at least 44px tap targets.
+- [ ] Hover states do not shift layout.
+- [ ] Focus states are visible.
+- [ ] Responsive layouts work at 375px, 768px, 1024px, and 1440px.
+- [ ] No content is hidden behind sticky header or floating nav.
+- [ ] No horizontal scroll on mobile.

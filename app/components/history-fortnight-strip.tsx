@@ -5,8 +5,7 @@ import { rolling14WindowBoundsIso } from "@/lib/meals/local-date";
 import { fortnightRhythmBlurb } from "@/lib/meals/fortnight-rhythm-blurb";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
-import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
-import { HistoryInsightsCrossLinks } from "./history-insights-cross-links";
+import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
 import { Activity, Clock, Zap, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -94,18 +93,18 @@ export function HistoryFortnightStrip({
 
   return (
     <div
-      id={HISTORY_INSIGHT_ANCHORS.fortnight}
-      className={`bento-card scroll-mt-28 border-white/5 bg-zinc-900/40 p-6 ${className ?? ""}`}
+      id={TRENDS_INSIGHT_ANCHORS.fortnight}
+      className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 ${className ?? ""}`}
     >
       <div className="flex items-start gap-4 mb-6">
-        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 shrink-0">
+        <div className="h-10 w-10 shrink-0 rounded-xl border border-[#7aa6c2]/25 bg-[#dff1ff] text-[#3b82a0] flex items-center justify-center">
           <Activity className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-violet-400">
+          <h3 className="text-sm font-black uppercase tracking-widest text-[#3b82a0]">
             Fortnight Rhythm
           </h3>
-          <p className="mt-1 text-xs font-medium text-zinc-500 leading-relaxed">
+          <p className="mt-1 text-xs font-medium text-zinc-600 leading-relaxed">
             Rolling 14-day window synchronized with your device timezone.
           </p>
         </div>
@@ -145,12 +144,12 @@ export function HistoryFortnightStrip({
             className="space-y-5"
           >
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 rounded-2xl bg-zinc-950/50 border border-white/5 p-4">
+              <div className="flex-1 rounded-2xl border border-black/10 bg-white p-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-3 flex items-center gap-2">
                   <Clock className="h-3 w-3" /> Consistency
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white">{data.daysWithLogs}</span>
+                  <span className="text-2xl font-black text-zinc-950">{data.daysWithLogs}</span>
                   <span className="text-[10px] font-bold text-zinc-500 uppercase">Logged Days</span>
                 </div>
                 <div className="mt-2 text-[10px] font-bold text-zinc-600">
@@ -158,12 +157,12 @@ export function HistoryFortnightStrip({
                 </div>
               </div>
 
-              <div className="flex-1 rounded-2xl bg-zinc-950/50 border border-white/5 p-4">
+              <div className="flex-1 rounded-2xl border border-black/10 bg-white p-4">
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-3 flex items-center gap-2">
                   <BarChart3 className="h-3 w-3 text-emerald-500" /> Intake Avg
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-white">{Math.round(data.averages.kcalPerDay)}</span>
+                  <span className="text-2xl font-black text-zinc-950">{Math.round(data.averages.kcalPerDay)}</span>
                   <span className="text-[10px] font-bold text-zinc-500 uppercase">kcal/day</span>
                 </div>
                 {dailyTargetKcal != null && (
@@ -174,12 +173,12 @@ export function HistoryFortnightStrip({
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/10 space-y-3">
+            <div className="space-y-3 rounded-xl border border-[#7aa6c2]/25 bg-[#dff1ff]/70 p-4">
                <div className="flex items-center gap-2">
-                 <Info className="h-3 w-3 text-violet-400" />
-                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-400">Rhythm Insight</p>
+                 <Info className="h-3 w-3 text-[#3b82a0]" />
+                 <p className="text-[10px] font-black uppercase tracking-widest text-[#3b82a0]">Rhythm Insight</p>
                </div>
-               <p className="text-base font-medium leading-relaxed text-zinc-400">
+               <p className="text-base font-medium leading-relaxed text-zinc-700">
                  {fortnightRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
                </p>
             </div>

@@ -34,16 +34,16 @@ export default async function MainLayout({
   }
 
   return (
-    <>
+    <div className="fresh-shell flex min-h-dvh flex-col overflow-x-hidden">
       <AppHeader />
       <main
         id="main-content"
         tabIndex={-1}
-        className="flex min-h-0 flex-1 flex-col pb-32 outline-none"
+        className="relative flex min-h-0 flex-1 flex-col pb-32 outline-none"
       >
         {children}
       </main>
       <FloatingNav />
-    </>
+    </div>
   );
 }

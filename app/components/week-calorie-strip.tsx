@@ -6,7 +6,7 @@ import {
 } from "@/lib/meals/local-date";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
 import type { UnitSystem } from "@/lib/profile/units";
-import { Droplets, Flame } from "lucide-react";
+import { Activity, Droplets, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 
 type WeekCalorieStripProps = {
@@ -51,10 +51,10 @@ export function WeekCalorieStrip({
   return (
     <div className="relative">
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
           Last 7 Days
         </p>
-        <div className="mx-4 h-[1px] flex-1 bg-white/5" />
+        <div className="mx-4 h-[1px] flex-1 bg-black/10" />
       </div>
 
       <div
@@ -75,6 +75,14 @@ export function WeekCalorieStrip({
             : summary
               ? Math.round(kcalVal)
               : "0";
+
+          const ah = summary?.appleHealth;
+          const appleBurn =
+            ah?.activeEnergyKcal != null && ah.activeEnergyKcal > 0
+              ? Math.round(ah.activeEnergyKcal)
+              : null;
+          const appleSteps =
+            ah?.steps != null && ah.steps > 0 ? Math.round(ah.steps) : null;
 
           const mlVal = summary?.hydrationTotalMl ?? 0;
           const fluidDisplay = loading
@@ -107,11 +115,11 @@ export function WeekCalorieStrip({
               className={`focus-ring tap-target group relative flex min-w-[5.75rem] flex-col items-center rounded-2xl p-4 transition-[color,background-color,border-color,box-shadow] duration-200 ${
                 selected
                   ? isSurplus
-                    ? "bg-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.3)] ring-1 ring-amber-400"
-                    : "bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400"
+                    ? "bg-[#ffcf72] shadow-[0_18px_46px_-28px_rgba(245,158,11,0.78)] ring-1 ring-amber-400"
+                    : "bg-[#4f9d45] shadow-[0_18px_46px_-28px_rgba(79,157,69,0.78)] ring-1 ring-[#4f9d45]"
                   : isSurplus
-                    ? "border border-amber-500/20 bg-amber-950/20 hover:bg-amber-900/40"
-                    : "border border-white/5 bg-zinc-900/60 hover:bg-zinc-800/60"
+                    ? "border border-amber-500/25 bg-[#f7f3e9] hover:bg-[#efe7d6]"
+                    : "border border-black/10 bg-white/85 hover:bg-[#f2f8ec]"
               }`}
             >
               <span
@@ -119,9 +127,9 @@ export function WeekCalorieStrip({
                   selected
                     ? isSurplus
                       ? "text-amber-950"
-                      : "text-emerald-950"
+                      : "text-white"
                     : isSurplus
-                      ? "text-amber-500/70"
+                      ? "text-amber-700"
                       : "text-zinc-500"
                 }`}
               >
@@ -132,8 +140,8 @@ export function WeekCalorieStrip({
                   selected
                     ? isSurplus
                       ? "text-amber-950"
-                      : "text-emerald-950"
-                    : "text-white"
+                      : "text-white"
+                    : "text-[#171412]"
                 }`}
               >
                 {d.getDate()}
@@ -145,10 +153,10 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "text-amber-900"
-                        : "text-emerald-900"
+                        : "text-white"
                       : isSurplus
-                        ? "text-amber-400"
-                        : "text-emerald-400"
+                        ? "text-amber-700"
+                        : "text-[#4f9d45]"
                   }`}
                 >
                   <Flame className="h-3 w-3 shrink-0 opacity-90" />
@@ -163,8 +171,8 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "bg-amber-900/20"
-                        : "bg-emerald-900/20"
-                      : "border border-white/5 bg-zinc-950/80"
+                        : "bg-white/25"
+                      : "border border-black/10 bg-[#f2eadb]"
                   }`}
                 >
                   <motion.div
@@ -174,13 +182,41 @@ export function WeekCalorieStrip({
                       selected
                         ? isSurplus
                           ? "bg-amber-950"
-                          : "bg-emerald-950"
+                          : "bg-white"
                         : isSurplus
-                          ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-                          : "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                          ? "bg-amber-600"
+                          : "bg-[#4f9d45]"
                     }`}
                   />
                 </div>
+
+                {!loading && (appleBurn != null || appleSteps != null) ? (
+                  <div
+                    className={`flex w-full flex-col items-center gap-0.5 ${
+                      selected
+                        ? isSurplus
+                        ? "text-amber-950/85"
+                        : "text-white/90"
+                        : "text-sky-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Activity className="h-3 w-3 shrink-0 opacity-90" />
+                      <span className="text-[9px] font-bold tabular-nums leading-tight">
+                        {appleSteps != null
+                          ? `${appleSteps.toLocaleString()} steps`
+                          : appleBurn != null
+                            ? `${appleBurn} kcal out`
+                            : ""}
+                      </span>
+                    </div>
+                    {appleSteps != null && appleBurn != null ? (
+                      <span className="text-[8px] font-semibold tabular-nums opacity-80">
+                        {appleBurn} kcal active
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 {/* Hydration */}
                 <div
@@ -188,8 +224,8 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "text-amber-950/90"
-                        : "text-emerald-950/90"
-                      : "text-sky-400/90"
+                        : "text-white/90"
+                      : "text-sky-600"
                   }`}
                 >
                   <Droplets className="h-3 w-3 shrink-0 opacity-90" />
@@ -202,8 +238,8 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "bg-amber-950/25"
-                        : "bg-emerald-950/25"
-                      : "bg-zinc-950/80 border border-sky-500/15"
+                        : "bg-white/25"
+                      : "border border-sky-500/20 bg-sky-50"
                   }`}
                 >
                   <motion.div
@@ -224,10 +260,10 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "bg-amber-950"
-                        : "bg-emerald-950"
+                        : "bg-[#171412]"
                       : isSurplus
                         ? "bg-amber-500"
-                        : "bg-emerald-500"
+                        : "bg-[#4f9d45]"
                   }`}
                 >
                   <div
@@ -235,8 +271,8 @@ export function WeekCalorieStrip({
                       selected
                         ? isSurplus
                           ? "bg-amber-400"
-                          : "bg-emerald-400"
-                        : "bg-zinc-950"
+                          : "bg-white"
+                        : "bg-white"
                     }`}
                   />
                 </div>

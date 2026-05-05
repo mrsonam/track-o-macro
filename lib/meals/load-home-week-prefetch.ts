@@ -52,6 +52,7 @@ export async function loadHomeWeekPrefetch(
         ...(typeof r.hydrationTotalMl === "number"
           ? { hydrationTotalMl: r.hydrationTotalMl }
           : {}),
+        ...(r.appleHealth ? { appleHealth: r.appleHealth } : {}),
       };
     });
 

@@ -1,0 +1,31 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - img [ref=e10]
+      - paragraph [ref=e13]: Agent Registry
+      - heading "Initialize Session" [level=1] [ref=e14]
+      - paragraph [ref=e15]: Synchronize your profile with the TrackOMacro analytics network.
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: Email Identifier
+        - textbox "Email Identifier" [ref=e19]:
+          - /placeholder: agent@network.org
+      - generic [ref=e20]:
+        - generic [ref=e21]: Access Protocol
+        - textbox "Access Protocol" [ref=e22]:
+          - /placeholder: ••••••••
+      - button "Authorize Session" [ref=e23] [cursor=pointer]:
+        - text: Authorize Session
+        - img [ref=e24]
+    - generic [ref=e26]:
+      - paragraph [ref=e27]:
+        - text: New personnel?
+        - link "Initialize Account" [ref=e28] [cursor=pointer]:
+          - /url: /signup
+      - link "Privacy Protocol" [ref=e29] [cursor=pointer]:
+        - /url: /privacy
+        - text: Privacy Protocol
+        - img [ref=e30]
+  - button "Open Next.js Dev Tools" [ref=e37] [cursor=pointer]:
+    - img [ref=e38]
+  - alert [ref=e41]

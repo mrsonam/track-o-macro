@@ -17,23 +17,23 @@
 }
 
 @layer base {
-  :root, .dark {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --accent: #10b981;
-    --accent-hover: #059669;
-    --accent-secondary: #bef264;
-    --surface: #18181b;
-    --surface-muted: rgba(24, 24, 27, 0.8);
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --ring-focus: rgba(16, 185, 129, 0.4);
+  :root {
+    --background: #fbfaf5;
+    --foreground: #171412;
+    --accent: #171412;
+    --accent-hover: #2a2420;
+    --accent-secondary: #4f9d45;
+    --surface: #fffdf7;
+    --surface-muted: rgba(255, 253, 247, 0.86);
+    --border-subtle: rgba(23, 20, 18, 0.1);
+    --ring-focus: rgba(79, 157, 69, 0.42);
     
     /* Glassmorphism */
-    --glass-bg: rgba(24, 24, 27, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(255, 253, 247, 0.72);
+    --glass-border: rgba(23, 20, 18, 0.1);
     --glass-blur: 12px;
     
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   /* Interactive affordance: buttons, submit inputs, links */
@@ -69,12 +69,17 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
-  
-  /* Premium radial glow */
-  background-image: 
-    radial-gradient(circle at 50% -20%, rgba(16, 185, 129, 0.15), transparent 70%),
-    radial-gradient(circle at 0% 100%, rgba(190, 242, 100, 0.05), transparent 50%);
-  background-attachment: fixed;
+  background-image:
+    linear-gradient(rgba(23, 20, 18, 0.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 20, 18, 0.018) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.fresh-shell {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), transparent 36%),
+    #fbfaf5;
+  color: #171412;
 }
 
 /* Glassmorphism utility */
@@ -86,11 +91,11 @@ body {
 }
 
 .input-field {
-  @apply w-full rounded-2xl border border-white/5 bg-zinc-950 px-4 py-3 text-white shadow-lg outline-none transition-all placeholder:text-zinc-500 hover:bg-white/5 focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10;
+  @apply w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-zinc-950 shadow-sm outline-none transition-all placeholder:text-zinc-400 hover:border-black/15 focus:border-[#4f9d45]/60 focus:ring-4 focus:ring-[#4f9d45]/15;
 }
 
 .focus-ring {
-  @apply outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+  @apply outline-none focus-visible:ring-2 focus-visible:ring-[#4f9d45]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf5];
 }
 
 .tap-target {
@@ -99,31 +104,17 @@ body {
 
 /* Long-form settings / dense forms — consistent hover + keyboard focus */
 .form-field {
-  @apply w-full rounded-2xl border border-white/5 bg-zinc-950 px-6 py-4 text-white outline-none transition-colors duration-200 placeholder:text-zinc-500 hover:border-white/[0.12] hover:bg-white/[0.02] focus-visible:border-emerald-500/45 focus-visible:ring-2 focus-visible:ring-emerald-500/25;
+  @apply w-full rounded-2xl border border-black/10 bg-white px-6 py-4 text-zinc-950 outline-none transition-colors duration-200 placeholder:text-zinc-400 hover:border-black/20 focus-visible:border-[#4f9d45]/60 focus-visible:ring-2 focus-visible:ring-[#4f9d45]/25;
 }
 
 .form-field-sm {
-  @apply w-full rounded-xl border border-white/5 bg-zinc-950 px-4 py-3 text-sm text-white outline-none transition-colors duration-200 hover:border-white/[0.12] hover:bg-white/[0.02] focus-visible:border-emerald-500/45 focus-visible:ring-2 focus-visible:ring-emerald-500/25;
-}
-
-/* Native <select> lists are OS-drawn; nudge toward dark where supported */
-select.form-field,
-select.form-field-sm,
-select.input-field {
-  color-scheme: dark;
-}
-
-select.form-field option,
-select.form-field-sm option,
-select.input-field option {
-  background-color: #09090b;
-  color: #fafafa;
+  @apply w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-950 outline-none transition-colors duration-200 hover:border-black/20 focus-visible:border-[#4f9d45]/60 focus-visible:ring-2 focus-visible:ring-[#4f9d45]/25;
 }
 
 .btn-primary {
-  @apply relative inline-flex items-center justify-center overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-bold text-zinc-950 active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+  @apply relative inline-flex items-center justify-center overflow-hidden rounded-2xl px-6 py-3.5 text-sm font-black text-white active:scale-[0.98] disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-[#4f9d45]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf5];
   background-color: var(--accent);
-  box-shadow: 0 8px 24px -8px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 16px 32px -18px rgba(23, 20, 18, 0.65);
   transition:
     transform 200ms ease,
     box-shadow 200ms ease,
@@ -133,16 +124,16 @@ select.input-field option {
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
   background-color: var(--accent-hover);
-  box-shadow: 0 12px 28px -8px rgba(16, 185, 129, 0.45);
+  box-shadow: 0 18px 36px -20px rgba(23, 20, 18, 0.72);
 }
 
 .btn-ghost {
-  @apply rounded-2xl px-4 py-2 text-sm font-medium text-zinc-400 transition-colors duration-200 hover:bg-white/5 hover:text-white disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-emerald-500/30 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950;
+  @apply rounded-2xl px-4 py-2 text-sm font-medium text-zinc-500 transition-colors duration-200 hover:bg-black/5 hover:text-zinc-950 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#4f9d45]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf5];
 }
 
 /* Bento Card Style */
 .bento-card {
-  @apply relative overflow-hidden rounded-3xl border border-white/[0.08] bg-zinc-900/50 p-6 transition-colors duration-200 hover:border-white/[0.12] hover:bg-zinc-900/80 focus-within:border-white/[0.16];
+  @apply relative overflow-hidden rounded-3xl border border-black/[0.08] bg-white/85 p-6 shadow-[0_18px_60px_-38px_rgba(23,20,18,0.42)] transition-colors duration-200 hover:border-black/[0.14] focus-within:border-[#4f9d45]/35;
 }
 
 /* Custom scrollbar */

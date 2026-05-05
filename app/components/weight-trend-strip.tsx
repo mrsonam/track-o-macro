@@ -59,32 +59,32 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
 
   return (
     <div
-      className={`bento-card scroll-mt-28 border-white/5 bg-zinc-900/40 p-6 lg:p-8 ${className}`}
+      className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 lg:p-8 ${className}`}
     >
       <div className="mb-6 flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] text-[#4f9d45]">
           <Scale className="h-5 w-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
           <h2
             id="trends-weight-trend"
-            className="text-sm font-black uppercase tracking-widest text-white"
+            className="text-sm font-black uppercase tracking-widest text-zinc-950"
           >
             Weight trajectory
           </h2>
-          <p className="mt-1 text-xs font-medium leading-relaxed text-zinc-500">
+          <p className="mt-1 text-xs font-medium leading-relaxed text-zinc-600">
             Daily weights collapsed to one value per day; curve is EMA-smoothed to
             dampen noise. Set an optional{" "}
             <Link
               href="/settings"
-              className="text-violet-400/90 underline-offset-2 hover:underline"
+              className="text-[#4f9d45] underline-offset-2 hover:underline"
             >
               target weight
             </Link>{" "}
             for a reference line.{" "}
             <Link
               href="/settings"
-              className="text-violet-400/90 underline-offset-2 hover:underline"
+              className="text-[#4f9d45] underline-offset-2 hover:underline"
             >
               Home sparkline
             </Link>{" "}
@@ -96,7 +96,7 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
       {loading ? (
         <p className="text-xs font-bold text-zinc-600">Loading scale history…</p>
       ) : error ? (
-        <p className="text-xs font-bold text-red-400/80" role="alert">
+        <p className="text-xs font-bold text-red-600" role="alert">
           {error}
         </p>
       ) : points && points.length >= 2 ? (
@@ -107,8 +107,8 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
           goalWeightKg={goalWeightKg}
         />
       ) : (
-        <div className="flex items-start gap-2 rounded-xl border border-white/5 bg-zinc-950/50 p-4 text-xs font-medium text-zinc-500">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-600" aria-hidden />
+        <div className="flex items-start gap-2 rounded-xl border border-black/10 bg-[#f7f3e9] p-4 text-xs font-medium text-zinc-700">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
           <span>
             Log your weight from the home screen on a few different days to see
             a smoothed trend here. This stays off the main dashboard unless you

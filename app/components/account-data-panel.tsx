@@ -60,12 +60,12 @@ export function AccountDataPanel() {
   return (
     <div className="flex flex-col gap-10">
       {/* Privacy and Disclosure */}
-      <section className="rounded-3xl bg-zinc-950 p-8 border border-white/5 shadow-inner">
+      <section className="rounded-3xl border border-black/10 bg-white p-8 shadow-inner">
         <div className="flex items-center gap-4 mb-6">
           <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
             <ShieldCheck className="h-5 w-5" />
           </div>
-          <h3 className="text-xl font-bold text-white">Trust & Compliance</h3>
+          <h3 className="text-xl font-bold text-zinc-950">Trust & Compliance</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -81,14 +81,14 @@ export function AccountDataPanel() {
             </Link>
           </div>
           
-          <div className="rounded-2xl bg-zinc-900/50 p-6 border border-white/5">
+          <div className="rounded-2xl border border-black/10 bg-[#f7f3e9] p-6">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Support Registry</h4>
             <p className="text-xs text-zinc-600 mb-4 italic">
               Health is holistic. If you need support regarding dietary habits, professional resources are available.
             </p>
-            <Link 
-              href="/resources/eating-disorders" 
-              className="group flex items-center justify-between text-xs font-bold text-white hover:text-emerald-500 transition-colors"
+            <Link
+              href="/resources/eating-disorders"
+              className="group flex items-center justify-between text-xs font-bold text-zinc-900 transition-colors hover:text-emerald-600"
             >
               Access Resources <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
@@ -97,7 +97,7 @@ export function AccountDataPanel() {
       </section>
 
       {/* Export Section */}
-      <section className="bento-card bg-zinc-900/40 p-1 ring-1 ring-white/5">
+      <section className="bento-card bg-white p-1 ring-1 ring-black/10">
         <div className="p-8">
           <div className="flex items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-3">
@@ -108,13 +108,13 @@ export function AccountDataPanel() {
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-            <p className="text-sm text-zinc-400 leading-relaxed max-w-md">
+            <p className="max-w-md text-sm leading-relaxed text-zinc-600">
               Extract up to 5,000 recent entries in a standard UTF-8 CSV package. Compatible with all major analytical software.
             </p>
             <Link
               href="/api/meals/export"
               prefetch={false}
-              className="tap-target flex items-center justify-center gap-3 rounded-2xl bg-zinc-800 px-8 py-4 text-sm font-bold text-white shadow-xl transition-colors duration-200 hover:bg-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+              className="tap-target flex items-center justify-center gap-3 rounded-2xl bg-[#171412] px-8 py-4 text-sm font-bold text-white shadow-xl transition-colors duration-200 hover:bg-[#2a2420] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf5]"
             >
               <Download className="h-4 w-4" />
               Download Payload
@@ -194,7 +194,7 @@ export function AccountDataPanel() {
               </button>
               <button
                 onClick={() => { setOpen(false); setPassword(""); setAck(false); setError(null); }}
-                className="focus-ring tap-target rounded-2xl bg-zinc-800 px-8 py-4 text-sm font-bold text-white transition-colors duration-200 hover:bg-zinc-700"
+                className="focus-ring tap-target rounded-2xl border border-black/10 bg-white px-8 py-4 text-sm font-bold text-zinc-700 transition-colors duration-200 hover:bg-[#f7f3e9]"
                 disabled={busy}
               >
                 Abort

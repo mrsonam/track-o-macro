@@ -13,14 +13,14 @@ export function requireAvocavoApiKey(): string {
   return k;
 }
 
-/** Max ingredients per /batch request (Free=3, Starter=10, Pro=25). */
+/** Optional cap override for /batch request size. */
 export function maxBatchSize(): number {
   const raw = process.env.AVOCAVO_MAX_BATCH?.trim();
   if (raw) {
     const n = Number.parseInt(raw, 10);
     if (Number.isFinite(n) && n > 0) return Math.min(n, 50);
   }
-  return 3;
+  return 10;
 }
 
 export type AvocavoBatchItem = {
@@ -59,6 +59,13 @@ export async function batchAnalyzeIngredients(
   phrases: string[],
 ): Promise<AvocavoBatchResponse> {
   const key = requireAvocavoApiKey();
+  const trimmed = phrases.map((p) => p.trim()).filter(Boolean);
+  if (trimmed.length === 0) {
+    return { success: true, results: [] };
+  }
+
+  const cap = Math.max(1, Math.min(maxBatchSize(), trimmed.length));
+  const batchedPhrases = trimmed.slice(0, cap);
   const res = await fetch(`${AVOCAVO_BASE}/batch`, {
     method: "POST",
     headers: {
@@ -66,7 +73,7 @@ export async function batchAnalyzeIngredients(
       "X-API-Key": key,
     },
     body: JSON.stringify({
-      ingredients: phrases.map((ingredient) => ({ ingredient })),
+      ingredients: batchedPhrases.map((ingredient) => ({ ingredient })),
     }),
   });
 
@@ -85,6 +92,27 @@ export async function batchAnalyzeIngredients(
       typeof data === "object" && data && "message" in data
         ? String((data as { message?: string }).message)
         : text.slice(0, 200);
+    // Free tier may reject /batch with count > 1; fall back to single-item endpoint.
+    if (
+      res.status === 400 &&
+      /batch|ingredient_count|limit|free plan/i.test(`${msg} ${text}`)
+    ) {
+      const results = await Promise.all(
+        batchedPhrases.map(async (ingredient) => {
+          try {
+            const one = await singleIngredientAnalyze(ingredient);
+            return one;
+          } catch (error) {
+            return {
+              success: false,
+              ingredient,
+              error: error instanceof Error ? error.message : "Unknown error",
+            } satisfies AvocavoBatchItem;
+          }
+        }),
+      );
+      return { success: true, results };
+    }
     throw new Error(`Avocavo batch failed: ${res.status} ${msg}`);
   }
 

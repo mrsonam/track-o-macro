@@ -80,23 +80,23 @@ export function RollingWeekSummaryBody({
   return (
     <div className={isDetailed ? "space-y-5" : "space-y-3"}>
       {planText ? (
-        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.07] p-4 sm:p-5">
+        <div className="rounded-2xl border border-[#4f9d45]/25 bg-white/60 p-4 sm:p-5">
           <div className="mb-2 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#4f9d45]/15 text-[#356d30]">
               <ListTodo className="h-4 w-4" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/90">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#356d30]">
               Your plan this week
             </p>
           </div>
-          <p className="text-sm font-medium leading-relaxed text-zinc-200">
+          <p className="text-sm font-medium leading-relaxed text-[#171412]">
             {planText}
           </p>
-          <p className="mt-3 text-[10px] font-medium text-zinc-500">
+          <p className="mt-3 text-[10px] font-medium text-zinc-600">
             Edit anytime in{" "}
             <Link
               href="/settings"
-              className="font-bold text-emerald-500/90 underline decoration-emerald-500/30 underline-offset-2 hover:text-emerald-400"
+              className="font-bold text-[#356d30] underline decoration-[#4f9d45]/30 underline-offset-2 hover:text-[#171412]"
             >
               Settings
             </Link>
@@ -106,20 +106,20 @@ export function RollingWeekSummaryBody({
       ) : null}
 
       {data.recovery14 && isDetailed ? (
-        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.07] p-4">
+        <div className="rounded-2xl border border-[#7aa6c2]/25 bg-[#dff1ff]/70 p-4">
           <div className="mb-3 flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/15 text-violet-300">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#dff1ff] text-[#3b82a0]">
               <CalendarClock className="h-4 w-4" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300/90">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#3b82a0]">
               Active days (last 14)
             </p>
           </div>
-          <p className="text-xs leading-relaxed text-zinc-400">
+          <p className="text-xs leading-relaxed text-zinc-700">
             {data.recovery14.daysWithLogs} of {data.recovery14.daysInWindow} days had
             at least one log — a recovery-friendly view without daily streak pressure.
           </p>
-          <p className={`mt-3 leading-relaxed ${isDetailed ? "text-base text-zinc-300" : "text-xs text-zinc-500"}`}>
+          <p className={`mt-3 leading-relaxed ${isDetailed ? "text-base text-zinc-700" : "text-xs text-zinc-600"}`}>
             {activeDays14Blurb(data.recovery14.daysWithLogs)}
           </p>
         </div>
@@ -127,30 +127,30 @@ export function RollingWeekSummaryBody({
 
       <div className={isDetailed ? "grid grid-cols-1 md:grid-cols-3 gap-4" : "flex flex-col gap-2"}>
         {/* Kcal Metric */}
-        <div className={isDetailed ? `flex flex-col justify-between rounded-2xl border p-5 transition-all duration-300 ${isSurplus ? "border-amber-500/30 bg-amber-950/40 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]" : "border-white/5 bg-zinc-950/60 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]"}` : `flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all duration-300 ${isSurplus ? "border-amber-500/20 bg-amber-500/[0.03]" : "border-white/5 bg-white/[0.02]"}`}>
+        <div className={isDetailed ? `flex flex-col justify-between rounded-2xl border p-5 transition-all duration-300 ${isSurplus ? "border-amber-500/30 bg-amber-500/10" : "border-black/10 bg-white/60"}` : `flex items-center justify-between rounded-xl border px-3 py-2.5 transition-all duration-300 ${isSurplus ? "border-amber-500/20 bg-amber-500/10" : "border-black/10 bg-white/60"}`}>
           <div className="flex items-center gap-2.5">
-            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${isSurplus ? "bg-amber-500/20 text-amber-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${isSurplus ? "bg-amber-500/20 text-amber-700" : "bg-[#4f9d45]/10 text-[#356d30]"}`}>
               {isSurplus ? <AlertTriangle className="h-3.5 w-3.5 animate-pulse" /> : <TrendingUp className="h-3.5 w-3.5" />}
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500/80">Burn</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Burn</p>
           </div>
           
           <div className={`${isDetailed ? "mb-4" : ""}`}>
             <div className="flex items-baseline gap-1.5">
-              <span className={`font-black transition-colors ${isDetailed ? "text-4xl" : "text-lg"} ${isSurplus ? "text-amber-400" : "text-white"}`}>
+              <span className={`font-mono font-black transition-colors ${isDetailed ? "text-4xl" : "text-lg"} ${isSurplus ? "text-amber-700" : "text-[#171412]"}`}>
                 {Math.round(data.averages.kcalPerDay)}
               </span>
-              <span className={`text-[10px] font-black uppercase ${isSurplus ? "text-amber-600" : "text-zinc-600"}`}>kcal</span>
+              <span className={`text-[10px] font-black uppercase ${isSurplus ? "text-amber-700" : "text-zinc-500"}`}>kcal</span>
             </div>
           </div>
 
           {isDetailed && dailyTargetKcal != null && (
             <div className="space-y-2">
-              <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+              <div className="h-1 overflow-hidden rounded-full bg-black/10">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${Math.min(100, (data.averages.kcalPerDay / dailyTargetKcal) * 100)}%` }}
-                  className={`h-full ${isSurplus ? "bg-amber-500" : "bg-emerald-500"}`}
+                  className={`h-full ${isSurplus ? "bg-amber-600" : "bg-[#4f9d45]"}`}
                 />
               </div>
               <p className="text-[9px] font-bold text-zinc-500">vs {dailyTargetKcal} goal</p>
@@ -159,42 +159,42 @@ export function RollingWeekSummaryBody({
         </div>
 
         {/* Rhythm Metric */}
-        <div className={isDetailed ? "flex flex-col justify-between rounded-2xl border border-white/5 bg-zinc-950/60 p-5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]" : "flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5"}>
+        <div className={isDetailed ? "flex flex-col justify-between rounded-2xl border border-black/10 bg-white/60 p-5" : "flex items-center justify-between rounded-xl border border-black/10 bg-white/60 px-3 py-2.5"}>
           <div className="flex items-center gap-2.5">
-            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#dff1ff] text-[#3b82a0]">
               <Calendar className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500/80">Rhythm</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rhythm</p>
           </div>
 
           <div className={`${isDetailed ? "mb-4" : ""}`}>
             <div className="flex items-baseline gap-0.5">
-              <span className={`font-black text-white italic ${isDetailed ? "text-4xl" : "text-lg"}`}>{data.daysWithLogs}</span>
-              <span className={`mx-0.5 font-black text-zinc-800 ${isDetailed ? "text-2xl" : "text-lg"}`}>/</span>
-              <span className={`font-black text-zinc-600 ${isDetailed ? "text-2xl" : "text-lg"}`}>{data.daysInWindow}</span>
+              <span className={`font-mono font-black text-[#171412] ${isDetailed ? "text-4xl" : "text-lg"}`}>{data.daysWithLogs}</span>
+              <span className={`mx-0.5 font-black text-zinc-400 ${isDetailed ? "text-2xl" : "text-lg"}`}>/</span>
+              <span className={`font-mono font-black text-zinc-600 ${isDetailed ? "text-2xl" : "text-lg"}`}>{data.daysInWindow}</span>
               <span className="ml-1.5 text-[10px] font-black uppercase text-zinc-600">Days</span>
             </div>
           </div>
 
           {isDetailed && (
-            <p className="text-[10px] font-bold text-violet-500/60 leading-tight">
+            <p className="text-[10px] font-bold text-[#3b82a0] leading-tight">
               System Synchronized
             </p>
           )}
         </div>
 
         {/* Density Metric */}
-        <div className={isDetailed ? "flex flex-col justify-between rounded-2xl border border-white/5 bg-zinc-950/60 p-5 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)]" : "flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5"}>
+        <div className={isDetailed ? "flex flex-col justify-between rounded-2xl border border-black/10 bg-white/60 p-5" : "flex items-center justify-between rounded-xl border border-black/10 bg-white/60 px-3 py-2.5"}>
           <div className="flex items-center gap-2.5">
             <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
               <Target className="h-3.5 w-3.5" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500/80">Density</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Density</p>
           </div>
 
           <div className={`${isDetailed ? "mb-4" : ""}`}>
             <div className="flex items-baseline gap-1.5">
-              <span className={`font-black text-white ${isDetailed ? "text-4xl" : "text-lg"}`}>{Math.round(data.averages.proteinGPerDay)}g</span>
+              <span className={`font-mono font-black text-[#171412] ${isDetailed ? "text-4xl" : "text-lg"}`}>{Math.round(data.averages.proteinGPerDay)}g</span>
               <span className="text-[10px] font-black uppercase text-zinc-600">Prot</span>
             </div>
           </div>
@@ -217,7 +217,7 @@ export function RollingWeekSummaryBody({
         data.averages.sugarGPerDay! > 0 ||
         (data.averages.addedSugarGPerDay ?? 0) > 0) &&
       isDetailed ? (
-        <div className="rounded-2xl border border-white/5 bg-zinc-950/50 p-4">
+        <div className="rounded-2xl border border-black/10 bg-white p-4">
           <div className="mb-3 flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
               <Wheat className="h-4 w-4" />
@@ -233,21 +233,21 @@ export function RollingWeekSummaryBody({
             <div className={`flex flex-col gap-1.5 rounded-xl bg-emerald-500/[0.03] border border-emerald-500/10 group/item ${isDetailed ? "p-3" : "p-2"}`}>
                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500/60 group-hover/item:text-emerald-500 transition-colors">Avg Fiber</span>
                <div className="flex items-baseline gap-0.5">
-                 <span className={`font-black text-white ${isDetailed ? "text-xl" : "text-base"}`}>{Math.round(data.averages.fiberGPerDay ?? 0)}</span>
+                 <span className={`font-black text-zinc-900 ${isDetailed ? "text-xl" : "text-base"}`}>{Math.round(data.averages.fiberGPerDay ?? 0)}</span>
                  <span className="text-[8px] font-bold text-zinc-600 uppercase">g/d</span>
                </div>
             </div>
-            <div className={`flex flex-col gap-1.5 rounded-xl border group/item ${isDetailed ? "p-3" : "p-2"} ${(data.averages.sodiumMgPerDay ?? 0) > 2300 ? 'bg-amber-500/[0.03] border-amber-500/10' : 'bg-white/[0.02] border-white/5'}`}>
+            <div className={`flex flex-col gap-1.5 rounded-xl border group/item ${isDetailed ? "p-3" : "p-2"} ${(data.averages.sodiumMgPerDay ?? 0) > 2300 ? 'bg-amber-500/[0.03] border-amber-500/10' : 'bg-white border-black/10'}`}>
                <span className={`text-[8px] font-black uppercase tracking-widest group-hover/item:opacity-100 transition-opacity ${(data.averages.sodiumMgPerDay ?? 0) > 2300 ? 'text-amber-500/60' : 'text-zinc-600 opacity-60'}`}>Avg Sodium</span>
                <div className="flex items-baseline gap-0.5">
-                 <span className={`font-black ${isDetailed ? "text-xl" : "text-base"} ${(data.averages.sodiumMgPerDay ?? 0) > 2300 ? 'text-amber-400' : 'text-white'}`}>{Math.round(data.averages.sodiumMgPerDay ?? 0)}</span>
+                 <span className={`font-black ${isDetailed ? "text-xl" : "text-base"} ${(data.averages.sodiumMgPerDay ?? 0) > 2300 ? 'text-amber-600' : 'text-zinc-900'}`}>{Math.round(data.averages.sodiumMgPerDay ?? 0)}</span>
                  <span className="text-[8px] font-bold text-zinc-600 uppercase">mg/d</span>
                </div>
             </div>
-            <div className={`flex flex-col gap-1.5 rounded-xl border group/item ${isDetailed ? "p-3" : "p-2"} ${(data.averages.sugarGPerDay ?? 0) > 50 ? 'bg-amber-500/[0.03] border-amber-500/10' : 'bg-white/[0.02] border-white/5'}`}>
+            <div className={`flex flex-col gap-1.5 rounded-xl border group/item ${isDetailed ? "p-3" : "p-2"} ${(data.averages.sugarGPerDay ?? 0) > 50 ? 'bg-amber-500/[0.03] border-amber-500/10' : 'bg-white border-black/10'}`}>
                <span className={`text-[8px] font-black uppercase tracking-widest group-hover/item:opacity-100 transition-opacity ${(data.averages.sugarGPerDay ?? 0) > 50 ? 'text-amber-500/60' : 'text-zinc-600 opacity-60'}`}>Avg Sugars</span>
                <div className="flex items-baseline gap-0.5">
-                 <span className={`font-black ${isDetailed ? "text-xl" : "text-base"} ${(data.averages.sugarGPerDay ?? 0) > 50 ? 'text-amber-400' : 'text-white'}`}>{Math.round(data.averages.sugarGPerDay ?? 0)}</span>
+                 <span className={`font-black ${isDetailed ? "text-xl" : "text-base"} ${(data.averages.sugarGPerDay ?? 0) > 50 ? 'text-amber-600' : 'text-zinc-900'}`}>{Math.round(data.averages.sugarGPerDay ?? 0)}</span>
                  <span className="text-[8px] font-bold text-zinc-600 uppercase">g/d</span>
                </div>
             </div>
@@ -261,22 +261,22 @@ export function RollingWeekSummaryBody({
       ) : null}
 
       {tryWeek.text ? (
-        <div className="rounded-2xl border border-white/10 bg-zinc-950/50 p-4 sm:p-5">
-          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+        <div className="rounded-2xl border border-black/10 bg-white/60 p-4 sm:p-5">
+          <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-sky-900/70">
             Try this week
           </p>
-          <p className={`font-medium leading-relaxed text-zinc-300 ${isDetailed ? "text-base" : "text-xs"}`}>
+          <p className={`font-medium leading-relaxed text-[#171412] ${isDetailed ? "text-base" : "text-xs"}`}>
             {tryWeek.text}
           </p>
           {planSuggestionBridge ? (
             <p
-              className={`mt-3 border-l-2 border-emerald-500/20 pl-3 leading-relaxed text-zinc-500 ${isDetailed ? "text-sm" : "text-[11px]"}`}
+              className={`mt-3 border-l-2 border-[#4f9d45]/30 pl-3 leading-relaxed text-zinc-600 ${isDetailed ? "text-sm" : "text-[11px]"}`}
             >
               {planSuggestionBridge}
             </p>
           ) : null}
           {tryWeek.ifThen ? (
-            <p className="mt-3 border-t border-white/5 pt-3 text-[11px] leading-relaxed text-zinc-500">
+            <p className="mt-3 border-t border-black/10 pt-3 text-[11px] leading-relaxed text-zinc-600">
               <span className="font-bold text-zinc-400">If–then: </span>
               {tryWeek.ifThen}
             </p>
@@ -291,27 +291,27 @@ export function RollingWeekSummaryBody({
         data.patterns?.mealTimingBandLine ||
         data.patterns?.lateEatingLine) &&
       isDetailed ? (
-        <div className="space-y-3 rounded-2xl border border-white/5 bg-zinc-950/40 p-4">
+        <div className="space-y-3 rounded-2xl border border-black/10 bg-[#f7f3e9] p-4">
           <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#dff1ff] text-[#3b82a0]">
               <Moon className="h-4 w-4" />
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">
               Patterns
             </p>
           </div>
           {data.patterns?.weekendDriftLine ? (
-            <p className={`leading-relaxed text-zinc-400 ${isDetailed ? "text-base" : "text-xs"}`}>
+            <p className={`leading-relaxed text-zinc-700 ${isDetailed ? "text-base" : "text-xs"}`}>
               {data.patterns.weekendDriftLine}
             </p>
           ) : null}
           {data.patterns?.mealTimingBandLine ? (
-            <p className={`leading-relaxed text-zinc-400 ${isDetailed ? "text-base" : "text-xs"}`}>
+            <p className={`leading-relaxed text-zinc-700 ${isDetailed ? "text-base" : "text-xs"}`}>
               {data.patterns.mealTimingBandLine}
             </p>
           ) : null}
           {data.patterns?.lateEatingLine ? (
-            <p className={`leading-relaxed text-zinc-400 ${isDetailed ? "text-base" : "text-xs"}`}>
+            <p className={`leading-relaxed text-zinc-700 ${isDetailed ? "text-base" : "text-xs"}`}>
               {data.patterns.lateEatingLine}
             </p>
           ) : null}

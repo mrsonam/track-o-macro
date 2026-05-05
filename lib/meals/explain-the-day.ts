@@ -1,4 +1,5 @@
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
+import { appleHealthExplainLines } from "@/lib/meals/apple-health-copy";
 import {
   proteinDistributionLine,
   whatDroveDayLine,
@@ -26,6 +27,10 @@ export function explainTheDayLines(input: ExplainInput): string[] {
     totalKcal,
   });
   if (drove) lines.push(drove);
+
+  for (const ah of appleHealthExplainLines(summary.appleHealth)) {
+    lines.push(ah);
+  }
 
   const p = summary.totals.protein_g ?? 0;
   const proteinDist = proteinDistributionLine({

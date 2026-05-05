@@ -28,15 +28,15 @@ export function WeekInsightsCard({
   data,
 }: WeekInsightsCardProps) {
   return (
-    <div className="bento-card relative overflow-hidden bg-zinc-900/40 border-white/5 p-6">
+    <div className="bento-card relative overflow-hidden border-sky-500/20 bg-[#dff1ff] p-6">
       {/* Background Decorative Blur */}
-      <div className="absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-emerald-500/5 blur-[60px]" />
+      <div className="hidden" />
       
       <div className="flex items-center justify-between mb-6">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-900/75">
           Registry Rhythms
         </p>
-        <div className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
+        <div className="flex h-1.5 w-1.5 rounded-full bg-sky-600" />
       </div>
       {loading ? (
         <p className="mt-2 text-xs font-bold text-zinc-600 animate-pulse">Synchronizing records…</p>

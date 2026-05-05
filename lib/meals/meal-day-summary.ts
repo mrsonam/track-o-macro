@@ -1,3 +1,5 @@
+import type { AppleHealthDayRollup } from "@/lib/health/apple-day-rollup";
+
 export type MealDriver = {
   rawInput: string;
   value: number;
@@ -35,4 +37,6 @@ export type MealDaySummary = {
   };
   /** Total fluid volume logged that local day (ml), from batch summary */
   hydrationTotalMl?: number;
+  /** Apple Health (Shortcuts) aggregates for the same local day window */
+  appleHealth?: AppleHealthDayRollup | null;
 };

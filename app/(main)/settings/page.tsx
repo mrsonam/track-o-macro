@@ -7,7 +7,7 @@ import { SettingsPageSkeleton } from "@/app/components/skeletons/settings-page-s
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 px-4 pb-32 pt-12 sm:px-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 px-4 pb-32 pt-12 sm:px-6">
       <div className="w-full">
         <SettingsPageHeader />
 
@@ -15,7 +15,7 @@ export default function SettingsPage() {
           <SettingsPageContent />
         </Suspense>
 
-        <p className="mt-20 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-800">
+        <p className="mt-20 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600">
           End of Configuration • Protocol v1.0
         </p>
       </div>

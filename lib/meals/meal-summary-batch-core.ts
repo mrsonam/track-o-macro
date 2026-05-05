@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import {
+  rollupHasAnyData,
+  type AppleHealthDayRollup,
+} from "@/lib/health/apple-day-rollup";
+import { loadAppleHealthRollupsForRanges } from "@/lib/health/load-rollups-for-ranges";
 import { queryMealTimingBands } from "@/lib/meals/meal-timing-bands-query";
 import { isValidIanaTimeZone } from "@/lib/meals/validate-iana-time-zone";
 
@@ -52,6 +57,7 @@ export type MealSummaryBatchOk = {
     protein?: { rawInput: string; value: number };
   };
   hydrationTotalMl?: number;
+  appleHealth?: AppleHealthDayRollup;
 };
 
 export type MealSummaryBatchRow =
@@ -74,9 +80,33 @@ export async function mealSummaryBatchForUser(
       ? body.timeZone
       : null;
 
+  const validatedRanges = ranges.map((r) => ({
+    v: validateMealSummaryRange(r.from, r.to),
+  }));
+
+  const validForHealth = validatedRanges
+    .map((x, i) =>
+      x.v.ok ? { index: i, fromD: x.v.fromD, toD: x.v.toD } : null,
+    )
+    .filter((x): x is { index: number; fromD: Date; toD: Date } => x != null);
+
+  let rollupsByIndex = new Map<number, AppleHealthDayRollup>();
+  if (validForHealth.length > 0) {
+    try {
+      const rollups = await loadAppleHealthRollupsForRanges(
+        userId,
+        validForHealth.map(({ fromD, toD }) => ({ fromD, toD })),
+      );
+      validForHealth.forEach((slot, j) => {
+        rollupsByIndex.set(slot.index, rollups[j]!);
+      });
+    } catch {
+      rollupsByIndex = new Map();
+    }
+  }
+
   const results = await Promise.all(
-    ranges.map(async (r) => {
-      const v = validateMealSummaryRange(r.from, r.to);
+    validatedRanges.map(async ({ v }, rangeIndex) => {
       if (!v.ok) {
         return { ok: false as const, error: v.message };
       }
@@ -194,6 +224,10 @@ export async function mealSummaryBatchForUser(
           }
         }
 
+        const appleRollup = rollupsByIndex.get(rangeIndex);
+        const appleHealth =
+          appleRollup && rollupHasAnyData(appleRollup) ? appleRollup : undefined;
+
         return {
           ok: true as const,
           mealCount: agg._count._all,
@@ -210,6 +244,7 @@ export async function mealSummaryBatchForUser(
           ...(timing ? { timing } : {}),
           drivers,
           ...(hydrationTotalMl !== undefined ? { hydrationTotalMl } : {}),
+          ...(appleHealth ? { appleHealth } : {}),
         };
       } catch {
         return { ok: false as const, error: "Query failed" };

@@ -15,12 +15,14 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profile    UserProfile?
-  meals      Meal[]
-  savedMeals SavedMeal[]
-  userFoods  UserFood[]
-  weightLogs WeightLog[]
-  fluidLogs  FluidLog[]
+  profile           UserProfile?
+  meals             Meal[]
+  savedMeals        SavedMeal[]
+  userFoods         UserFood[]
+  weightLogs        WeightLog[]
+  fluidLogs         FluidLog[]
+  healthSamples     HealthSample[]
+  healthSyncTokens  HealthSyncToken[]
 
   @@map("users")
 }
@@ -175,12 +177,58 @@ model WeightLog {
   loggedAt     DateTime @default(now()) @map("logged_at") @db.Timestamptz(6)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// When set, row came from Apple Health Shortcuts sync (deduped via ingestDedupeKey)
+  ingestSource    String?  @map("ingest_source") @db.Text
+  ingestDedupeKey String?  @map("ingest_dedupe_key") @db.Text
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId], map: "weight_logs_user_id_idx")
   @@index([loggedAt], map: "weight_logs_logged_at_idx")
+  @@unique([userId, ingestDedupeKey], map: "weight_logs_user_ingest_dedupe_key")
   @@map("weight_logs")
+}
+
+/// Per-user revocable token for Shortcut / automation POST ingestion (plaintext never stored).
+model HealthSyncToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @map("token_hash") @db.Text
+  label      String?   @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenHash], map: "health_sync_tokens_token_hash_key")
+  @@index([userId], map: "health_sync_tokens_user_id_idx")
+  @@map("health_sync_tokens")
+}
+
+/// Normalized Apple Health (and future) metric samples; deduped per user via dedupeKey.
+model HealthSample {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  metricType  String   @map("metric_type") @db.Text
+  /// Canonical numeric value (e.g. kg for weight, kcal for active energy, count for steps)
+  value       Decimal  @db.Decimal(24, 10)
+  /// Canonical unit label at ingest time (e.g. kg, kcal, count, min, bpm)
+  unit        String   @db.Text
+  recordedAt  DateTime @map("recorded_at") @db.Timestamptz(6)
+  timeZone    String?  @map("time_zone") @db.Text
+  ingestedAt  DateTime @default(now()) @map("ingested_at") @db.Timestamptz(6)
+  source      String   @db.Text
+  externalId  String?  @map("external_id") @db.Text
+  metadata    Json?
+  dedupeKey   String   @map("dedupe_key") @db.Text
+  rawPayload  Json?    @map("raw_payload")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey], map: "health_samples_user_dedupe_key")
+  @@index([userId, recordedAt], map: "health_samples_user_recorded_at_idx")
+  @@map("health_samples")
 }
 
 /// Beverages / water — volume in milliliters for a given local day (via logged_at).

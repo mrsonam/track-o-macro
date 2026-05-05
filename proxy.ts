@@ -30,7 +30,9 @@ export async function proxy(request: NextRequest) {
     pathname === "/privacy" || pathname.startsWith("/resources/");
 
   const isPublicApi =
-    pathname.startsWith("/api/auth") || pathname === "/api/register";
+    pathname.startsWith("/api/auth") ||
+    pathname === "/api/register" ||
+    pathname === "/api/health/apple/sync";
 
   if (isPublicApi) {
     return NextResponse.next();

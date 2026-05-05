@@ -161,14 +161,14 @@ export function UserFoodsManager() {
   return (
     <div className="flex flex-col gap-8">
       {/* Introduction */}
-      <div className="rounded-3xl bg-zinc-950 p-8 border border-white/5 shadow-inner">
+      <div className="rounded-3xl border border-black/10 bg-white p-8 shadow-inner">
         <div className="flex items-center gap-4 mb-4">
           <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
-          <h3 className="text-xl font-bold text-white">Custom Ingredient override</h3>
+          <h3 className="text-xl font-bold text-zinc-950">Custom Ingredient override</h3>
         </div>
-        <p className="text-sm text-zinc-500 leading-relaxed max-w-2xl">
+        <p className="max-w-2xl text-sm leading-relaxed text-zinc-600">
           Define nutritional values <span className="text-emerald-500 font-bold">per 100g</span>. 
           When we detect these exact labels in your logs, your custom data will override USDA defaults.
         </p>
@@ -182,7 +182,7 @@ export function UserFoodsManager() {
       )}
 
       {/* Add Food Form */}
-      <section className="bento-card bg-zinc-900/40 p-1 ring-1 ring-white/5">
+      <section className="bento-card bg-white p-1 ring-1 ring-black/10">
         <div className="p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-8">
             <Plus className="h-4 w-4 text-emerald-500" />
@@ -196,7 +196,7 @@ export function UserFoodsManager() {
                 <input
                   value={form.label}
                   onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                  className="w-full rounded-2xl border border-black/10 bg-[#fffdf7] px-5 py-4 text-zinc-950 outline-none focus:ring-1 focus:ring-emerald-500"
                   placeholder="e.g. My Custom Sourdough"
                   required
                 />
@@ -209,7 +209,7 @@ export function UserFoodsManager() {
                   step="any"
                   value={form.kcalPer100g}
                   onChange={(e) => setForm((f) => ({ ...f, kcalPer100g: e.target.value }))}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                  className="w-full rounded-2xl border border-black/10 bg-[#fffdf7] px-5 py-4 text-zinc-950 outline-none focus:ring-1 focus:ring-emerald-500"
                   required
                 />
               </label>
@@ -221,7 +221,7 @@ export function UserFoodsManager() {
                   step="any"
                   value={form.proteinPer100g}
                   onChange={(e) => setForm((f) => ({ ...f, proteinPer100g: e.target.value }))}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                  className="w-full rounded-2xl border border-black/10 bg-[#fffdf7] px-5 py-4 text-zinc-950 outline-none focus:ring-1 focus:ring-emerald-500"
                   required
                 />
               </label>
@@ -235,7 +235,7 @@ export function UserFoodsManager() {
                   step="any"
                   value={form.carbsPer100g}
                   onChange={(e) => setForm((f) => ({ ...f, carbsPer100g: e.target.value }))}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                  className="w-full rounded-2xl border border-black/10 bg-[#fffdf7] px-5 py-4 text-zinc-950 outline-none focus:ring-1 focus:ring-emerald-500"
                   required
                 />
               </label>
@@ -247,7 +247,7 @@ export function UserFoodsManager() {
                   step="any"
                   value={form.fatPer100g}
                   onChange={(e) => setForm((f) => ({ ...f, fatPer100g: e.target.value }))}
-                  className="w-full rounded-2xl bg-zinc-950 px-5 py-4 text-white focus:ring-1 focus:ring-emerald-500 outline-none border border-white/5"
+                  className="w-full rounded-2xl border border-black/10 bg-[#fffdf7] px-5 py-4 text-zinc-950 outline-none focus:ring-1 focus:ring-emerald-500"
                   required
                 />
               </label>
@@ -283,7 +283,7 @@ export function UserFoodsManager() {
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
-                  className="group relative rounded-3xl border border-white/[0.05] bg-zinc-900/50 p-6 transition-all hover:bg-zinc-900/80"
+                  className="group relative rounded-3xl border border-black/10 bg-white p-6 transition-all hover:bg-[#f7f3e9]"
                 >
                   {editingId === row.id ? (
                     <div className="flex flex-col gap-6">
@@ -291,18 +291,18 @@ export function UserFoodsManager() {
                         <input
                           value={editForm.label}
                           onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
-                          className="w-full rounded-xl bg-zinc-950 px-4 py-3 text-sm text-white outline-none border border-white/10"
+                          className="w-full rounded-xl border border-black/10 bg-[#fffdf7] px-4 py-3 text-sm text-zinc-950 outline-none"
                         />
                         <div className="grid grid-cols-4 gap-2">
-                           <input type="number" step="any" value={editForm.kcalPer100g} onChange={(e) => setEditForm(f => ({...f, kcalPer100g: e.target.value}))} className="rounded-xl bg-zinc-950 p-2 text-xs text-center border border-white/10" title="kcal" />
-                           <input type="number" step="any" value={editForm.proteinPer100g} onChange={(e) => setEditForm(f => ({...f, proteinPer100g: e.target.value}))} className="rounded-xl bg-zinc-950 p-2 text-xs text-center border border-white/10" title="P" />
-                           <input type="number" step="any" value={editForm.carbsPer100g} onChange={(e) => setEditForm(f => ({...f, carbsPer100g: e.target.value}))} className="rounded-xl bg-zinc-950 p-2 text-xs text-center border border-white/10" title="C" />
-                           <input type="number" step="any" value={editForm.fatPer100g} onChange={(e) => setEditForm(f => ({...f, fatPer100g: e.target.value}))} className="rounded-xl bg-zinc-950 p-2 text-xs text-center border border-white/10" title="F" />
+                           <input type="number" step="any" value={editForm.kcalPer100g} onChange={(e) => setEditForm(f => ({...f, kcalPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="kcal" />
+                           <input type="number" step="any" value={editForm.proteinPer100g} onChange={(e) => setEditForm(f => ({...f, proteinPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="P" />
+                           <input type="number" step="any" value={editForm.carbsPer100g} onChange={(e) => setEditForm(f => ({...f, carbsPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="C" />
+                           <input type="number" step="any" value={editForm.fatPer100g} onChange={(e) => setEditForm(f => ({...f, fatPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="F" />
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => void onSaveEdit(row.id)} className="bg-emerald-500 text-zinc-950 px-4 py-2 rounded-xl text-xs font-bold">Save</button>
-                        <button onClick={cancelEdit} className="bg-zinc-800 text-white px-4 py-2 rounded-xl text-xs font-bold">Cancel</button>
+                        <button onClick={cancelEdit} className="rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-700">Cancel</button>
                       </div>
                     </div>
                   ) : (
@@ -311,14 +311,14 @@ export function UserFoodsManager() {
                         <div className="flex items-center gap-3 mb-2">
                           <span className="text-[10px] font-black uppercase text-zinc-500">v{row.version} protocol active</span>
                         </div>
-                        <h5 className="text-lg font-bold text-white tracking-tight">{row.label}</h5>
+                        <h5 className="text-lg font-bold tracking-tight text-zinc-950">{row.label}</h5>
                       </div>
                       
                       <div className="flex items-center gap-6">
-                        <div className="flex gap-4 border-r border-white/5 pr-6">
+                        <div className="flex gap-4 border-r border-black/10 pr-6">
                           <div className="text-center">
                             <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Kcal</p>
-                            <p className="text-sm font-bold text-white">{row.kcalPer100g}</p>
+                            <p className="text-sm font-bold text-zinc-950">{row.kcalPer100g}</p>
                           </div>
                           <div className="text-center">
                              <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">P</p>
@@ -326,7 +326,7 @@ export function UserFoodsManager() {
                           </div>
                           <div className="text-center">
                              <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">C</p>
-                            <p className="text-sm font-bold text-lime-400">{row.carbsPer100g}g</p>
+                            <p className="text-sm font-bold text-[#3b82a0]">{row.carbsPer100g}g</p>
                           </div>
                    <div className="text-center">
                              <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">F</p>
@@ -337,13 +337,13 @@ export function UserFoodsManager() {
                         <div className="flex items-center gap-2">
                           <button 
                             onClick={() => startEdit(row)}
-                            className="p-2 rounded-xl bg-zinc-950 text-zinc-500 hover:text-white transition-colors"
+                            className="rounded-xl border border-black/10 bg-white p-2 text-zinc-500 transition-colors hover:text-zinc-950"
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button 
                             onClick={() => void onDelete(row.id)}
-                            className="p-2 rounded-xl bg-zinc-950 text-zinc-500 hover:text-red-400 transition-colors"
+                            className="rounded-xl border border-black/10 bg-white p-2 text-zinc-500 transition-colors hover:text-red-500"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>

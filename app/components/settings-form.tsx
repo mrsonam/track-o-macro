@@ -32,6 +32,7 @@ import {
   Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { CustomSelect } from "@/app/components/custom-select";
 import { 
   type UnitSystem, 
   cmToInches, 
@@ -260,18 +261,18 @@ export function SettingsForm({ profile }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-10">
-      <div className="bento-card border border-white/5 bg-zinc-900/30 p-8 space-y-6">
+      <div className="bento-card border border-black/10 bg-white p-8 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
               <Globe className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-white">System Units</h3>
-              <p className="text-xs text-zinc-500">Choose your preferred measurement protocol.</p>
+              <h3 className="text-lg font-bold text-zinc-950">System Units</h3>
+              <p className="text-xs text-zinc-600">Choose your preferred measurement protocol.</p>
             </div>
           </div>
-          <div className="flex gap-1 p-1 bg-zinc-950 rounded-xl border border-white/5">
+          <div className="flex gap-1 rounded-xl border border-black/10 bg-[#f7f3e9] p-1">
             {[["metric", "Metric"], ["imperial", "Imperial"]].map(([id, label]) => (
               <button
                 key={id}
@@ -303,7 +304,7 @@ export function SettingsForm({ profile }: Props) {
                   setUnitSystem(next);
                 }}
                 className={`focus-ring tap-target rounded-lg px-4 py-2 text-xs font-bold transition-colors duration-200 ${
-                  unitSystem === id ? "bg-emerald-500 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+                  unitSystem === id ? "bg-[#4f9d45] text-white shadow-lg" : "text-zinc-600 hover:text-zinc-900"
                 }`}
               >
                 {label}
@@ -367,7 +368,7 @@ export function SettingsForm({ profile }: Props) {
           <legend className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1 mb-2">
             <Dna className="h-3 w-3" /> Biological Sex
           </legend>
-          <div className="flex flex-wrap gap-2 p-1 bg-zinc-950 rounded-2xl border border-white/5">
+          <div className="flex flex-wrap gap-2 rounded-2xl border border-black/10 bg-[#f7f3e9] p-1">
             {[["male", "Male"], ["female", "Female"], ["unspecified", "Other"]].map(([id, label]) => (
               <button
                 key={id}
@@ -376,7 +377,7 @@ export function SettingsForm({ profile }: Props) {
                   setSex(id as "male" | "female" | "unspecified")
                 }
                 className={`focus-ring tap-target flex-1 rounded-xl px-4 py-3 text-xs font-bold transition-colors duration-200 ${
-                  sex === id ? "bg-zinc-800 text-white shadow-xl" : "text-zinc-500 hover:text-zinc-300"
+                  sex === id ? "bg-[#171412] text-white shadow-xl" : "text-zinc-600 hover:text-zinc-900"
                 }`}
               >
                 {label}
@@ -391,38 +392,41 @@ export function SettingsForm({ profile }: Props) {
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
             <Activity className="h-3 w-3" /> Activity Profile
           </div>
-          <select
-            required
+          <CustomSelect
             value={activityLevel}
-            onChange={(e) => setActivityLevel(e.target.value as ActivityLevel | "")}
-            className="form-field appearance-none"
-          >
-            <option value="">Select Activity Level</option>
-            {(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => (
-              <option key={k} value={k}>{ACTIVITY_LABELS[k].title}</option>
-            ))}
-          </select>
+            onChange={(v) => setActivityLevel(v as ActivityLevel | "")}
+            placeholder="Select Activity Level"
+            buttonClassName="form-field"
+            options={[
+              { value: "", label: "Select Activity Level" },
+              ...(Object.keys(ACTIVITY_LABELS) as ActivityLevel[]).map((k) => ({
+                value: k,
+                label: ACTIVITY_LABELS[k].title,
+              })),
+            ]}
+          />
         </label>
 
         <label className="flex flex-col gap-2 text-sm">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
             <Target className="h-3 w-3" /> Primary Objective
           </div>
-          <select
-            required
+          <CustomSelect
             value={goalIntent}
-            onChange={(e) => {
-              const v = e.target.value as "lose" | "maintain" | "gain" | "";
+            onChange={(value) => {
+              const v = value as "lose" | "maintain" | "gain" | "";
               setGoalIntent(v);
               if (v === "maintain") setGoalPace("moderate");
             }}
-            className="form-field appearance-none"
-          >
-            <option value="">Select Goal</option>
-            <option value="lose">Fat Loss</option>
-            <option value="maintain">Maintenance</option>
-            <option value="gain">Muscle Gain</option>
-          </select>
+            placeholder="Select Goal"
+            buttonClassName="form-field"
+            options={[
+              { value: "", label: "Select Goal" },
+              { value: "lose", label: "Fat Loss" },
+              { value: "maintain", label: "Maintenance" },
+              { value: "gain", label: "Muscle Gain" },
+            ]}
+          />
         </label>
       </div>
 
@@ -432,20 +436,30 @@ export function SettingsForm({ profile }: Props) {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-col gap-2 text-sm overflow-hidden"
+            className="flex flex-col gap-2 text-sm"
           >
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
               <Zap className="h-3 w-3" /> Execution Pace
             </div>
-            <select
+            <CustomSelect
               value={goalPace}
-              onChange={(e) => setGoalPace(e.target.value as GoalPace)}
-              className="form-field appearance-none"
-            >
-              <option value="gentle">Gentle ({goalIntent === "lose" ? "−250" : "+200"} kcal)</option>
-              <option value="moderate">Moderate ({goalIntent === "lose" ? "−400" : "+300"} kcal)</option>
-              <option value="aggressive">Aggressive ({goalIntent === "lose" ? "−550" : "+450"} kcal)</option>
-            </select>
+              onChange={(v) => setGoalPace(v as GoalPace)}
+              buttonClassName="form-field"
+              options={[
+                {
+                  value: "gentle",
+                  label: `Gentle (${goalIntent === "lose" ? "−250" : "+200"} kcal)`,
+                },
+                {
+                  value: "moderate",
+                  label: `Moderate (${goalIntent === "lose" ? "−400" : "+300"} kcal)`,
+                },
+                {
+                  value: "aggressive",
+                  label: `Aggressive (${goalIntent === "lose" ? "−550" : "+450"} kcal)`,
+                },
+              ]}
+            />
           </motion.label>
         )}
       </AnimatePresence>
@@ -472,42 +486,46 @@ export function SettingsForm({ profile }: Props) {
         </span>
       </label>
 
-      <div className="bento-card border border-white/5 bg-zinc-900/30 p-8 space-y-8">
+      <div className="bento-card border border-black/10 bg-white p-8 space-y-8">
         <div className="flex items-center gap-4">
           <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-violet-500/10 text-violet-400">
             <Book className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Logging Preferences</h3>
-            <p className="text-xs text-zinc-500">Fine-tune the analyzer performance.</p>
+            <h3 className="text-lg font-bold text-zinc-950">Logging Preferences</h3>
+            <p className="text-xs text-zinc-600">Fine-tune analyzer behavior and dietary assumptions.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <label className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Input Strategy</span>
-            <select
+            <CustomSelect
               value={loggingStyle}
-              onChange={(e) => setLoggingStyle(e.target.value as LoggingStyle)}
-              className="form-field"
-            >
-              {(Object.keys(LOGGING_STYLE_LABELS) as LoggingStyle[]).map((k) => (
-                <option key={k} value={k}>{LOGGING_STYLE_LABELS[k].title}</option>
-              ))}
-            </select>
+              onChange={(v) => setLoggingStyle(v as LoggingStyle)}
+              buttonClassName="form-field"
+              options={(Object.keys(LOGGING_STYLE_LABELS) as LoggingStyle[]).map(
+                (k) => ({
+                  value: k,
+                  label: LOGGING_STYLE_LABELS[k].title,
+                }),
+              )}
+            />
           </label>
 
           <label className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Dietary Filter</span>
-            <select
+            <CustomSelect
               value={dietaryPattern}
-              onChange={(e) => setDietaryPattern(e.target.value as DietaryPattern)}
-              className="form-field"
-            >
-              {(Object.keys(DIETARY_PATTERN_LABELS) as DietaryPattern[]).map((k) => (
-                <option key={k} value={k}>{DIETARY_PATTERN_LABELS[k].title}</option>
-              ))}
-            </select>
+              onChange={(v) => setDietaryPattern(v as DietaryPattern)}
+              buttonClassName="form-field"
+              options={(Object.keys(DIETARY_PATTERN_LABELS) as DietaryPattern[]).map(
+                (k) => ({
+                  value: k,
+                  label: DIETARY_PATTERN_LABELS[k].title,
+                }),
+              )}
+            />
           </label>
         </div>
 
@@ -525,29 +543,29 @@ export function SettingsForm({ profile }: Props) {
         </label>
       </div>
 
-      <div className="bento-card border border-white/5 bg-emerald-500/5 p-8 space-y-8">
+      <div className="bento-card border border-[#4f9d45]/20 bg-[#eaf7df]/45 p-8 space-y-8">
         <div className="flex items-center gap-4">
           <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
             <Lightbulb className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Daily Performance Focus</h3>
-            <p className="text-xs text-zinc-500">Enable advanced coaching tips.</p>
+            <h3 className="text-lg font-bold text-zinc-950">Daily Performance Focus</h3>
+            <p className="text-xs text-zinc-600">Configure coaching hints and weekly action framing.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <label className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Coaching Objective</span>
-            <select
+            <CustomSelect
               value={weeklyCoachingFocus}
-              onChange={(e) => setWeeklyCoachingFocus(e.target.value)}
-              className="form-field appearance-none"
-            >
-              {WEEKLY_COACHING_FOCUS_UI.map((o) => (
-                <option key={`${o.value}-${o.label}`} value={o.value}>{o.label}</option>
-              ))}
-            </select>
+              onChange={setWeeklyCoachingFocus}
+              buttonClassName="form-field"
+              options={WEEKLY_COACHING_FOCUS_UI.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+            />
           </label>
 
           <label className="flex flex-col gap-2">
@@ -610,7 +628,7 @@ export function SettingsForm({ profile }: Props) {
                   key={starter}
                   type="button"
                   onClick={() => setWeeklyImplementationIntention(starter)}
-                  className="rounded-xl border border-white/10 bg-zinc-950/80 px-3 py-2 text-left text-[11px] font-medium leading-snug text-zinc-400 transition-colors hover:border-emerald-500/35 hover:text-zinc-200"
+                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-medium leading-snug text-zinc-700 transition-colors hover:border-[#4f9d45]/35 hover:text-zinc-950"
                 >
                   {starter}
                 </button>
@@ -619,35 +637,35 @@ export function SettingsForm({ profile }: Props) {
           </div>
         </label>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/5 bg-zinc-950/50 p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 bg-white p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">
           <input
             type="checkbox"
             checked={activeDays14Enabled}
             onChange={(e) => setActiveDays14Enabled(e.target.checked)}
-            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-zinc-900 text-emerald-500 focus-visible:ring-offset-zinc-950"
+            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-black/20 bg-white text-emerald-500 focus-visible:ring-offset-[#fbfaf5]"
           />
           <span>
-            <span className="block text-sm font-bold text-white">
+            <span className="block text-sm font-bold text-zinc-950">
               Active days (14-day view)
             </span>
-            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-500">
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-600">
               On the home and trends week cards, show how many of the last 14 days had at least one log — recovery-friendly, not a daily streak score.
             </span>
           </span>
         </label>
 
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/5 bg-zinc-950/50 p-5 text-left transition-colors duration-200 focus-within:border-violet-500/35 focus-within:ring-2 focus-within:ring-violet-500/15">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 bg-white p-5 text-left transition-colors duration-200 focus-within:border-[#3b82a0]/35 focus-within:ring-2 focus-within:ring-[#3b82a0]/15">
           <input
             type="checkbox"
             checked={weightTrendOnHomeEnabled}
             onChange={(e) => setWeightTrendOnHomeEnabled(e.target.checked)}
-            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-white/20 bg-zinc-900 text-violet-500 focus-visible:ring-offset-zinc-950"
+            className="focus-ring mt-1 h-4 w-4 shrink-0 rounded border-black/20 bg-white text-[#3b82a0] focus-visible:ring-offset-[#fbfaf5]"
           />
           <span>
-            <span className="block text-sm font-bold text-white">
+            <span className="block text-sm font-bold text-zinc-950">
               Weight trend on home
             </span>
-            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-500">
+            <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-600">
               Adds a compact smoothed curve to the body card on the dashboard. The full trajectory chart stays on Trends so the main log stays quiet.
             </span>
           </span>
@@ -659,18 +677,18 @@ export function SettingsForm({ profile }: Props) {
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-3xl bg-zinc-950 p-8 border border-white/5 shadow-inner"
+            className="rounded-3xl border border-black/10 bg-white p-8 shadow-inner"
           >
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-6">Current Bio-Estimates</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Target Energy</p>
-                <p className="text-3xl font-black text-white">{Number(profile.targetKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
+                <p className="text-3xl font-black text-zinc-950">{Number(profile.targetKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
               </div>
               {profile.tdeeKcal && (
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Total Expenditure</p>
-                  <p className="text-3xl font-black text-white">{Number(profile.tdeeKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
+                  <p className="text-3xl font-black text-zinc-950">{Number(profile.tdeeKcal).toFixed(0)} <span className="text-sm font-medium opacity-40">kcal</span></p>
                 </div>
               )}
               {profile.targetProteinG && (

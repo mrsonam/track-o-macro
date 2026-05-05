@@ -41,17 +41,17 @@ export function LoginForm() {
   return (
     <AuthShell>
       <div className="flex flex-col items-center text-center mb-10">
-        <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 mb-6 relative">
-          <div className="absolute inset-0 rounded-2xl bg-emerald-500/20 blur-xl scale-75" />
+        <div className="relative mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf7df] text-[#4f9d45]">
+          <div className="absolute inset-0 scale-75 rounded-2xl bg-[#4f9d45]/20 blur-xl" />
           <Lock className="h-7 w-7 relative" />
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-500 mb-3">
+        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.4em] text-[#4f9d45]">
           Agent Registry
         </p>
-        <h1 className="text-3xl font-black tracking-tight text-white mb-3">
+        <h1 className="mb-3 text-3xl font-black tracking-tight text-[#171412]">
           Initialize Session
         </h1>
-        <p className="text-sm text-zinc-500 font-medium max-w-[280px]">
+        <p className="max-w-[280px] text-sm font-medium text-zinc-600">
           Synchronize your profile with the TrackOMacro analytics network.
         </p>
       </div>
@@ -69,7 +69,7 @@ export function LoginForm() {
 
       <form onSubmit={onSubmit} className="flex flex-col gap-6">
         <label className="flex flex-col gap-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Email Identifier</span>
+          <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Email Identifier</span>
           <input
             type="email"
             autoComplete="email"
@@ -77,12 +77,12 @@ export function LoginForm() {
             placeholder="agent@network.org"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="input-field py-4 bg-zinc-950"
+            className="input-field bg-white py-4"
           />
         </label>
         
         <label className="flex flex-col gap-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Access Protocol</span>
+          <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Access Protocol</span>
           <input
             type="password"
             autoComplete="current-password"
@@ -90,7 +90,7 @@ export function LoginForm() {
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="input-field py-4 bg-zinc-950"
+            className="input-field bg-white py-4"
           />
         </label>
 
@@ -120,11 +120,11 @@ export function LoginForm() {
       </form>
 
       <div className="mt-12 flex flex-col gap-4 items-center">
-        <p className="text-xs text-zinc-500 font-medium">
+        <p className="text-xs font-medium text-zinc-500">
           New personnel?{" "}
           <Link
             href="/signup"
-            className="text-white hover:text-emerald-400 transition-colors font-bold"
+            className="font-bold text-[#171412] transition-colors hover:text-[#4f9d45]"
           >
             Initialize Account
           </Link>
@@ -132,7 +132,7 @@ export function LoginForm() {
         
         <Link
           href="/privacy"
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-700 hover:text-zinc-500 transition-colors"
+          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-[#171412]"
         >
           Privacy Protocol <Info className="h-3 w-3" />
         </Link>

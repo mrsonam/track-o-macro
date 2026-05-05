@@ -46,15 +46,6 @@ export default function manifest(): MetadataRoute.Manifest {
         ],
       },
       {
-        name: "History",
-        short_name: "History",
-        description: "Past meals",
-        url: "/history",
-        icons: [
-          { src: "/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
-        ],
-      },
-      {
         name: "Trends",
         short_name: "Trends",
         description: "Rolling windows and summaries",

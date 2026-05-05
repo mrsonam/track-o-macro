@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, Settings, TrendingUp } from "lucide-react";
+import { Home, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function FloatingNav() {
@@ -11,7 +11,6 @@ export function FloatingNav() {
   const links = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/trends", icon: TrendingUp, label: "Trends" },
-    { href: "/history", icon: History, label: "History" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ];
 
@@ -20,13 +19,10 @@ export function FloatingNav() {
       <motion.nav 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="flex items-center justify-around gap-2 rounded-3xl glass-pane p-2 shadow-2xl"
+        className="flex items-center justify-around gap-2 rounded-[2rem] border border-black/10 bg-[#171412] p-2 shadow-[0_24px_70px_-28px_rgba(23,20,18,0.8)]"
       >
         {links.map((link) => {
-          const isActive =
-            link.href === "/history"
-              ? pathname === "/history"
-              : pathname === link.href;
+          const isActive = pathname === link.href;
           const Icon = link.icon;
 
           return (
@@ -36,14 +32,14 @@ export function FloatingNav() {
               aria-current={isActive ? "page" : undefined}
               className={`focus-ring tap-target relative flex h-12 w-12 items-center justify-center rounded-2xl transition-colors duration-200 ${
                 isActive
-                  ? "text-white"
-                  : "text-zinc-500 hover:bg-white/5 hover:text-zinc-200"
+                  ? "text-[#171412]"
+                  : "text-white/55 hover:bg-white/10 hover:text-white"
               }`}
             >
               {isActive && (
                 <motion.div
                   layoutId="active-nav"
-                  className="absolute inset-0 rounded-2xl bg-zinc-800"
+                  className="absolute inset-0 rounded-2xl bg-[#fbfaf5]"
                   transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
                 />
               )}

@@ -6,7 +6,7 @@ import { rolling7WindowBoundsIso } from "@/lib/meals/local-date";
 import { weeklyRecapLines } from "@/lib/meals/weekly-recap-lines";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
-import { HISTORY_INSIGHT_ANCHORS } from "@/lib/meals/history-insight-anchors";
+import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
 import { Award, Info, ShieldAlert, Zap, AlertCircle, ListTodo } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 type HistoryWeeklyRecapStripProps = {
@@ -111,21 +111,21 @@ export function HistoryWeeklyRecapStrip({
 
   return (
     <div
-      id={HISTORY_INSIGHT_ANCHORS.weekRecap}
-      className={`bento-card scroll-mt-28 border-white/5 bg-zinc-900/40 p-6 ${className ?? ""}`}
+      id={TRENDS_INSIGHT_ANCHORS.weekRecap}
+      className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 ${className ?? ""}`}
     >
       <div className="flex items-start gap-4 mb-8">
         <div className="relative group">
-          <div className="absolute -inset-1 rounded-xl bg-teal-500/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative h-10 w-10 flex items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 shrink-0 border border-teal-500/20">
+          <div className="absolute -inset-1 rounded-xl bg-[#dff1ff] blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative h-10 w-10 flex items-center justify-center rounded-xl border border-[#7aa6c2]/25 bg-[#dff1ff] text-[#3b82a0] shrink-0">
             <Award className="h-5 w-5" />
           </div>
         </div>
         <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-teal-500">
+          <h3 className="text-sm font-black uppercase tracking-widest text-[#3b82a0]">
             Performance Recap
           </h3>
-          <p className="mt-1 text-xs font-medium text-zinc-500 leading-relaxed max-w-sm">
+          <p className="mt-1 text-xs font-medium text-zinc-600 leading-relaxed max-w-sm">
             Synthesized wins and friction heuristics based on your rolling metabolic window.
           </p>
         </div>
@@ -189,20 +189,20 @@ export function HistoryWeeklyRecapStrip({
             ) : null}
 
             {!hadMeals ? (
-              <div className="rounded-2xl border border-white/5 bg-zinc-950/40 p-8 text-center">
-                <p className="text-sm font-medium text-zinc-500 leading-relaxed italic">
+              <div className="rounded-2xl border border-black/10 bg-[#f7f3e9] p-8 text-center">
+                <p className="text-sm font-medium text-zinc-700 leading-relaxed italic">
                   &ldquo;The engine requires data to find patterns.&rdquo;
                   <br />
                   <span className="mt-2 block not-italic font-bold text-zinc-600 uppercase tracking-widest text-[10px]">No meals recorded in window</span>
                 </p>
               </div>
             ) : quietWeek ? (
-              <div className="rounded-2xl border border-zinc-700/20 bg-zinc-950/50 p-6 flex items-start gap-4">
-                 <div className="h-9 w-9 shrink-0 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-center text-zinc-500">
+              <div className="rounded-2xl border border-black/10 bg-[#f7f3e9] p-6 flex items-start gap-4">
+                 <div className="h-9 w-9 shrink-0 rounded-lg border border-black/10 bg-white flex items-center justify-center text-zinc-500">
                     <Info className="h-5 w-5" />
                  </div>
                  <div>
-                    <p className="text-base font-medium text-zinc-400 leading-relaxed">
+                    <p className="text-base font-medium text-zinc-700 leading-relaxed">
                       Tactical baseline is steady. No significant heuristic drift or wins detected. 
                       This indicates a stable routine without outliers.
                     </p>
@@ -229,7 +229,7 @@ export function HistoryWeeklyRecapStrip({
                       {wins.map((line) => (
                         <li
                           key={line}
-                          className="text-base font-medium text-zinc-300 leading-relaxed flex gap-3.5 group"
+                          className="text-base font-medium text-zinc-800 leading-relaxed flex gap-3.5 group"
                         >
                           <div className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black border border-emerald-500/20">
                             +
@@ -261,7 +261,7 @@ export function HistoryWeeklyRecapStrip({
                       {friction.map((line) => (
                         <li
                           key={line}
-                          className="text-base font-medium text-zinc-300 leading-relaxed flex gap-3.5 group"
+                          className="text-base font-medium text-zinc-800 leading-relaxed flex gap-3.5 group"
                         >
                           <div className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-black border border-amber-500/20">
                             !
@@ -289,7 +289,7 @@ export function HistoryWeeklyRecapStrip({
                     Your plan this week
                   </p>
                 </div>
-                <p className="text-sm font-medium leading-relaxed text-zinc-200">
+                <p className="text-sm font-medium leading-relaxed text-zinc-800">
                   {planFoot}
                 </p>
                 <p className="mt-3 text-[10px] font-medium text-zinc-500">

@@ -260,8 +260,8 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 
 **Shipped (slice 7 — cross-links on History):**
 
-- `lib/meals/history-insight-anchors.ts` — stable fragment IDs for the four insight cards.
-- `HistoryInsightsCrossLinks` — one footer line per card with `next/link` jumps (`scroll-mt-28` on targets).
+- `lib/meals/trends-insight-anchors.ts` — stable fragment IDs for the four Trends insight cards.
+- Cross-links helper removed with History page removal; Trends uses section navigator chips for jumps.
 
 **Shipped (slice 8 — recovery framing toggle):**
 
@@ -298,7 +298,7 @@ Persistent reference for scope, priorities, and epic-by-epic planning. Update th
 - **APIs** — `GET` / `POST` `/api/body/weight` (list + create entries); `GET` `/api/body/weight-series` (daily collapse + EMA-smoothed series for charts; query includes `timeZone`).
 - **Smoothing & series** — `lib/body/weight-trend-series.ts`: one weight per local calendar day (last log wins), then **EMA** on the daily series for a less noisy curve; `formatYmdInTimeZone` for zoned day keys.
 - **Home** — `WeightLogCard`: log weight, recent entries, unit-aware display; optional **compact smoothed sparkline** when **`user_profiles.weight_trend_on_home_enabled`** is true (Settings toggle). Full chart story: **Trends → Weight** section.
-- **Trends** — `WeightTrendStrip` + `WeightTrendSparkline` on `/trends` (`#history-weight-trend` via `HISTORY_INSIGHT_ANCHORS.weightTrend`); section navigator includes **Weight**.
+- **Trends** — `WeightTrendStrip` + `WeightTrendSparkline` on `/trends` (`#trends-weight-trend` via `TRENDS_INSIGHT_ANCHORS.weightTrend`); section navigator includes **Weight**.
 - **Settings** — `PATCH` `/api/profile` persists `weightTrendOnHomeEnabled` (default false).
 - **Intelligence (light)** — `GET` `/api/intelligence/metabolic` joins recent meals with **weight logs** for coarse intake vs. scale trajectory (where data exists).
 

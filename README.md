@@ -37,10 +37,12 @@ Create a `.env` file in the project root (never commit real secrets). Use placeh
 #### Meal analysis (at least one resolver path)
 
 
-| Variable          | Purpose                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| `AVOCAVO_API_KEY` | Avocavo API for USDA-linked ingredient resolution.                                          |
-| `OPENAI_API_KEY`  | Optional: OpenAI path for parsing / resolution; behavior is gated in code when this is set. |
+| Variable                | Purpose                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `AVOCAVO_API_KEY`       | Avocavo API for USDA-linked ingredient resolution.                                                               |
+| `FATSECRET_CLIENT_ID`   | FatSecret Platform OAuth2 client id ([docs](https://platform.fatsecret.com/docs/guides)).                      |
+| `FATSECRET_CLIENT_SECRET` | FatSecret Platform OAuth2 client secret ([docs](https://platform.fatsecret.com/docs/guides)).                |
+| `OPENAI_API_KEY`        | Optional: OpenAI path for parsing / resolution; behavior is gated in code when this is set.                    |
 
 
 #### Optional tuning

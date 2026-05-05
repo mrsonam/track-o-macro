@@ -1,0 +1,44 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - img [ref=e10]
+      - paragraph [ref=e13]: New Entry Initialization
+      - heading "Establish Account" [level=1] [ref=e14]
+      - paragraph [ref=e15]: Join the network to synchronize meals across your entire biometric stack.
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: Email Identifier
+          - textbox "Email Identifier" [ref=e20]:
+            - /placeholder: agent@network.org
+        - generic [ref=e21]:
+          - generic [ref=e22]: Access Protocol
+          - textbox "Access Protocol" [ref=e23]:
+            - /placeholder: Min. 6 chars
+      - generic [ref=e24]:
+        - heading "Registry Disclaimer" [level=3] [ref=e27]
+        - paragraph [ref=e28]:
+          - text: TrackOMacro is a research-grade assistant,
+          - strong [ref=e29]: not a substitute for medical care
+          - text: . By proceeding, you acknowledge this is not for medical diagnosis or treatment.
+        - generic [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]:
+            - checkbox "I acknowledge the privacy protocols and clinical limitations." [ref=e32]
+            - img
+          - generic [ref=e33]: I acknowledge the privacy protocols and clinical limitations.
+      - button "Initialize Account" [disabled] [ref=e34]:
+        - text: Initialize Account
+        - img [ref=e35]
+    - generic [ref=e37]:
+      - paragraph [ref=e38]:
+        - text: Registered personnel?
+        - link "Authorize Session" [ref=e39] [cursor=pointer]:
+          - /url: /login
+      - generic [ref=e40]:
+        - link "Privacy" [ref=e41] [cursor=pointer]:
+          - /url: /privacy
+        - link "Safety" [ref=e43] [cursor=pointer]:
+          - /url: /resources/eating-disorders
+  - button "Open Next.js Dev Tools" [ref=e49] [cursor=pointer]:
+    - img [ref=e50]
+  - alert [ref=e53]
