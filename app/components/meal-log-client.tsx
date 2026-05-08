@@ -196,6 +196,7 @@ export function MealLogClient({
   const barcodeVideoRef = useRef<HTMLVideoElement>(null);
   const barcodeStreamRef = useRef<MediaStream | null>(null);
   const barcodeRafRef = useRef<number | null>(null);
+  const barcodeZxingStopRef = useRef<(() => void) | null>(null);
   const [text, setText] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1078,6 +1079,14 @@ export function MealLogClient({
       cancelAnimationFrame(barcodeRafRef.current);
       barcodeRafRef.current = null;
     }
+    if (barcodeZxingStopRef.current) {
+      try {
+        barcodeZxingStopRef.current();
+      } catch {
+        // Ignore scanner shutdown errors.
+      }
+      barcodeZxingStopRef.current = null;
+    }
     if (barcodeStreamRef.current) {
       for (const t of barcodeStreamRef.current.getTracks()) t.stop();
       barcodeStreamRef.current = null;
@@ -1091,26 +1100,49 @@ export function MealLogClient({
         detect: (el: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
       };
     }).BarcodeDetector;
-    if (!BarcodeDetectorCtor) {
-      setBarcodeError("Barcode scanning is not supported on this device/browser");
-      return;
-    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setBarcodeError("Camera is not available on this device/browser");
       return;
     }
     setBarcodeError(null);
+    const video = barcodeVideoRef.current;
+    if (!video) {
+      setBarcodeError("Scanner preview is not ready");
+      return;
+    }
+
+    if (!BarcodeDetectorCtor) {
+      try {
+        const { BrowserMultiFormatReader } = await import("@zxing/browser");
+        const reader = new BrowserMultiFormatReader();
+        let handled = false;
+        const controls = await reader.decodeFromVideoDevice(
+          undefined,
+          video,
+          (result) => {
+            const code = result?.getText?.();
+            if (!code || handled) return;
+            handled = true;
+            setBarcodeValue(code);
+            stopBarcodeScanner();
+            void lookupBarcode(code);
+          },
+        );
+        barcodeZxingStopRef.current = () => controls.stop();
+        setBarcodeScanning(true);
+      } catch {
+        setBarcodeError("Could not start camera scanner on this device/browser");
+        stopBarcodeScanner();
+      }
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: "environment" } },
         audio: false,
       });
       barcodeStreamRef.current = stream;
-      const video = barcodeVideoRef.current;
-      if (!video) {
-        stopBarcodeScanner();
-        return;
-      }
       video.srcObject = stream;
       await video.play();
       setBarcodeScanning(true);
