@@ -1107,7 +1107,6 @@ export function MealLogClient({
     setBarcodeError(null);
     const video = barcodeVideoRef.current;
     if (!video) {
-      setBarcodeError("Scanner preview is not ready");
       return;
     }
 
@@ -1268,6 +1267,14 @@ export function MealLogClient({
       stopBarcodeScanner();
     }
   }, [isMobileDevice]);
+
+  useEffect(() => {
+    if (!showBarcodePanel || !isMobileDevice) return;
+    const timer = window.setTimeout(() => {
+      void startBarcodeScanner();
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [showBarcodePanel, isMobileDevice]);
 
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6">
@@ -1484,9 +1491,7 @@ export function MealLogClient({
                             setShowBarcodePanel(next);
                             setBarcodeError(null);
                             if (next) {
-                              if (isMobileDevice) {
-                                void startBarcodeScanner();
-                              } else {
+                              if (!isMobileDevice) {
                                 stopBarcodeScanner();
                               }
                             } else {
@@ -1574,14 +1579,19 @@ export function MealLogClient({
                           ) : null}
                         </div>
 
-                        {barcodeScanning ? (
-                          <div className="mt-3 overflow-hidden rounded-xl border border-black/10 bg-black">
+                        {isMobileDevice ? (
+                          <div className="relative mt-3 overflow-hidden rounded-xl border border-black/10 bg-black">
                             <video
                               ref={barcodeVideoRef}
                               className="h-44 w-full object-cover"
                               playsInline
                               muted
                             />
+                            {!barcodeScanning ? (
+                              <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white/80">
+                                Preparing camera...
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
 
