@@ -1413,6 +1413,20 @@ export function MealLogClient({
                                 ))}
                             </div>
                           ) : null}
+                          {derivedSelectedHints.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
+                              {derivedSelectedHints.slice(0, 5).map((row) => (
+                                <div
+                                  key={`mobile-side-${row.key}`}
+                                  className="rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-[10px] font-bold text-[#356d30]"
+                                >
+                                  {row.grams != null && row.kcal != null
+                                    ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
+                                    : "Add grams (e.g. 80g)"}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
                           {showFreeTextSuggestions &&
                           freeTextSuggestions.length > 0 ? (
                             <ul
@@ -1528,9 +1542,21 @@ export function MealLogClient({
                     </div>
                     </div>
                     {showBarcodePanel ? (
-                      <div className="rounded-2xl border border-black/10 bg-[#fffdf7] p-4">
-                        <div className="mb-3 flex items-center justify-between">
-                          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-600">
+                      <div className="fixed inset-0 z-[120] bg-black">
+                        <video
+                          ref={barcodeVideoRef}
+                          className="h-full w-full object-cover"
+                          playsInline
+                          muted
+                        />
+                        {!barcodeScanning ? (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-sm font-semibold text-white/90">
+                            Preparing camera...
+                          </div>
+                        ) : null}
+
+                        <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/75 to-transparent p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.14em] text-white/90">
                             Barcode scanner
                           </p>
                           <button
@@ -1539,67 +1565,50 @@ export function MealLogClient({
                               stopBarcodeScanner();
                               setShowBarcodePanel(false);
                             }}
-                            className="focus-ring rounded-full p-1.5 text-zinc-500 hover:bg-black/5 hover:text-[#171412]"
+                            className="focus-ring rounded-full border border-white/30 bg-black/45 p-2 text-white hover:bg-black/65"
                             aria-label="Close barcode panel"
                           >
-                            <X className="h-3.5 w-3.5" />
+                            <X className="h-4 w-4" />
                           </button>
                         </div>
 
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={barcodeValue}
-                            onChange={(e) => setBarcodeValue(e.target.value)}
-                            placeholder="Enter barcode digits"
-                            className="input-field w-full py-2.5 text-sm"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void lookupBarcode(barcodeValue)}
-                            disabled={barcodeBusy || barcodeValue.trim().length < 6}
-                            className="focus-ring tap-target rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-[#f2f8ec] disabled:opacity-40"
-                          >
-                            {barcodeBusy ? "Looking up..." : "Use barcode"}
-                          </button>
-                          {isMobileDevice ? (
+                        <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/85 via-black/65 to-transparent p-4 pb-5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={barcodeValue}
+                              onChange={(e) => setBarcodeValue(e.target.value)}
+                              placeholder="Enter barcode digits"
+                              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-black/45 px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none"
+                            />
                             <button
                               type="button"
-                              onClick={() =>
-                                barcodeScanning
-                                  ? stopBarcodeScanner()
-                                  : void startBarcodeScanner()
-                              }
-                              className="focus-ring tap-target inline-flex items-center gap-1 rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-[#f2f8ec]"
+                              onClick={() => void lookupBarcode(barcodeValue)}
+                              disabled={barcodeBusy || barcodeValue.trim().length < 6}
+                              className="focus-ring tap-target rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/30 disabled:opacity-40"
                             >
-                              <Camera className="h-3.5 w-3.5" />
-                              {barcodeScanning ? "Stop camera" : "Scan with camera"}
+                              {barcodeBusy ? "Looking up..." : "Use barcode"}
                             </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              barcodeScanning
+                                ? stopBarcodeScanner()
+                                : void startBarcodeScanner()
+                            }
+                            className="focus-ring tap-target inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/30"
+                          >
+                            <Camera className="h-3.5 w-3.5" />
+                            {barcodeScanning ? "Stop camera" : "Scan with camera"}
+                          </button>
+                          {barcodeError ? (
+                            <p className="text-xs font-semibold text-red-200">
+                              {barcodeError}
+                            </p>
                           ) : null}
                         </div>
-
-                        {isMobileDevice ? (
-                          <div className="relative mt-3 overflow-hidden rounded-xl border border-black/10 bg-black">
-                            <video
-                              ref={barcodeVideoRef}
-                              className="h-44 w-full object-cover"
-                              playsInline
-                              muted
-                            />
-                            {!barcodeScanning ? (
-                              <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white/80">
-                                Preparing camera...
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : null}
-
-                        {barcodeError ? (
-                          <p className="mt-2 text-xs font-semibold text-red-600">
-                            {barcodeError}
-                          </p>
-                        ) : null}
                       </div>
                     ) : null}
                   </form>
