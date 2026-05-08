@@ -4,15 +4,29 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 export function FloatingNav() {
   const pathname = usePathname();
+  const [hideNavForBarcodeOverlay, setHideNavForBarcodeOverlay] = useState(false);
+
+  useEffect(() => {
+    const sync = () =>
+      setHideNavForBarcodeOverlay(
+        document.body.dataset.barcodeOverlayOpen === "1",
+      );
+    sync();
+    window.addEventListener("barcode-overlay-change", sync);
+    return () => window.removeEventListener("barcode-overlay-change", sync);
+  }, []);
 
   const links = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/trends", icon: TrendingUp, label: "Trends" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ];
+
+  if (hideNavForBarcodeOverlay) return null;
 
   return (
     <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4 w-full max-w-md">

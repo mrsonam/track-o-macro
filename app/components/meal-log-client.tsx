@@ -1276,6 +1276,16 @@ export function MealLogClient({
     return () => window.clearTimeout(timer);
   }, [showBarcodePanel, isMobileDevice]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.dataset.barcodeOverlayOpen = showBarcodePanel ? "1" : "0";
+    window.dispatchEvent(new Event("barcode-overlay-change"));
+    return () => {
+      document.body.dataset.barcodeOverlayOpen = "0";
+      window.dispatchEvent(new Event("barcode-overlay-change"));
+    };
+  }, [showBarcodePanel]);
+
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6">
       <motion.header 
