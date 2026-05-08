@@ -22,6 +22,7 @@ type FatSecretServing = {
 type FatSecretFood = {
   food_id?: string | number;
   food_name?: string;
+  brand_name?: string;
   food_type?: string;
   food_description?: string;
   servings?: {
@@ -33,6 +34,12 @@ type FatSecretSearchResponse = {
   foods?: {
     food?: FatSecretFood | FatSecretFood[];
   };
+};
+type FatSecretFoodGetResponse = {
+  food?: FatSecretFood;
+};
+type FatSecretFindIdResponse = {
+  food_id?: string | number;
 };
 
 type FatSecretTokenCache = {
@@ -109,6 +116,29 @@ async function getFatSecretAccessToken(): Promise<string> {
   return tokenCache.token;
 }
 
+async function callFatSecretApi(
+  params: Record<string, string>,
+): Promise<string> {
+  const token = await getFatSecretAccessToken();
+  const body = new URLSearchParams({
+    ...params,
+    format: "json",
+  });
+  const res = await fetch(FATSECRET_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  const raw = await res.text();
+  if (!res.ok) {
+    throw new Error(`FatSecret API failed: ${res.status} ${raw.slice(0, 200)}`);
+  }
+  return raw;
+}
+
 export type FatSecretSuggestionItem = {
   label: string;
   fdcId: number;
@@ -118,34 +148,124 @@ export type FatSecretSuggestionItem = {
   fatPer100g: number | null;
 };
 
+/** Grams represented by one unit in FatSecret search blurbs (heuristic for "Per 1 egg" etc.). */
+function gramsForServingUnit(amount: number, unitRaw: string): number | null {
+  const u = unitRaw.toLowerCase();
+  if (u === "g" || u === "gram" || u === "grams") return amount;
+  if (u === "ml" || u === "milliliter" || u === "milliliters") return amount;
+  if (u === "oz" || u === "ounce" || u === "ounces") return amount * 28.3495;
+  if (u === "lb" || u === "lbs" || u === "pound" || u === "pounds")
+    return amount * 453.592;
+  if (u === "egg" || u === "eggs") return amount * 50;
+  if (u === "cup" || u === "cups") return amount * 240;
+  if (u === "tbsp" || u === "tablespoon" || u === "tablespoons") return amount * 15;
+  if (u === "tsp" || u === "teaspoon" || u === "teaspoons") return amount * 5;
+  return null;
+}
+
+/**
+ * Search JSON often omits `servings` and only returns a line like:
+ * "Per 100g - Calories: 147kcal | Fat: 9.94g | Carbs: 0.77g | Protein: 12.58g"
+ */
+function parseFoodDescriptionToPer100g(desc: string | undefined): {
+  kcalPer100g: number;
+  proteinPer100g: number;
+  carbsPer100g: number;
+  fatPer100g: number;
+} | null {
+  if (!desc?.trim()) return null;
+
+  const macroRe =
+    /Calories:\s*(\d+(?:\.\d+)?)\s*kcal\s*\|\s*Fat:\s*(\d+(?:\.\d+)?)g\s*\|\s*Carbs:\s*(\d+(?:\.\d+)?)g\s*\|\s*Protein:\s*(\d+(?:\.\d+)?)g/i;
+  const macroMatch = desc.match(macroRe);
+  if (!macroMatch) return null;
+
+  const kcal = Number(macroMatch[1]);
+  const fat = Number(macroMatch[2]);
+  const carbs = Number(macroMatch[3]);
+  const protein = Number(macroMatch[4]);
+  if (![kcal, fat, carbs, protein].every((n) => Number.isFinite(n))) return null;
+
+  const prefixRe =
+    /^Per\s+([\d.]+)\s*(g|oz|ml|egg|eggs|cup|cups|tbsp|tsp|lb|lbs)\b/i;
+  const prefixMatch = desc.trim().match(prefixRe);
+  if (!prefixMatch) return null;
+
+  const perAmount = Number(prefixMatch[1]);
+  const unit = prefixMatch[2] ?? "g";
+  if (!Number.isFinite(perAmount) || perAmount <= 0) return null;
+
+  const servingG = gramsForServingUnit(perAmount, unit);
+  if (servingG == null || servingG <= 0) return null;
+
+  const factor = 100 / servingG;
+  return {
+    kcalPer100g: kcal * factor,
+    proteinPer100g: protein * factor,
+    carbsPer100g: carbs * factor,
+    fatPer100g: fat * factor,
+  };
+}
+
+function suggestionLabel(food: FatSecretFood): string | null {
+  const name = (food.food_name ?? "").trim();
+  if (!name) return null;
+  const brand = (food.brand_name ?? "").trim();
+  return brand ? `${name} (${brand})` : name;
+}
+
 function mapFoodToSuggestion(food: FatSecretFood, index: number): FatSecretSuggestionItem | null {
-  const label = (food.food_name ?? "").trim();
+  const label = suggestionLabel(food);
   if (!label) return null;
 
   const servings = listify(food.servings?.serving);
-  if (servings.length === 0) return null;
 
-  // Prefer gram-based servings for accurate per-100g conversion.
-  const preferred =
-    servings.find(
-      (s) =>
-        String(s.metric_serving_unit ?? "").toLowerCase() === "g" &&
-        (toNumber(s.metric_serving_amount) ?? 0) > 0,
-    ) ?? servings[0]!;
+  let kcalPer100g: number | null = null;
+  let proteinPer100g: number | null = null;
+  let carbsPer100g: number | null = null;
+  let fatPer100g: number | null = null;
 
-  const metricAmount = toNumber(preferred.metric_serving_amount);
-  const calories = toNumber(preferred.calories);
-  const protein = toNumber(preferred.protein);
-  const carbs = toNumber(preferred.carbohydrate);
-  const fat = toNumber(preferred.fat);
+  if (servings.length > 0) {
+    const preferred =
+      servings.find(
+        (s) =>
+          String(s.metric_serving_unit ?? "").toLowerCase() === "g" &&
+          (toNumber(s.metric_serving_amount) ?? 0) > 0,
+      ) ?? servings[0]!;
 
-  const toPer100g = (v: number | null): number | null => {
-    if (v == null) return null;
-    if (metricAmount != null && metricAmount > 0) {
-      return (v * 100) / metricAmount;
-    }
-    return null;
-  };
+    const metricAmount = toNumber(preferred.metric_serving_amount);
+    const calories = toNumber(preferred.calories);
+    const protein = toNumber(preferred.protein);
+    const carbs = toNumber(preferred.carbohydrate);
+    const fat = toNumber(preferred.fat);
+
+    const toPer100g = (v: number | null): number | null => {
+      if (v == null) return null;
+      if (metricAmount != null && metricAmount > 0) {
+        return (v * 100) / metricAmount;
+      }
+      return null;
+    };
+
+    kcalPer100g = toPer100g(calories);
+    proteinPer100g = toPer100g(protein);
+    carbsPer100g = toPer100g(carbs);
+    fatPer100g = toPer100g(fat);
+  }
+
+  if (
+    kcalPer100g == null ||
+    proteinPer100g == null ||
+    carbsPer100g == null ||
+    fatPer100g == null
+  ) {
+    const parsed = parseFoodDescriptionToPer100g(food.food_description);
+    if (!parsed) return null;
+    kcalPer100g = parsed.kcalPer100g;
+    proteinPer100g = parsed.proteinPer100g;
+    carbsPer100g = parsed.carbsPer100g;
+    fatPer100g = parsed.fatPer100g;
+  }
 
   const id = Number(food.food_id);
   const fdcId = Number.isFinite(id) && id > 0 ? id : -(index + 1);
@@ -153,10 +273,10 @@ function mapFoodToSuggestion(food: FatSecretFood, index: number): FatSecretSugge
   return {
     label,
     fdcId,
-    kcalPer100g: toPer100g(calories),
-    proteinPer100g: toPer100g(protein),
-    carbsPer100g: toPer100g(carbs),
-    fatPer100g: toPer100g(fat),
+    kcalPer100g,
+    proteinPer100g,
+    carbsPer100g,
+    fatPer100g,
   };
 }
 
@@ -164,34 +284,17 @@ export async function fatSecretSearchFoods(
   query: string,
   maxResults = 8,
 ): Promise<FatSecretSuggestionItem[]> {
-  const token = await getFatSecretAccessToken();
-  const params = new URLSearchParams({
+  const raw = await callFatSecretApi({
     method: "foods.search",
     search_expression: query.trim(),
     max_results: String(Math.max(1, Math.min(50, maxResults))),
-    format: "json",
   });
-
-  const res = await fetch(FATSECRET_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: params,
-  });
-
-  const raw = await res.text();
   console.log("[fatsecret-search] raw response:", raw);
   let data: FatSecretSearchResponse = {};
   try {
     data = JSON.parse(raw) as FatSecretSearchResponse;
   } catch {
     throw new Error(`FatSecret search parse failed: ${raw.slice(0, 200)}`);
-  }
-
-  if (!res.ok) {
-    throw new Error(`FatSecret search failed: ${res.status} ${raw.slice(0, 200)}`);
   }
 
   const foods = listify(data.foods?.food);
@@ -206,4 +309,47 @@ export async function fatSecretSearchFoods(
     seen.add(key);
     return true;
   });
+}
+
+export async function fatSecretLookupBarcode(
+  barcode: string,
+): Promise<FatSecretSuggestionItem | null> {
+  const clean = barcode.trim();
+  if (!clean) return null;
+
+  try {
+    const idRaw = await callFatSecretApi({
+      method: "food.find_id_for_barcode",
+      barcode: clean,
+    });
+    console.log("[fatsecret-barcode] find_id raw response:", idRaw);
+    let idData: FatSecretFindIdResponse = {};
+    try {
+      idData = JSON.parse(idRaw) as FatSecretFindIdResponse;
+    } catch {
+      idData = {};
+    }
+    const foodId = idData.food_id != null ? String(idData.food_id) : "";
+    if (foodId) {
+      const foodRaw = await callFatSecretApi({
+        method: "food.get",
+        food_id: foodId,
+      });
+      console.log("[fatsecret-barcode] food.get raw response:", foodRaw);
+      let foodData: FatSecretFoodGetResponse = {};
+      try {
+        foodData = JSON.parse(foodRaw) as FatSecretFoodGetResponse;
+      } catch {
+        foodData = {};
+      }
+      if (foodData.food) {
+        return mapFoodToSuggestion(foodData.food, 0);
+      }
+    }
+  } catch {
+    // Fallback to text search below.
+  }
+
+  const fallback = await fatSecretSearchFoods(clean, 5);
+  return fallback[0] ?? null;
 }

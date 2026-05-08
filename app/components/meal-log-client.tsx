@@ -52,6 +52,9 @@ import {
   ChevronRight, 
   LayoutGrid,
   Zap,
+  ScanLine,
+  Camera,
+  X,
   Edit2,
   AlertCircle,
   Scale
@@ -70,6 +73,10 @@ type UsdaSuggestionItem = {
   proteinPer100g: number | null;
   carbsPer100g: number | null;
   fatPer100g: number | null;
+  fiberPer100g?: number | null;
+  sodiumPer100g?: number | null;
+  sugarPer100g?: number | null;
+  addedSugarPer100g?: number | null;
 };
 type SelectedFoodHint = {
   label: string;
@@ -79,6 +86,10 @@ type SelectedFoodHint = {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  fiberPer100g?: number;
+  sodiumPer100g?: number;
+  sugarPer100g?: number;
+  addedSugarPer100g?: number;
 };
 
 type AnalyzeResponse = {
@@ -182,6 +193,9 @@ export function MealLogClient({
       : null;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const barcodeVideoRef = useRef<HTMLVideoElement>(null);
+  const barcodeStreamRef = useRef<MediaStream | null>(null);
+  const barcodeRafRef = useRef<number | null>(null);
   const [text, setText] = useState("");
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -212,6 +226,16 @@ export function MealLogClient({
   >([]);
   const [freeTextQuery, setFreeTextQuery] = useState("");
   const [showFreeTextSuggestions, setShowFreeTextSuggestions] = useState(false);
+  const [showBarcodePanel, setShowBarcodePanel] = useState(false);
+  const [barcodeValue, setBarcodeValue] = useState("");
+  const [barcodeBusy, setBarcodeBusy] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
+  const [barcodeScanning, setBarcodeScanning] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [freeTextSuggestionAnchor, setFreeTextSuggestionAnchor] = useState({
+    top: 24,
+    left: 24,
+  });
   const [selectedFoodHints, setSelectedFoodHints] = useState<
     Record<string, SelectedFoodHint>
   >({});
@@ -841,6 +865,18 @@ export function MealLogClient({
         proteinPer100g: item.proteinPer100g,
         carbsPer100g: item.carbsPer100g,
         fatPer100g: item.fatPer100g,
+        ...(item.fiberPer100g != null
+          ? { fiberPer100g: item.fiberPer100g }
+          : {}),
+        ...(item.sodiumPer100g != null
+          ? { sodiumPer100g: item.sodiumPer100g }
+          : {}),
+        ...(item.sugarPer100g != null
+          ? { sugarPer100g: item.sugarPer100g }
+          : {}),
+        ...(item.addedSugarPer100g != null
+          ? { addedSugarPer100g: item.addedSugarPer100g }
+          : {}),
       },
     }));
   }
@@ -852,6 +888,82 @@ export function MealLogClient({
     const token = currentLine.split(",").pop()?.trim() ?? "";
     return token;
   }
+
+  function parseIngredientGramsFromLine(line: string): number | null {
+    const m = line.match(/(\d+(?:\.\d+)?)\s*g\b/i);
+    if (!m) return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  function ingredientLinesFromText(value: string) {
+    return value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+  }
+
+  function updateFreeTextSuggestionAnchor(caret: number) {
+    const el = textareaRef.current;
+    if (!el) return;
+    const value = el.value;
+    const before = value.slice(0, Math.max(0, caret));
+    const lineStart = before.lastIndexOf("\n") + 1;
+    const currentLine = before.slice(lineStart);
+
+    // Compact positioning next to current typed token.
+    const approxCharWidth = 8;
+    const approxLineHeight = 26;
+    const rawLeft = 24 + currentLine.length * approxCharWidth;
+    const rawTop = 24 + before.split("\n").length * approxLineHeight;
+    const maxLeft = Math.max(24, el.clientWidth - 220);
+    const maxTop = Math.max(24, el.clientHeight - 120);
+
+    setFreeTextSuggestionAnchor({
+      left: Math.min(rawLeft, maxLeft),
+      top: Math.min(rawTop, maxTop),
+    });
+  }
+
+  const derivedSelectedHints = useMemo(() => {
+    const lines = ingredientLinesFromText(text);
+    if (lines.length === 0) return [];
+
+    const hintList = Object.values(selectedFoodHints);
+    if (hintList.length === 0) return [];
+
+    const out: Array<{
+      key: string;
+      label: string;
+      labelNorm: string;
+      grams: number | null;
+      kcal: number | null;
+      hint: SelectedFoodHint;
+    }> = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const rawLine = lines[i]!;
+      const normalizedLine = rawLine.toLowerCase().replace(/\s+/g, " ");
+      const grams = parseIngredientGramsFromLine(rawLine);
+
+      for (const hint of hintList) {
+        if (!normalizedLine.includes(hint.labelNorm)) continue;
+        const kcal =
+          grams != null ? (hint.kcalPer100g * grams) / 100 : null;
+        out.push({
+          key: `${i}-${hint.labelNorm}`,
+          label: hint.label,
+          labelNorm: hint.labelNorm,
+          grams,
+          kcal,
+          hint,
+        });
+        break;
+      }
+    }
+
+    return out;
+  }, [text, selectedFoodHints]);
 
   function pruneSelectedHintsForText(value: string) {
     const normalizedText = value.toLowerCase().replace(/\s+/g, " ").trim();
@@ -870,15 +982,32 @@ export function MealLogClient({
     setText(value);
     pruneSelectedHintsForText(value);
     const q = extractTextareaIngredientQuery(value, caret);
+    updateFreeTextSuggestionAnchor(caret);
     setFreeTextQuery(q);
     setShowFreeTextSuggestions(q.length >= 2);
   }
 
-  function applyFreeTextSuggestion(label: string) {
-    const picked = freeTextSuggestions.find((s) => s.label === label);
-    if (picked) rememberSelectedFoodHint(picked);
+  function applyFreeTextSuggestionItem(
+    item: UsdaSuggestionItem,
+    options?: { appendAsNewLine?: boolean },
+  ) {
+    rememberSelectedFoodHint(item);
+    const label = item.label;
     const el = textareaRef.current;
     if (!el) return;
+    if (options?.appendAsNewLine) {
+      const base = text.trimEnd();
+      const next = base ? `${base}\n${label} 100g` : `${label} 100g`;
+      setText(next);
+      setFreeTextQuery(label);
+      setShowFreeTextSuggestions(false);
+      queueMicrotask(() => {
+        const nextCaret = next.length;
+        el.focus();
+        el.setSelectionRange(nextCaret, nextCaret);
+      });
+      return;
+    }
     const value = text;
     const caret = el.selectionStart ?? value.length;
     const before = value.slice(0, caret);
@@ -891,16 +1020,128 @@ export function MealLogClient({
     const prefix = value.slice(0, absoluteTokenStart);
     const suffix = after;
     const spacer = prefix.endsWith(" ") || prefix.endsWith(",") ? "" : " ";
-    const next = `${prefix}${spacer}${label}${suffix}`;
+    const next = `${prefix}${spacer}${label} 100g${suffix}`;
 
     setText(next);
     setFreeTextQuery(label);
     setShowFreeTextSuggestions(false);
     queueMicrotask(() => {
-      const nextCaret = (prefix + spacer + label).length;
+      const nextCaret = (prefix + spacer + label + " 100g").length;
       el.focus();
       el.setSelectionRange(nextCaret, nextCaret);
     });
+  }
+
+  function applyFreeTextSuggestion(label: string) {
+    const picked = freeTextSuggestions.find((s) => s.label === label);
+    if (!picked) return;
+    applyFreeTextSuggestionItem(picked);
+  }
+
+  async function lookupBarcode(barcode: string) {
+    const clean = barcode.trim();
+    if (!clean) return;
+    setBarcodeBusy(true);
+    setBarcodeError(null);
+    try {
+      const url = new URL("/api/nutrition/barcode", window.location.origin);
+      url.searchParams.set("barcode", clean);
+      const res = await fetch(url.toString(), { credentials: "same-origin" });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        item?: UsdaSuggestionItem | null;
+      };
+      if (!res.ok) {
+        setBarcodeError(json.error ?? "Barcode lookup failed");
+        return;
+      }
+      if (!json.item) {
+        setBarcodeError("No food found for this barcode");
+        return;
+      }
+      applyFreeTextSuggestionItem(json.item, { appendAsNewLine: true });
+      setShowBarcodePanel(false);
+      setBarcodeValue("");
+    } catch {
+      setBarcodeError("Barcode lookup failed");
+    } finally {
+      setBarcodeBusy(false);
+    }
+  }
+
+  function stopBarcodeScanner() {
+    if (barcodeRafRef.current != null) {
+      cancelAnimationFrame(barcodeRafRef.current);
+      barcodeRafRef.current = null;
+    }
+    if (barcodeStreamRef.current) {
+      for (const t of barcodeStreamRef.current.getTracks()) t.stop();
+      barcodeStreamRef.current = null;
+    }
+    setBarcodeScanning(false);
+  }
+
+  async function startBarcodeScanner() {
+    const BarcodeDetectorCtor = (window as Window & {
+      BarcodeDetector?: new (opts?: { formats?: string[] }) => {
+        detect: (el: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
+      };
+    }).BarcodeDetector;
+    if (!BarcodeDetectorCtor) {
+      setBarcodeError("Barcode scanning is not supported on this device/browser");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setBarcodeError("Camera is not available on this device/browser");
+      return;
+    }
+    setBarcodeError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+      barcodeStreamRef.current = stream;
+      const video = barcodeVideoRef.current;
+      if (!video) {
+        stopBarcodeScanner();
+        return;
+      }
+      video.srcObject = stream;
+      await video.play();
+      setBarcodeScanning(true);
+
+      const detector = new BarcodeDetectorCtor({
+        formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"],
+      });
+
+      const tick = async () => {
+        const v = barcodeVideoRef.current;
+        if (!v || !barcodeStreamRef.current) return;
+        try {
+          const found = await detector.detect(v);
+          const code = found.find((f) => typeof f.rawValue === "string")?.rawValue;
+          if (code) {
+            setBarcodeValue(code);
+            stopBarcodeScanner();
+            await lookupBarcode(code);
+            return;
+          }
+        } catch {
+          // Keep scanning; individual detect failures are common between frames.
+        }
+        barcodeRafRef.current = requestAnimationFrame(() => {
+          void tick();
+        });
+      };
+
+      barcodeRafRef.current = requestAnimationFrame(() => {
+        void tick();
+      });
+    } catch {
+      setBarcodeError("Could not access camera");
+      stopBarcodeScanner();
+    }
   }
 
   function beginEditSaved(s: SavedMealItem) {
@@ -970,6 +1211,27 @@ export function MealLogClient({
       setError("Network error");
     }
   }
+
+  useEffect(() => {
+    return () => {
+      stopBarcodeScanner();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 768px), (pointer: coarse)");
+    const apply = () => setIsMobileDevice(media.matches);
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileDevice) {
+      stopBarcodeScanner();
+    }
+  }, [isMobileDevice]);
 
   return (
     <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6">
@@ -1066,8 +1328,25 @@ export function MealLogClient({
                               )
                             }
                             onFocus={() =>
-                              setShowFreeTextSuggestions(
-                                freeTextQuery.trim().length >= 2,
+                              {
+                                const el = textareaRef.current;
+                                const caret = el?.selectionStart ?? text.length;
+                                updateFreeTextSuggestionAnchor(caret);
+                                setShowFreeTextSuggestions(
+                                  freeTextQuery.trim().length >= 2,
+                                );
+                              }
+                            }
+                            onClick={(e) =>
+                              updateFreeTextSuggestionAnchor(
+                                e.currentTarget.selectionStart ??
+                                  e.currentTarget.value.length,
+                              )
+                            }
+                            onKeyUp={(e) =>
+                              updateFreeTextSuggestionAnchor(
+                                e.currentTarget.selectionStart ??
+                                  e.currentTarget.value.length,
                               )
                             }
                             onBlur={() => {
@@ -1075,25 +1354,31 @@ export function MealLogClient({
                             }}
                             rows={4}
                             placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
-                            className={`w-full resize-none rounded-3xl border border-black/10 bg-[#fffdf7] px-6 py-5 text-lg leading-relaxed text-[#171412] placeholder:text-zinc-400 focus:border-[#4f9d45]/60 focus:outline-none focus:ring-4 focus:ring-[#4f9d45]/15 ${Object.keys(selectedFoodHints).length > 0 ? "md:pr-52" : ""}`}
+                            className={`w-full resize-none rounded-3xl border border-black/10 bg-[#fffdf7] px-6 py-5 text-lg leading-relaxed text-[#171412] placeholder:text-zinc-400 focus:border-[#4f9d45]/60 focus:outline-none focus:ring-4 focus:ring-[#4f9d45]/15 ${derivedSelectedHints.length > 0 ? "md:pr-52" : ""}`}
                           />
-                          {Object.keys(selectedFoodHints).length > 0 ? (
+                          {derivedSelectedHints.length > 0 ? (
                             <div className="pointer-events-none absolute right-3 top-3 hidden max-w-[10.5rem] flex-col gap-1.5 md:flex">
-                              {Object.values(selectedFoodHints)
-                                .slice(0, 5)
-                                .map((hint) => (
+                              {derivedSelectedHints.slice(0, 5).map((row) => (
                                   <div
-                                    key={`side-${hint.labelNorm}`}
+                                    key={`side-${row.key}`}
                                     className="truncate rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-right text-[10px] font-bold text-[#356d30]"
                                   >
-                                    {Math.round(hint.kcalPer100g)} kcal
+                                    {row.grams != null && row.kcal != null
+                                      ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
+                                      : "Add grams (e.g. 80g)"}
                                   </div>
                                 ))}
                             </div>
                           ) : null}
                           {showFreeTextSuggestions &&
                           freeTextSuggestions.length > 0 ? (
-                            <ul className="absolute z-40 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]">
+                            <ul
+                              className="absolute z-40 max-h-56 w-[min(18rem,calc(100%-1.5rem))] overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]"
+                              style={{
+                                left: `${freeTextSuggestionAnchor.left}px`,
+                                top: `${freeTextSuggestionAnchor.top}px`,
+                              }}
+                            >
                               {freeTextSuggestions
                                 .filter(
                                   (item): item is UsdaSuggestionItem =>
@@ -1139,21 +1424,6 @@ export function MealLogClient({
                     </div>
 
                     <div className="flex flex-col gap-6">
-                      {Object.keys(selectedFoodHints).length > 0 ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          {Object.values(selectedFoodHints)
-                            .slice(0, 6)
-                            .map((hint) => (
-                              <span
-                                key={hint.labelNorm}
-                                className="rounded-2xl border border-[#4f9d45]/20 bg-[#eaf7df] px-3 py-1 text-[11px] font-bold text-[#356d30]"
-                              >
-                                {hint.label}: {Math.round(hint.kcalPer100g)} kcal
-                              </span>
-                            ))}
-                        </div>
-                      ) : null}
-
                       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-2">
                         <AnimatePresence>
@@ -1171,6 +1441,27 @@ export function MealLogClient({
                             </motion.button>
                           )}
                         </AnimatePresence>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = !showBarcodePanel;
+                            setShowBarcodePanel(next);
+                            setBarcodeError(null);
+                            if (next) {
+                              if (isMobileDevice) {
+                                void startBarcodeScanner();
+                              } else {
+                                stopBarcodeScanner();
+                              }
+                            } else {
+                              stopBarcodeScanner();
+                            }
+                          }}
+                          className="focus-ring tap-target flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-600 transition-colors duration-200 hover:border-[#4f9d45]/30 hover:bg-[#f2f8ec] hover:text-[#171412]"
+                        >
+                          <ScanLine className="h-3.5 w-3.5" />
+                          Barcode
+                        </button>
                         
                       </div>
 
@@ -1195,6 +1486,76 @@ export function MealLogClient({
                       </div>
                     </div>
                     </div>
+                    {showBarcodePanel ? (
+                      <div className="rounded-2xl border border-black/10 bg-[#fffdf7] p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-600">
+                            Barcode scanner
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              stopBarcodeScanner();
+                              setShowBarcodePanel(false);
+                            }}
+                            className="focus-ring rounded-full p-1.5 text-zinc-500 hover:bg-black/5 hover:text-[#171412]"
+                            aria-label="Close barcode panel"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={barcodeValue}
+                            onChange={(e) => setBarcodeValue(e.target.value)}
+                            placeholder="Enter barcode digits"
+                            className="input-field w-full py-2.5 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void lookupBarcode(barcodeValue)}
+                            disabled={barcodeBusy || barcodeValue.trim().length < 6}
+                            className="focus-ring tap-target rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-[#f2f8ec] disabled:opacity-40"
+                          >
+                            {barcodeBusy ? "Looking up..." : "Use barcode"}
+                          </button>
+                          {isMobileDevice ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                barcodeScanning
+                                  ? stopBarcodeScanner()
+                                  : void startBarcodeScanner()
+                              }
+                              className="focus-ring tap-target inline-flex items-center gap-1 rounded-xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-[#f2f8ec]"
+                            >
+                              <Camera className="h-3.5 w-3.5" />
+                              {barcodeScanning ? "Stop camera" : "Scan with camera"}
+                            </button>
+                          ) : null}
+                        </div>
+
+                        {barcodeScanning ? (
+                          <div className="mt-3 overflow-hidden rounded-xl border border-black/10 bg-black">
+                            <video
+                              ref={barcodeVideoRef}
+                              className="h-44 w-full object-cover"
+                              playsInline
+                              muted
+                            />
+                          </div>
+                        ) : null}
+
+                        {barcodeError ? (
+                          <p className="mt-2 text-xs font-semibold text-red-600">
+                            {barcodeError}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </form>
                 </div>
               </motion.div>
