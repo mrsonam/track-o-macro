@@ -847,11 +847,15 @@ export function MealLogClient({
   function rememberSelectedFoodHint(item: UsdaSuggestionItem) {
     const labelNorm = item.label.trim().toLowerCase().replace(/\s+/g, " ");
     if (!labelNorm) return;
+    const kcalPer100g = item.kcalPer100g;
+    const proteinPer100g = item.proteinPer100g;
+    const carbsPer100g = item.carbsPer100g;
+    const fatPer100g = item.fatPer100g;
     if (
-      item.kcalPer100g == null ||
-      item.proteinPer100g == null ||
-      item.carbsPer100g == null ||
-      item.fatPer100g == null
+      kcalPer100g == null ||
+      proteinPer100g == null ||
+      carbsPer100g == null ||
+      fatPer100g == null
     ) {
       return;
     }
@@ -861,10 +865,10 @@ export function MealLogClient({
         label: item.label,
         labelNorm,
         fdcId: item.fdcId,
-        kcalPer100g: item.kcalPer100g,
-        proteinPer100g: item.proteinPer100g,
-        carbsPer100g: item.carbsPer100g,
-        fatPer100g: item.fatPer100g,
+        kcalPer100g,
+        proteinPer100g,
+        carbsPer100g,
+        fatPer100g,
         ...(item.fiberPer100g != null
           ? { fiberPer100g: item.fiberPer100g }
           : {}),
