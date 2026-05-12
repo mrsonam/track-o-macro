@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Settings, TrendingUp } from "lucide-react";
+import { ChefHat, Home, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
@@ -22,6 +22,7 @@ export function FloatingNav() {
 
   const links = [
     { href: "/", icon: Home, label: "Home" },
+    { href: "/prepared-meals", icon: ChefHat, label: "Prepared meals" },
     { href: "/trends", icon: TrendingUp, label: "Trends" },
     { href: "/settings", icon: Settings, label: "Settings" },
   ];
@@ -29,14 +30,17 @@ export function FloatingNav() {
   if (hideNavForBarcodeOverlay) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 px-4 w-full max-w-md">
+    <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 px-4">
       <motion.nav 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         className="flex items-center justify-around gap-2 rounded-[2rem] border border-black/10 bg-[#171412] p-2 shadow-[0_24px_70px_-28px_rgba(23,20,18,0.8)]"
       >
         {links.map((link) => {
-          const isActive = pathname === link.href;
+          const isActive =
+            link.href === "/"
+              ? pathname === "/"
+              : pathname === link.href || pathname.startsWith(`${link.href}/`);
           const Icon = link.icon;
 
           return (

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Activity, Copy, KeyRound, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "@/app/components/confirm-dialog";
 
 type TokenRow = {
   id: string;
@@ -18,6 +19,7 @@ export function AppleHealthSyncPanel() {
   const [error, setError] = useState<string | null>(null);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [label, setLabel] = useState("");
+  const [revokeTarget, setRevokeTarget] = useState<TokenRow | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,10 +81,9 @@ export function AppleHealthSyncPanel() {
     }
   }
 
-  async function revoke(id: string) {
-    if (!confirm("Revoke this token? Shortcuts using it will stop working.")) {
-      return;
-    }
+  async function executeRevoke() {
+    const id = revokeTarget?.id;
+    if (!id) return;
     setBusy(true);
     setError(null);
     try {
@@ -93,11 +94,14 @@ export function AppleHealthSyncPanel() {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setError(j.error ?? "Could not revoke");
+        setRevokeTarget(null);
         return;
       }
+      setRevokeTarget(null);
       await load();
     } catch {
       setError("Network error");
+      setRevokeTarget(null);
     } finally {
       setBusy(false);
     }
@@ -228,7 +232,7 @@ export function AppleHealthSyncPanel() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => void revoke(t.id)}
+                  onClick={() => setRevokeTarget(t)}
                   className="focus-ring tap-target inline-flex items-center gap-2 self-start rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 sm:self-center"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -239,6 +243,30 @@ export function AppleHealthSyncPanel() {
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={revokeTarget != null}
+        title="Revoke sync token?"
+        description={
+          revokeTarget ? (
+            <>
+              Shortcuts using{" "}
+              <span className="font-semibold text-zinc-800">
+                {revokeTarget.label ?? "this token"}
+              </span>{" "}
+              will stop working until you create a new token and update your Shortcut.
+            </>
+          ) : null
+        }
+        confirmLabel="Revoke"
+        cancelLabel="Cancel"
+        variant="danger"
+        busy={busy}
+        onCancel={() => {
+          if (!busy) setRevokeTarget(null);
+        }}
+        onConfirm={() => void executeRevoke()}
+      />
     </div>
   );
 }

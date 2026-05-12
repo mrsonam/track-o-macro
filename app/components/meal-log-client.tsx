@@ -64,6 +64,7 @@ import { type UnitSystem } from "@/lib/profile/units";
 import { WeightLogCard } from "./weight-log-card";
 import { HydrationCard } from "./hydration-card";
 import { AdaptiveTargetCard } from "./adaptive-target-card";
+import type { PreparedMealListItem } from "@/app/components/prepared-meals-section";
 
 type LogInputMode = "free" | "composer";
 type UsdaSuggestionItem = {
@@ -77,6 +78,9 @@ type UsdaSuggestionItem = {
   sodiumPer100g?: number | null;
   sugarPer100g?: number | null;
   addedSugarPer100g?: number | null;
+  /** User-saved prepared batch — shown in meal log search with a distinct tag */
+  source?: "prepared";
+  preparedMealId?: string;
 };
 type SelectedFoodHint = {
   label: string;
@@ -92,8 +96,51 @@ type SelectedFoodHint = {
   addedSugarPer100g?: number;
 };
 
+function preparedMealToSuggestionItem(
+  m: PreparedMealListItem,
+): UsdaSuggestionItem | null {
+  const title = m.title.trim();
+  if (!title) return null;
+  const w = m.preparedGrams;
+  if (!Number.isFinite(w) || w <= 0) return null;
+  const kcal = m.batchTotalKcal;
+  const protein = m.batchTotalProteinG;
+  const carbs = m.batchTotalCarbsG;
+  const fat = m.batchTotalFatG;
+  if (![kcal, protein, carbs, fat].every((n) => Number.isFinite(n))) {
+    return null;
+  }
+  const scale = 100 / w;
+  const item: UsdaSuggestionItem = {
+    label: title,
+    fdcId: 0,
+    kcalPer100g: kcal * scale,
+    proteinPer100g: protein * scale,
+    carbsPer100g: carbs * scale,
+    fatPer100g: fat * scale,
+    source: "prepared",
+    preparedMealId: m.id,
+  };
+  if (m.batchTotalFiberG != null && Number.isFinite(m.batchTotalFiberG)) {
+    item.fiberPer100g = m.batchTotalFiberG * scale;
+  }
+  if (m.batchTotalSodiumMg != null && Number.isFinite(m.batchTotalSodiumMg)) {
+    item.sodiumPer100g = m.batchTotalSodiumMg * scale;
+  }
+  if (m.batchTotalSugarG != null && Number.isFinite(m.batchTotalSugarG)) {
+    item.sugarPer100g = m.batchTotalSugarG * scale;
+  }
+  if (
+    m.batchTotalAddedSugarG != null &&
+    Number.isFinite(m.batchTotalAddedSugarG)
+  ) {
+    item.addedSugarPer100g = m.batchTotalAddedSugarG * scale;
+  }
+  return item;
+}
+
 type AnalyzeResponse = {
-  mealId: string;
+  mealId: string | null;
   meal_label?: string;
   assumptions?: string[];
   lines: ResolvedLine[];
@@ -140,6 +187,7 @@ type MealLogClientProps = {
   recentMeals?: RecentMealItem[];
   /** Week strip + rolling insights prefetched on the server (request TZ). */
   initialWeekPrefetch?: HomeWeekPrefetch | null;
+  preparedMeals?: PreparedMealListItem[];
 };
 
 function truncate(s: string, max: number) {
@@ -186,6 +234,7 @@ export function MealLogClient({
   savedMeals = [],
   recentMeals = [],
   initialWeekPrefetch = null,
+  preparedMeals = [],
 }: MealLogClientProps) {
   const initialPrefetchKeys =
     initialWeekPrefetch?.dateKeys?.length === 7
@@ -266,6 +315,16 @@ export function MealLogClient({
     }
     const timer = setTimeout(() => {
       void (async () => {
+        const qLower = q.toLowerCase();
+        const preparedItems = preparedMeals
+          .filter(
+            (m) =>
+              m.title.trim().length > 0 &&
+              m.title.trim().toLowerCase().includes(qLower),
+          )
+          .map((m) => preparedMealToSuggestionItem(m))
+          .filter((item): item is UsdaSuggestionItem => item != null);
+
         try {
           const url = new URL(
             "/api/nutrition/usda-search",
@@ -276,22 +335,22 @@ export function MealLogClient({
           const json = (await res.json().catch(() => ({}))) as {
             items?: UsdaSuggestionItem[];
           };
-          console.log("[avocavo-search][client] suggestions:", json);
-          setFreeTextSuggestions(
-            Array.isArray(json.items)
-              ? json.items.filter(
-                  (item): item is UsdaSuggestionItem =>
-                    !!item && typeof item.label === "string" && item.label.length > 0,
-                )
-              : [],
-          );
+          const usdaItems = Array.isArray(json.items)
+            ? json.items.filter(
+                (item): item is UsdaSuggestionItem =>
+                  !!item &&
+                  typeof item.label === "string" &&
+                  item.label.length > 0,
+              )
+            : [];
+          setFreeTextSuggestions([...preparedItems, ...usdaItems]);
         } catch {
-          setFreeTextSuggestions([]);
+          setFreeTextSuggestions(preparedItems);
         }
       })();
     }, 220);
     return () => clearTimeout(timer);
-  }, [freeTextQuery, logInputMode]);
+  }, [freeTextQuery, logInputMode, preparedMeals]);
 
   useEffect(() => {
     const v = takeMealLogPrefill();
@@ -792,15 +851,17 @@ export function MealLogClient({
       setLastLoggedRaw(trimmed);
       setTodayKey((k) => k + 1);
       setSelectedDateKey(formatLocalYmd(new Date()));
-      setRecentList((prev) => {
-        const row: RecentMealItem = {
-          id: parsed.mealId,
-          rawInput: trimmed,
-          totalKcal: parsed.totals.kcal,
-          createdAt: new Date().toISOString(),
-        };
-        return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(0, 5);
-      });
+      if (parsed.mealId) {
+        setRecentList((prev) => {
+          const row: RecentMealItem = {
+            id: parsed.mealId as string,
+            rawInput: trimmed,
+            totalKcal: parsed.totals.kcal,
+            createdAt: new Date().toISOString(),
+          };
+          return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(0, 5);
+        });
+      }
       notifyMealsChanged();
 
       // Clear inputs on successful log
@@ -1035,12 +1096,6 @@ export function MealLogClient({
       el.focus();
       el.setSelectionRange(nextCaret, nextCaret);
     });
-  }
-
-  function applyFreeTextSuggestion(label: string) {
-    const picked = freeTextSuggestions.find((s) => s.label === label);
-    if (!picked) return;
-    applyFreeTextSuggestionItem(picked);
   }
 
   async function lookupBarcode(barcode: string) {
@@ -1454,17 +1509,31 @@ export function MealLogClient({
                                     item.label.length > 0,
                                 )
                                 .map((item, index) => (
-                                <li key={`free-${item.fdcId}-${item.label}-${index}`}>
+                                <li
+                                  key={
+                                    item.source === "prepared" &&
+                                    item.preparedMealId
+                                      ? `free-prepared-${item.preparedMealId}`
+                                      : `free-usda-${item.fdcId}-${item.label}-${index}`
+                                  }
+                                >
                                   <button
                                     type="button"
                                     onMouseDown={(e) => {
                                       e.preventDefault();
-                                      applyFreeTextSuggestion(item.label);
+                                      applyFreeTextSuggestionItem(item);
                                     }}
                                     className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f7f3e9]"
                                   >
                                     <span className="flex items-center justify-between gap-3">
-                                      <span className="truncate">{item.label}</span>
+                                      <span className="flex min-w-0 items-center gap-2">
+                                        {item.source === "prepared" ? (
+                                          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-800">
+                                            Prepared
+                                          </span>
+                                        ) : null}
+                                        <span className="truncate">{item.label}</span>
+                                      </span>
                                       {item.kcalPer100g != null ? (
                                         <span className="shrink-0 text-[11px] font-bold text-[#4f9d45]">
                                           {Math.round(item.kcalPer100g)} kcal

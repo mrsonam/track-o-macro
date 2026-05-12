@@ -62,6 +62,17 @@ function readFatSecretCredentials(): { clientId: string; clientSecret: string } 
   return { clientId, clientSecret };
 }
 
+/** True when FatSecret OAuth credentials are present (may still fail at runtime, e.g. IP allowlist). */
+export function hasFatSecretCredentials(): boolean {
+  const clientId =
+    process.env.FATSECRET_CLIENT_ID?.trim() ?? process.env.CLIENT_ID?.trim() ?? "";
+  const clientSecret =
+    process.env.FATSECRET_CLIENT_SECRET?.trim() ??
+    process.env.CLIENT_SECRET?.trim() ??
+    "";
+  return Boolean(clientId && clientSecret);
+}
+
 function toNumber(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;

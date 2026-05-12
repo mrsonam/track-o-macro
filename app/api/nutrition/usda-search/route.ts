@@ -1,18 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { batchAnalyzeIngredients } from "@/lib/nutrition/avocavo";
-import { fatSecretSearchFoods } from "@/lib/nutrition/fatsecret";
-
-function hasFatSecretCreds() {
-  return Boolean(
-    process.env.FATSECRET_CLIENT_ID?.trim() ||
-      process.env.CLIENT_ID?.trim(),
-  ) &&
-    Boolean(
-      process.env.FATSECRET_CLIENT_SECRET?.trim() ||
-        process.env.CLIENT_SECRET?.trim(),
-    );
-}
+import { fatSecretSearchFoods, hasFatSecretCredentials } from "@/lib/nutrition/fatsecret";
 
 export async function GET(request: Request) {
   const session = await getSession();
@@ -27,7 +16,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ items: [] });
   }
 
-  if (hasFatSecretCreds()) {
+  if (hasFatSecretCredentials()) {
     console.log("[fatsecret-search] searching with FatSecret");
     try {
       const items = await fatSecretSearchFoods(q, 8);

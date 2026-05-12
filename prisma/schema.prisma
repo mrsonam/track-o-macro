@@ -18,6 +18,7 @@ model User {
   profile           UserProfile?
   meals             Meal[]
   savedMeals        SavedMeal[]
+  preparedMeals     PreparedMeal[]
   userFoods         UserFood[]
   weightLogs        WeightLog[]
   fluidLogs         FluidLog[]
@@ -149,6 +150,35 @@ model MealLineItem {
 
   @@index([mealId], map: "meal_line_items_meal_id_idx")
   @@map("meal_line_items")
+}
+
+/// Multi-ingredient dish prepared once; portions scale by weighed grams vs total prepared weight.
+model PreparedMeal {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  title     String   @db.Text
+  /// Ingredient list / recipe text used for nutrition analysis
+  recipeRawInput String @map("recipe_raw_input") @db.Text
+  /// Total weight of cooked/prepared dish (grams), as weighed by the user
+  preparedGrams Decimal @map("prepared_grams") @db.Decimal(14, 4)
+  /// Batch totals from analysis (whole recipe as analyzed)
+  batchTotalKcal     Decimal  @map("batch_total_kcal") @db.Decimal(14, 4)
+  batchTotalProteinG Decimal  @map("batch_total_protein_g") @db.Decimal(14, 4)
+  batchTotalCarbsG   Decimal  @map("batch_total_carbs_g") @db.Decimal(14, 4)
+  batchTotalFatG     Decimal  @map("batch_total_fat_g") @db.Decimal(14, 4)
+  batchTotalFiberG   Decimal? @map("batch_total_fiber_g") @db.Decimal(14, 4)
+  batchTotalSodiumMg Decimal? @map("batch_total_sodium_mg") @db.Decimal(14, 4)
+  batchTotalSugarG   Decimal? @map("batch_total_sugar_g") @db.Decimal(14, 4)
+  batchTotalAddedSugarG Decimal? @map("batch_total_added_sugar_g") @db.Decimal(14, 4)
+  /// Optional snapshot of resolved lines for display
+  lineItemsJson Json? @map("line_items_json")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "prepared_meals_user_id_idx")
+  @@map("prepared_meals")
 }
 
 /// User-defined quick-log templates (favorite meals).

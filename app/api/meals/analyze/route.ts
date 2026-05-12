@@ -13,7 +13,7 @@ import {
   type UserFoodResolveInput,
 } from "@/lib/nutrition/resolve-ingredient";
 import { parseMealDescription } from "@/lib/nutrition/parse-meal";
-import { fatSecretSearchFoods } from "@/lib/nutrition/fatsecret";
+import { fatSecretSearchFoods, hasFatSecretCredentials } from "@/lib/nutrition/fatsecret";
 import { singleIngredientAnalyze } from "@/lib/nutrition/avocavo";
 import { lineFromAvocavoApiItem } from "@/lib/nutrition/avocavo-analyze-meal";
 
@@ -87,6 +87,73 @@ async function buildFatSecretLine(
         carbs_g: top.carbsPer100g,
         fat_g: top.fatPer100g,
       },
+      ...(ing.unit_note?.trim() ? { unit_note: ing.unit_note.trim() } : {}),
+    },
+  };
+}
+
+async function resolveIngredientLine(
+  ing: ParsedIngredientInput,
+): Promise<ResolvedLine> {
+  if (hasFatSecretCredentials()) {
+    try {
+      return await buildFatSecretLine(ing);
+    } catch (e) {
+      console.error("[analyze] FatSecret failed for ingredient:", ing.name, e);
+    }
+  }
+
+  if (process.env.AVOCAVO_API_KEY?.trim()) {
+    try {
+      const phrase =
+        `${ing.quantity_g}g ${(ing.search_query ?? ing.name).trim()}`.trim();
+      const item = await singleIngredientAnalyze(phrase);
+      const line = lineFromAvocavoApiItem(item, phrase);
+      if (line && line.quantity > 0) {
+        const scale = ing.quantity_g / line.quantity;
+        if (Number.isFinite(scale) && scale > 0) {
+          return {
+            ...line,
+            label: ing.name,
+            quantity: ing.quantity_g,
+            unit: "g",
+            kcal: round1(line.kcal * scale),
+            protein_g: round1(line.protein_g * scale),
+            carbs_g: round1(line.carbs_g * scale),
+            fat_g: round1(line.fat_g * scale),
+            fiber_g:
+              line.fiber_g != null ? round1(line.fiber_g * scale) : undefined,
+            sodium_mg:
+              line.sodium_mg != null
+                ? Math.round(line.sodium_mg * scale)
+                : undefined,
+            sugar_g:
+              line.sugar_g != null ? round1(line.sugar_g * scale) : undefined,
+            added_sugar_g:
+              line.added_sugar_g != null
+                ? round1(line.added_sugar_g * scale)
+                : undefined,
+          };
+        }
+      }
+    } catch (e) {
+      console.error("[analyze] Avocavo failed for ingredient:", ing.name, e);
+    }
+  }
+
+  return {
+    label: ing.name,
+    quantity: ing.quantity_g,
+    unit: "g",
+    kcal: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fat_g: 0,
+    fdc_id: null,
+    source: "estimate",
+    detail: {
+      provider: "none",
+      reason: "no_nutrition_provider",
       ...(ing.unit_note?.trim() ? { unit_note: ing.unit_note.trim() } : {}),
     },
   };
@@ -341,6 +408,8 @@ export async function POST(request: Request) {
 
     let body: {
       rawInput?: string;
+      /** When false, returns nutrition without creating a Meal row (for batch preview). */
+      persist?: boolean;
       selectedFoodHints?: Array<{
         label?: string;
         labelNorm?: string;
@@ -365,6 +434,8 @@ export async function POST(request: Request) {
     if (!rawInput) {
       return jsonError("rawInput is required", 400, "VALIDATION_REQUIRED");
     }
+
+    const persist = body.persist !== false;
 
     const selectedFoodHints: UserFoodResolveInput[] = Array.isArray(
       body.selectedFoodHints,
@@ -409,6 +480,15 @@ export async function POST(request: Request) {
         const enrichedLines =
           await enrichLinesWithAvocavoMicrosFromLabels(fromClient.lines);
         const totals = sumTotals(enrichedLines);
+        if (!persist) {
+          return NextResponse.json({
+            mealId: null,
+            meal_label: undefined,
+            assumptions: undefined,
+            lines: enrichedLines,
+            totals,
+          });
+        }
         const meal = await prisma.meal.create({
           data: {
             userId,
@@ -455,7 +535,7 @@ export async function POST(request: Request) {
           lines.push(lineFromUserFood(ing, matched));
           continue;
         }
-        lines.push(await buildFatSecretLine(ing));
+        lines.push(await resolveIngredientLine(ing));
       }
 
       const meal_label =
@@ -463,6 +543,16 @@ export async function POST(request: Request) {
       const assumptions =
         "assumptions" in parsed ? parsed.assumptions : undefined;
       const totals = sumTotals(lines);
+
+      if (!persist) {
+        return NextResponse.json({
+          mealId: null,
+          meal_label,
+          assumptions,
+          lines,
+          totals,
+        });
+      }
 
       const meal = await prisma.meal.create({
         data: {

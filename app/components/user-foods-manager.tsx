@@ -14,6 +14,7 @@ import {
   AlertCircle 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ConfirmDialog } from "@/app/components/confirm-dialog";
 
 type Row = {
   id: string;
@@ -41,6 +42,10 @@ export function UserFoodsManager() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(emptyForm);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string } | null>(
+    null,
+  );
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
@@ -139,22 +144,27 @@ export function UserFoodsManager() {
     }
   }
 
-  async function onDelete(id: string) {
-    if (!confirm("Remove this saved food? Logging will fall back to USDA/estimates.")) {
-      return;
-    }
+  async function executeDeleteFood() {
+    const id = deleteTarget?.id;
+    if (!id) return;
     setError(null);
+    setDeleteBusy(true);
     try {
       const res = await fetch(`/api/user-foods/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setError(data.error ?? "Could not delete");
+        setDeleteTarget(null);
         return;
       }
       if (editingId === id) cancelEdit();
+      setDeleteTarget(null);
       await load();
     } catch {
       setError("Network error");
+      setDeleteTarget(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -342,7 +352,9 @@ export function UserFoodsManager() {
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button 
-                            onClick={() => void onDelete(row.id)}
+                            onClick={() =>
+                              setDeleteTarget({ id: row.id, label: row.label })
+                            }
                             className="rounded-xl border border-black/10 bg-white p-2 text-zinc-500 transition-colors hover:text-red-500"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -357,6 +369,27 @@ export function UserFoodsManager() {
           </ul>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget != null}
+        title="Remove saved food?"
+        description={
+          deleteTarget ? (
+            <>
+              <span className="font-semibold text-zinc-800">{deleteTarget.label}</span>{" "}
+              will be removed. Logging will fall back to USDA or estimates for that label.
+            </>
+          ) : null
+        }
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="danger"
+        busy={deleteBusy}
+        onCancel={() => {
+          if (!deleteBusy) setDeleteTarget(null);
+        }}
+        onConfirm={() => void executeDeleteFood()}
+      />
     </div>
   );
 }

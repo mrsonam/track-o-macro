@@ -35,9 +35,23 @@ export async function HomeMealLogSection() {
     createdAt: Date;
   }[] = [];
   let savedMeals: { id: string; title: string; rawInput: string }[] = [];
+  let preparedMeals: {
+    id: string;
+    title: string;
+    preparedGrams: { toString(): string };
+    batchTotalKcal: { toString(): string };
+    batchTotalProteinG: { toString(): string };
+    batchTotalCarbsG: { toString(): string };
+    batchTotalFatG: { toString(): string };
+    batchTotalFiberG: { toString(): string } | null;
+    batchTotalSodiumMg: { toString(): string } | null;
+    batchTotalSugarG: { toString(): string } | null;
+    batchTotalAddedSugarG: { toString(): string } | null;
+    createdAt: Date;
+  }[] = [];
 
   try {
-    const [p, recent, saved] = await Promise.all([
+    const [p, recent, saved, prepared] = await Promise.all([
       prisma.userProfile.findUnique({
         where: { userId },
         select: {
@@ -68,10 +82,30 @@ export async function HomeMealLogSection() {
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         select: { id: true, title: true, rawInput: true },
       }),
+      prisma.preparedMeal.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          title: true,
+          preparedGrams: true,
+          batchTotalKcal: true,
+          batchTotalProteinG: true,
+          batchTotalCarbsG: true,
+          batchTotalFatG: true,
+          batchTotalFiberG: true,
+          batchTotalSodiumMg: true,
+          batchTotalSugarG: true,
+          batchTotalAddedSugarG: true,
+          createdAt: true,
+        },
+      }),
     ]);
     profile = p;
     recentMeals = recent;
     savedMeals = saved;
+    preparedMeals = prepared;
   } catch (e) {
     if (isDbUnavailableError(e)) {
       redirect("/error/database");
@@ -127,6 +161,26 @@ export async function HomeMealLogSection() {
       weightTrendOnHomeEnabled={profile?.weightTrendOnHomeEnabled ?? false}
       unitSystem={unitSystem}
       savedMeals={savedMeals}
+      preparedMeals={preparedMeals.map((m) => ({
+        id: m.id,
+        title: m.title,
+        preparedGrams: Number(m.preparedGrams),
+        batchTotalKcal: Number(m.batchTotalKcal),
+        batchTotalProteinG: Number(m.batchTotalProteinG),
+        batchTotalCarbsG: Number(m.batchTotalCarbsG),
+        batchTotalFatG: Number(m.batchTotalFatG),
+        batchTotalFiberG:
+          m.batchTotalFiberG != null ? Number(m.batchTotalFiberG) : null,
+        batchTotalSodiumMg:
+          m.batchTotalSodiumMg != null ? Number(m.batchTotalSodiumMg) : null,
+        batchTotalSugarG:
+          m.batchTotalSugarG != null ? Number(m.batchTotalSugarG) : null,
+        batchTotalAddedSugarG:
+          m.batchTotalAddedSugarG != null
+            ? Number(m.batchTotalAddedSugarG)
+            : null,
+        createdAt: m.createdAt.toISOString(),
+      }))}
       recentMeals={recentMeals.map((m) => ({
         id: m.id,
         rawInput: m.rawInput,
