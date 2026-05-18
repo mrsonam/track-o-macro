@@ -25,7 +25,7 @@ export function weekendDriftLine(input: {
   if (Math.abs(diff) < 120 && absRatio < 0.12) return null;
 
   if (w > d) {
-    return `Weekend days in this window averaged about ${Math.round(w)} kcal per day vs ${Math.round(d)} on weekdays — a bit higher on days off.`;
+    return `Weekend days in this window averaged about ${Math.round(w)} kcal per day vs ${Math.round(d)} on weekdays, a bit higher on days off.`;
   }
   return `Weekday averages were about ${Math.round(d)} kcal per day vs ${Math.round(w)} on weekend days in this window.`;
 }

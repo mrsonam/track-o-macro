@@ -169,7 +169,7 @@ export default function AppleHealthShortcutsResourcePage() {
             with keys: <code className="text-zinc-300">type</code>,{" "}
             <code className="text-zinc-300">value</code>,{" "}
             <code className="text-zinc-300">unit</code>,{" "}
-            <code className="text-zinc-300">recordedAt</code> — map from the Health
+            <code className="text-zinc-300">recordedAt</code>: map from the Health
             sample fields (use ISO 8601 strings for <code>recordedAt</code>).
           </li>
           <li>

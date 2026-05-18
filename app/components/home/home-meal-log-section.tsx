@@ -8,7 +8,7 @@ import { DEFAULT_HYDRATION_GOAL_ML } from "@/lib/hydration/defaults";
 import { type UnitSystem } from "@/lib/profile/units";
 import { loadHomeWeekPrefetch } from "@/lib/meals/load-home-week-prefetch";
 
-/** Home dashboard data — streamed inside Suspense so the route shell can paint first. */
+/** Today dashboard data — streamed inside Suspense so the route shell can paint first. */
 export async function HomeMealLogSection() {
   const session = await getSession();
   const userId = session?.user?.id;
@@ -28,12 +28,6 @@ export async function HomeMealLogSection() {
     weightTrendOnHomeEnabled?: boolean;
     targetHydrationMl: number | null;
   } | null = null;
-  let recentMeals: {
-    id: string;
-    rawInput: string;
-    totalKcal: { toString(): string };
-    createdAt: Date;
-  }[] = [];
   let savedMeals: { id: string; title: string; rawInput: string }[] = [];
   let preparedMeals: {
     id: string;
@@ -51,7 +45,7 @@ export async function HomeMealLogSection() {
   }[] = [];
 
   try {
-    const [p, recent, saved, prepared] = await Promise.all([
+    const [p, saved, prepared] = await Promise.all([
       prisma.userProfile.findUnique({
         where: { userId },
         select: {
@@ -64,17 +58,6 @@ export async function HomeMealLogSection() {
           activeDays14Enabled: true,
           weightTrendOnHomeEnabled: true,
           targetHydrationMl: true,
-        },
-      }),
-      prisma.meal.findMany({
-        where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          rawInput: true,
-          totalKcal: true,
-          createdAt: true,
         },
       }),
       prisma.savedMeal.findMany({
@@ -103,7 +86,6 @@ export async function HomeMealLogSection() {
       }),
     ]);
     profile = p;
-    recentMeals = recent;
     savedMeals = saved;
     preparedMeals = prepared;
   } catch (e) {
@@ -179,12 +161,6 @@ export async function HomeMealLogSection() {
           m.batchTotalAddedSugarG != null
             ? Number(m.batchTotalAddedSugarG)
             : null,
-        createdAt: m.createdAt.toISOString(),
-      }))}
-      recentMeals={recentMeals.map((m) => ({
-        id: m.id,
-        rawInput: m.rawInput,
-        totalKcal: Number(m.totalKcal),
         createdAt: m.createdAt.toISOString(),
       }))}
       initialWeekPrefetch={homeWeekPrefetch}

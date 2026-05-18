@@ -1,24 +1,16 @@
 import { Suspense } from "react";
-import {
-  SettingsPageContent,
-  SettingsPageHeader,
-} from "@/app/components/settings/settings-page-content";
+import { SettingsPageContent } from "@/app/components/settings/settings-page-content";
+import { SettingsPageHeader } from "@/app/components/settings/settings-page-header";
 import { SettingsPageSkeleton } from "@/app/components/skeletons/settings-page-skeleton";
 
 export default function SettingsPage() {
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 px-4 pb-32 pt-12 sm:px-6">
-      <div className="w-full">
-        <SettingsPageHeader />
+    <div className="flex min-h-screen flex-col">
+      <SettingsPageHeader />
 
-        <Suspense fallback={<SettingsPageSkeleton />}>
-          <SettingsPageContent />
-        </Suspense>
-
-        <p className="mt-20 text-center text-[10px] font-bold uppercase tracking-[0.3em] text-zinc-600">
-          End of Configuration • Protocol v1.0
-        </p>
-      </div>
+      <Suspense fallback={<SettingsPageSkeleton />}>
+        <SettingsPageContent />
+      </Suspense>
     </div>
   );
 }

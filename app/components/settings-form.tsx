@@ -32,6 +32,7 @@ import {
   Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { alertBanner, collapsePanel } from "@/lib/motion";
 import { CustomSelect } from "@/app/components/custom-select";
 import { 
   type UnitSystem, 
@@ -314,7 +315,7 @@ export function SettingsForm({ profile }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
         <label className="flex flex-col gap-2">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
             <Ruler className="h-3 w-3" /> Height ({getHeightLabel(unitSystem)})
@@ -387,7 +388,7 @@ export function SettingsForm({ profile }: Props) {
         </fieldset>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
         <label className="flex flex-col gap-2 text-sm">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
             <Activity className="h-3 w-3" /> Activity Profile
@@ -432,10 +433,11 @@ export function SettingsForm({ profile }: Props) {
 
       <AnimatePresence>
         {(goalIntent === "lose" || goalIntent === "gain") && (
-          <motion.label 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+          <motion.label
+            variants={collapsePanel}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="flex flex-col gap-2 text-sm"
           >
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
@@ -497,7 +499,7 @@ export function SettingsForm({ profile }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
           <label className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Input Strategy</span>
             <CustomSelect
@@ -554,7 +556,7 @@ export function SettingsForm({ profile }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
           <label className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Coaching Objective</span>
             <CustomSelect
@@ -605,7 +607,7 @@ export function SettingsForm({ profile }: Props) {
 
         <label className="flex flex-col gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-            Plan this week (if–then)
+            Plan this week (If-then)
           </span>
           <textarea
             value={weeklyImplementationIntention}
@@ -649,7 +651,7 @@ export function SettingsForm({ profile }: Props) {
               Active days (14-day view)
             </span>
             <span className="mt-1 block text-xs font-medium leading-relaxed text-zinc-600">
-              On the home and trends week cards, show how many of the last 14 days had at least one log — recovery-friendly, not a daily streak score.
+              On the home and trends week cards, show how many of the last 14 days had at least one log. Recovery-friendly, not a daily streak score.
             </span>
           </span>
         </label>
@@ -674,9 +676,11 @@ export function SettingsForm({ profile }: Props) {
 
       <AnimatePresence>
         {profile?.targetKcal != null && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="rounded-3xl border border-black/10 bg-white p-8 shadow-inner"
           >
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 mb-6">Current Bio-Estimates</h4>
@@ -699,7 +703,7 @@ export function SettingsForm({ profile }: Props) {
               )}
             </div>
             <p className="mt-8 text-[10px] italic text-zinc-600">
-              * Mifflin–St Jeor protocol active. Re-save profile to recalculate values after changes.
+              * Mifflin-St Jeor protocol active. Re-save profile to recalculate values after changes.
             </p>
           </motion.div>
         )}

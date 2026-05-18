@@ -14,6 +14,7 @@ import {
   AlertCircle 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { RevealItem, RevealStagger } from "@/lib/motion";
 import { ConfirmDialog } from "@/app/components/confirm-dialog";
 
 type Row = {
@@ -284,14 +285,12 @@ export function UserFoodsManager() {
         ) : items.length === 0 ? (
           <p className="py-12 text-center text-xs text-zinc-700 font-bold uppercase tracking-widest">Database Empty</p>
         ) : (
-          <ul className="grid grid-cols-1 gap-4">
+          <RevealStagger className="grid grid-cols-1 gap-4">
             <AnimatePresence mode="popLayout">
               {items.map((row) => (
-                <motion.li
-                  key={row.id}
+                <RevealItem key={row.id}>
+                <motion.div
                   layout
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.98 }}
                   className="group relative rounded-3xl border border-black/10 bg-white p-6 transition-all hover:bg-[#f7f3e9]"
                 >
@@ -363,10 +362,11 @@ export function UserFoodsManager() {
                       </div>
                     </div>
                   )}
-                </motion.li>
+                </motion.div>
+                </RevealItem>
               ))}
             </AnimatePresence>
-          </ul>
+          </RevealStagger>
         )}
       </div>
 

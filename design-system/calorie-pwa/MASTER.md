@@ -21,6 +21,16 @@ The app is not a dark financial dashboard. It is a calm, high-signal food loggin
 
 ---
 
+## Copy and punctuation
+
+All UI and marketing strings must follow `PRODUCT.md` → **Copy and punctuation**.
+
+- **No em dashes, en dashes, or `--`** in user-facing text.
+- Prefer commas, colons, periods, or parentheses between ideas.
+- Use **to** for ranges, not `–` or `—`.
+
+---
+
 ## Global Rules
 
 ### Color Palette

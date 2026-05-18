@@ -11,7 +11,7 @@ export type PortionHintRow = {
 
 /** Common kitchen conversions (US-style volumes where noted). */
 export const PORTION_VOLUME_HINTS: PortionHintRow[] = [
-  { item: "1 cup (US)", grams: "~236–240 ml liquid; dry foods vary by food" },
+  { item: "1 cup (US)", grams: "~236 to 240 ml liquid; dry foods vary by food" },
   { item: "1 tbsp", grams: "~15 ml (liquids); ~14 g oils" },
   { item: "1 tsp", grams: "~5 ml" },
   { item: "1 oz (weight)", grams: "~28 g" },
@@ -19,10 +19,10 @@ export const PORTION_VOLUME_HINTS: PortionHintRow[] = [
 
 export const PORTION_COMMON_FOODS: PortionHintRow[] = [
   { item: "Large egg (whole)", grams: "~50 g" },
-  { item: "Slice bread", grams: "~35–45 g" },
-  { item: "Banana (medium)", grams: "~100–120 g peeled" },
+  { item: "Slice bread", grams: "~35 to 45 g" },
+  { item: "Banana (medium)", grams: "~100 to 120 g peeled" },
   { item: "Cooked chicken breast", grams: "~120 g per palm-sized piece (varies)" },
-  { item: "Cooked white rice", grams: "~150–200 g per cup packed (varies)" },
+  { item: "Cooked white rice", grams: "~150 to 200 g per cup packed (varies)" },
   { item: "Plain Greek yogurt", grams: "~150 g per ½ cup (brand varies)" },
 ];
 
@@ -40,4 +40,4 @@ export const PORTION_QUICK_SNIPPETS: { label: string; text: string }[] = [
  * Hand-size estimates — clearly labeled as rough guides (not personalized).
  */
 export const PORTION_HAND_GUIDE =
-  "Rough guides: palm of protein ~3–4 oz cooked meat; fist ~1 cup starch; thumb ~1 tbsp fat. These vary by hand size—use a scale when precision matters.";
+  "Rough guides: palm of protein ~3 to 4 oz cooked meat; fist ~1 cup starch; thumb ~1 tbsp fat. These vary by hand size. Use a scale when precision matters.";

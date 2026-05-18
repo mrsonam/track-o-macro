@@ -13,6 +13,8 @@ import {
   Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { DURATION, EASE_OUT, MotionBento } from "@/lib/motion";
+import { MISSING_DISPLAY } from "@/lib/copy/display";
 import {
   type UnitSystem,
   kgToLbs,
@@ -65,8 +67,8 @@ export function WeightLogCard({
         if (res.ok && Array.isArray(data.logs)) {
           setLogs(data.logs);
         }
-      } catch (e) {
-        console.error("Failed to fetch weight logs", e);
+      } catch {
+        /* weight card degrades quietly; user can retry via sync */
       } finally {
         setLoading(false);
       }
@@ -178,8 +180,7 @@ export function WeightLogCard({
       } else {
         setError(data.error ?? data.details ?? "Failed to archive log");
       }
-    } catch (err) {
-      console.error("Weight log submission error:", err);
+    } catch {
       setError("Cloud sync failure. Check connection.");
     } finally {
       setSaving(false);
@@ -187,11 +188,7 @@ export function WeightLogCard({
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bento-card relative overflow-hidden border border-black/10 bg-[#f7f3e9] p-6"
-    >
+    <MotionBento index={0} className="bento-card relative overflow-hidden border border-black/10 bg-[#f7f3e9] p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eaf7df] text-[#4f9d45]">
@@ -253,7 +250,7 @@ export function WeightLogCard({
               disabled={saving || !inputValue}
               className="h-12 w-full rounded-xl bg-[#171412] text-[10px] font-black uppercase tracking-widest text-white disabled:opacity-50"
             >
-              {saving ? <Zap className="h-4 w-4 animate-spin mx-auto" /> : "Registry Log Entry"}
+              {saving ? <Zap className="h-4 w-4 animate-spin mx-auto" /> : "Save weight"}
             </button>
             {error && <p className="mt-2 text-[10px] font-bold text-red-500">{error}</p>}
           </motion.form>
@@ -262,7 +259,7 @@ export function WeightLogCard({
             <div className="flex items-end justify-between">
               <div className="flex items-end gap-3">
                 <div className="font-mono text-4xl font-black tracking-tighter text-[#171412]">
-                  {displayWeight !== null ? displayWeight.toFixed(1) : "—"}
+                  {displayWeight !== null ? displayWeight.toFixed(1) : MISSING_DISPLAY}
                   <span className="ml-1.5 text-lg font-medium text-[#6d6251]">{getWeightLabel(unitSystem)}</span>
                 </div>
                 
@@ -311,7 +308,7 @@ export function WeightLogCard({
                   <span className="font-mono text-xs font-black text-[#171412]">
                     {displayTrendWeight !== null
                       ? displayTrendWeight.toFixed(1)
-                      : "—"}{" "}
+                      : MISSING_DISPLAY}{" "}
                     {getWeightLabel(unitSystem)}
                   </span>
                 </div>
@@ -359,6 +356,6 @@ export function WeightLogCard({
           </div>
         </div>
       )}
-    </motion.div>
+    </MotionBento>
   );
 }

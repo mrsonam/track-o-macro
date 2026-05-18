@@ -1,3 +1,5 @@
+import { fatSecretFetch, isFatSecretProxyConfigured } from "@/lib/nutrition/fatsecret-http";
+
 const FATSECRET_TOKEN_URL = "https://oauth.fatsecret.com/connect/token";
 const FATSECRET_API_URL = "https://platform.fatsecret.com/rest/server.api";
 
@@ -62,6 +64,8 @@ function readFatSecretCredentials(): { clientId: string; clientSecret: string } 
   return { clientId, clientSecret };
 }
 
+export { isFatSecretProxyConfigured };
+
 /** True when FatSecret OAuth credentials are present (may still fail at runtime, e.g. IP allowlist). */
 export function hasFatSecretCredentials(): boolean {
   const clientId =
@@ -96,7 +100,7 @@ async function getFatSecretAccessToken(): Promise<string> {
     scope: "basic",
   });
 
-  const res = await fetch(FATSECRET_TOKEN_URL, {
+  const res = await fatSecretFetch(FATSECRET_TOKEN_URL, {
     method: "POST",
     headers: {
       Authorization: `Basic ${auth}`,
@@ -114,8 +118,11 @@ async function getFatSecretAccessToken(): Promise<string> {
   }
 
   if (!res.ok || !data.access_token) {
+    const hint = isFatSecretProxyConfigured()
+      ? ""
+      : " If FatSecret IP restrictions are enabled, set FATSECRET_HTTP_PROXY to a static-IP egress proxy and whitelist that IP.";
     throw new Error(
-      `FatSecret token failed: ${res.status} ${raw.slice(0, 200)}`,
+      `FatSecret token failed: ${res.status} ${raw.slice(0, 200)}.${hint}`,
     );
   }
 
@@ -135,7 +142,7 @@ async function callFatSecretApi(
     ...params,
     format: "json",
   });
-  const res = await fetch(FATSECRET_API_URL, {
+  const res = await fatSecretFetch(FATSECRET_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -146,6 +153,19 @@ async function callFatSecretApi(
   const raw = await res.text();
   if (!res.ok) {
     throw new Error(`FatSecret API failed: ${res.status} ${raw.slice(0, 200)}`);
+  }
+  try {
+    const payload = JSON.parse(raw) as { error?: { code?: number; message?: string } };
+    if (payload.error?.message) {
+      throw new Error(
+        `FatSecret API error ${payload.error.code ?? ""}: ${payload.error.message}`.trim(),
+      );
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("FatSecret API error")) {
+      throw e;
+    }
+    // Non-JSON body is returned as-is for callers to handle.
   }
   return raw;
 }

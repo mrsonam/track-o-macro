@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
+import { MotionBento } from "@/lib/motion";
 import { Brain, RefreshCw, CheckCircle2, AlertCircle, Info, TrendingDown, TrendingUp } from "lucide-react";
 
 interface MetabolicData {
@@ -88,14 +89,14 @@ export function AdaptiveTargetCard() {
   };
 
   if (loading) return (
-    <div className="bento-card flex h-48 items-center justify-center border border-[#4f9d45]/20 bg-[#eaf7df] p-6">
+    <MotionBento index={1} className="bento-card flex h-48 items-center justify-center border border-[#4f9d45]/20 bg-[#eaf7df] p-6">
       <Brain className="h-8 w-8 text-[#4f9d45]" />
-    </div>
+    </MotionBento>
   );
 
   if (!data || data.adaptiveTDEE === null || data.adaptiveTDEE < 800) {
     return (
-      <div className="bento-card relative overflow-hidden border border-[#4f9d45]/20 bg-[#eaf7df] p-6">
+      <MotionBento index={1} className="bento-card relative overflow-hidden border border-[#4f9d45]/20 bg-[#eaf7df] p-6">
         <div className="flex items-center gap-2 mb-2">
           <Brain className="h-4 w-4 text-[#4f9d45]" />
           <h3 className="text-[10px] font-black uppercase tracking-widest text-[#356d30]">Metabolic Logic</h3>
@@ -103,7 +104,7 @@ export function AdaptiveTargetCard() {
         <p className="text-xs leading-relaxed text-[#356d30]/80">
           Insufficient or noisy data to estimate maintenance (need consistent logs, or the model was capped). Keep logging intake and weight for a longer stretch.
         </p>
-      </div>
+      </MotionBento>
     );
   }
 
@@ -117,11 +118,7 @@ export function AdaptiveTargetCard() {
   const needsSync = diff > 50; // Threshold for suggesting a sync
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bento-card relative overflow-hidden border border-[#4f9d45]/20 bg-[#eaf7df] p-6"
-    >
+    <MotionBento index={1} className="bento-card relative overflow-hidden border border-[#4f9d45]/20 bg-[#eaf7df] p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#4f9d45]/20 bg-white/60 text-[#4f9d45]">
@@ -208,6 +205,6 @@ export function AdaptiveTargetCard() {
           Your True Maintenance is calculated using a 14-day energy balance analysis. Unlike static formulas, this adjusts for metabolic adaptation and activity variance.
         </p>
       </div>
-    </motion.div>
+    </MotionBento>
   );
 }

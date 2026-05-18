@@ -6,11 +6,15 @@ import { TrendsFortnightStrip } from "@/app/components/trends-fortnight-strip";
 import { TrendsWeeklyRecapStrip } from "@/app/components/trends-weekly-recap-strip";
 import { TrendsInsightsStrip } from "@/app/components/trends-insights-strip";
 import { TrendsMonthInsights } from "@/app/components/trends-month-insights";
-import { TrendsDashboardWrapper } from "@/app/components/trends-dashboard-wrapper";
+import { TrendsInsightsProvider } from "@/app/components/trends/trends-insights-provider";
 import { WeightTrendStrip } from "@/app/components/weight-trend-strip";
 import { parseWeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
 import { type UnitSystem } from "@/lib/profile/units";
 import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
+import { SectionReveal } from "@/app/components/motion/section-reveal";
+import { TrendsSectionHeading } from "@/app/components/trends/trends-section-heading";
+import { trends } from "@/lib/ui/trends-tokens";
+import { BarChart3, Calendar, History, Scale, TrendingUp } from "lucide-react";
 
 export async function TrendsPageBody() {
   const session = await getSession();
@@ -55,114 +59,123 @@ export async function TrendsPageBody() {
   );
   const unitSystem = (profile?.unitSystem as UnitSystem) ?? "metric";
 
+  const panelPad = "p-6 md:p-8 lg:p-9";
+
   return (
-    <>
-      <TrendsDashboardWrapper dailyTargetKcal={dailyTargetKcal} />
-
-      <div className="flex flex-col gap-10 lg:gap-16">
-        <section
-          id={TRENDS_INSIGHT_ANCHORS.rollingWeek}
-          aria-labelledby="trends-rolling-heading"
-          className="scroll-mt-32"
-        >
-          <div className="mb-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-[#4f9d45]/35 to-transparent" />
-            <h2
-              id="trends-rolling-heading"
-              className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4f9d45]"
-            >
-              Rolling Momentum
-            </h2>
-            <div className="h-px flex-1 bg-gradient-to-l from-[#4f9d45]/35 to-transparent" />
-          </div>
-          <TrendsInsightsStrip
-            dailyTargetKcal={dailyTargetKcal}
-            dailyTargetProteinG={dailyTargetProteinG}
-            weeklyCoachingFocus={weeklyCoachingFocus}
-            weeklyImplementationIntention={
-              profile?.weeklyImplementationIntention ?? null
-            }
-            activeDays14Enabled={profile?.activeDays14Enabled ?? false}
-            className="p-6 transition-colors hover:border-emerald-500/20 md:p-8 lg:p-9"
-          />
-        </section>
-
-        <section
-          id={TRENDS_INSIGHT_ANCHORS.weightTrend}
-          aria-labelledby="trends-weight-trend"
-          className="scroll-mt-32"
-        >
-          <WeightTrendStrip unitSystem={unitSystem} />
-        </section>
-
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-0">
+    <TrendsInsightsProvider
+      dailyTargetKcal={dailyTargetKcal}
+      dailyTargetProteinG={dailyTargetProteinG}
+      activeDays14Enabled={profile?.activeDays14Enabled ?? false}
+    >
+      <div className="flex flex-col gap-12 lg:gap-16">
+        <SectionReveal className="scroll-mt-32">
           <section
-            id={TRENDS_INSIGHT_ANCHORS.weekRecap}
-            aria-labelledby="trends-recap-heading"
-            className="min-w-0 scroll-mt-32 lg:col-span-12 xl:col-span-7"
+            id={TRENDS_INSIGHT_ANCHORS.rollingWeek}
+            aria-labelledby="trends-rolling-heading"
+            className="scroll-mt-32"
           >
-            <div className="mb-5 flex items-center gap-3">
-              <h2
-                id="trends-recap-heading"
-                className="text-[10px] font-black uppercase tracking-[0.4em] text-[#3b82a0]"
-              >
-                Week in Review
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-[#3b82a0]/25 to-transparent" />
-            </div>
-            <TrendsWeeklyRecapStrip
+            <TrendsSectionHeading
+              id="trends-rolling-heading"
+              title="Rolling week"
+              description="Seven-day averages, logging coverage, and weekend vs weekday drift."
+              icon={TrendingUp}
+              accent="signal"
+            />
+            <TrendsInsightsStrip
               dailyTargetKcal={dailyTargetKcal}
               dailyTargetProteinG={dailyTargetProteinG}
+              weeklyCoachingFocus={weeklyCoachingFocus}
               weeklyImplementationIntention={
                 profile?.weeklyImplementationIntention ?? null
               }
-              className="h-full p-6 md:p-8 lg:p-9"
+              activeDays14Enabled={profile?.activeDays14Enabled ?? false}
+              className={`${trends.panel} ${panelPad}`}
             />
           </section>
+        </SectionReveal>
 
+        <SectionReveal className="scroll-mt-32">
           <section
-            id={TRENDS_INSIGHT_ANCHORS.fortnight}
-            aria-labelledby="trends-fortnight-heading"
-            className="min-w-0 scroll-mt-32 lg:col-span-12 xl:col-span-5"
+            id={TRENDS_INSIGHT_ANCHORS.weightTrend}
+            aria-labelledby="trends-weight-heading"
+            className="scroll-mt-32"
           >
-            <div className="mb-5 flex items-center gap-3">
-              <h2
+            <TrendsSectionHeading
+              id="trends-weight-heading"
+              title="Weight trend"
+              description="Recent weigh-ins plotted against your calorie window."
+              icon={Scale}
+              accent="neutral"
+            />
+            <WeightTrendStrip unitSystem={unitSystem} className={`${trends.panel} ${panelPad}`} />
+          </section>
+        </SectionReveal>
+
+        <SectionReveal>
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-12 xl:gap-y-0">
+            <section
+              id={TRENDS_INSIGHT_ANCHORS.weekRecap}
+              aria-labelledby="trends-recap-heading"
+              className="min-w-0 scroll-mt-32 lg:col-span-12 xl:col-span-7"
+            >
+              <TrendsSectionHeading
+                id="trends-recap-heading"
+                title="Week in review"
+                description="Wins and friction surfaced from this week’s logs."
+                icon={History}
+                accent="carb"
+              />
+              <TrendsWeeklyRecapStrip
+                dailyTargetKcal={dailyTargetKcal}
+                dailyTargetProteinG={dailyTargetProteinG}
+                weeklyImplementationIntention={
+                  profile?.weeklyImplementationIntention ?? null
+                }
+                className={`h-full ${trends.panel} ${panelPad}`}
+              />
+            </section>
+
+            <section
+              id={TRENDS_INSIGHT_ANCHORS.fortnight}
+              aria-labelledby="trends-fortnight-heading"
+              className="min-w-0 scroll-mt-32 mt-6 lg:col-span-12 lg:mt-0 xl:col-span-5"
+            >
+              <TrendsSectionHeading
                 id="trends-fortnight-heading"
-                className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700"
-              >
-                14-Day Velocity
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-r from-black/10 to-transparent" />
-            </div>
-            <TrendsFortnightStrip
+                title="Last 14 days"
+                description="Broader rhythm check beyond the rolling week."
+                icon={BarChart3}
+                accent="neutral"
+              />
+              <TrendsFortnightStrip
+                dailyTargetKcal={dailyTargetKcal}
+                className={`h-full ${trends.panel} ${panelPad}`}
+              />
+            </section>
+          </div>
+        </SectionReveal>
+
+        <SectionReveal className="scroll-mt-32 mt-10 pb-2 lg:mt-12">
+          <section
+            id={TRENDS_INSIGHT_ANCHORS.month}
+            aria-labelledby="trends-month-heading"
+            className="scroll-mt-32 pb-2"
+          >
+            <TrendsSectionHeading
+              id="trends-month-heading"
+              title="Monthly history"
+              description="Pick any month for totals, coverage, and daily averages."
+              icon={Calendar}
+              accent="neutral"
+            />
+            <TrendsMonthInsights
               dailyTargetKcal={dailyTargetKcal}
-              className="h-full p-6 md:p-8 lg:p-9"
+              dailyTargetProteinG={dailyTargetProteinG}
+              className={`mb-0 ${trends.panel} ${panelPad}`}
             />
           </section>
-        </div>
-
-        <section
-          id={TRENDS_INSIGHT_ANCHORS.month}
-          aria-labelledby="trends-month-heading"
-          className="scroll-mt-32 pb-2"
-        >
-          <div className="mb-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-black/10 to-transparent" />
-            <h2
-              id="trends-month-heading"
-              className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-700"
-            >
-              Historical Archive
-            </h2>
-            <div className="h-px flex-1 bg-gradient-to-l from-black/10 to-transparent" />
-          </div>
-          <TrendsMonthInsights
-            dailyTargetKcal={dailyTargetKcal}
-            dailyTargetProteinG={dailyTargetProteinG}
-            className="mb-0 p-6 md:p-8 lg:p-9"
-          />
-        </section>
+        </SectionReveal>
       </div>
-    </>
+    </TrendsInsightsProvider>
   );
 }

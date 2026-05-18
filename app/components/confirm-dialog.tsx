@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { modalBackdrop, modalPanel } from "@/lib/motion";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -82,10 +83,10 @@ export function ConfirmDialog({
             type="button"
             aria-label="Dismiss"
             disabled={busy}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            variants={modalBackdrop}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={() => {
               if (!busy) onCancel();
@@ -97,10 +98,10 @@ export function ConfirmDialog({
             aria-modal="true"
             aria-labelledby={titleId}
             aria-describedby={description ? descId : undefined}
-            initial={{ opacity: 0, y: 16, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ type: "spring", bounce: 0.25, duration: 0.42 }}
+            variants={modalPanel}
+            initial="hidden"
+            animate="show"
+            exit="exit"
             className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-black/10 bg-[#fbfaf5] shadow-[0_28px_80px_-36px_rgba(23,20,18,0.75)]"
             onClick={(e) => e.stopPropagation()}
           >
@@ -126,7 +127,7 @@ export function ConfirmDialog({
                 type="button"
                 disabled={busy}
                 onClick={onCancel}
-                className="focus-ring tap-target rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-bold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
+                className="focus-ring tap-target motion-press rounded-xl border border-black/10 bg-white px-4 py-2.5 text-sm font-bold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
               >
                 {cancelLabel}
               </button>
@@ -134,7 +135,7 @@ export function ConfirmDialog({
                 type="button"
                 disabled={busy}
                 onClick={onConfirm}
-                className={`focus-ring tap-target rounded-xl px-4 py-2.5 text-sm font-bold ${confirmClass}`}
+                className={`focus-ring tap-target motion-press rounded-xl px-4 py-2.5 text-sm font-bold ${confirmClass}`}
               >
                 {busy ? "Please wait…" : confirmLabel}
               </button>

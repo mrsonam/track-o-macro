@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
 import { DEFAULT_HYDRATION_GOAL_ML } from "@/lib/hydration/defaults";
@@ -23,47 +24,29 @@ import {
 } from "@/lib/meals/analyze-queue";
 import { registerAnalyzeQueueSync } from "@/lib/meals/register-analyze-sync";
 import { takeMealLogPrefill } from "@/lib/meals/log-prefill";
-import { loggingStyleBlurb } from "@/lib/profile/preferences";
+import { buildLineHintChips } from "@/lib/meals/log-line-hints";
+import {
+  appendIngredientSuggestionLine,
+  applyIngredientSuggestionToValue,
+  extractTextareaIngredientQuery,
+} from "@/lib/meals/textarea-ingredient-query";
+import { LogMealView } from "@/app/components/log/log-meal-view";
+import { MISSING_DISPLAY } from "@/lib/copy/display";
 import type { LoggingStyle } from "@/lib/profile/preferences";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
 import { notifyMealsChanged } from "@/lib/meals-sync";
-import { DaySummaryCard } from "./day-summary-card";
-import { WeekCalorieStrip } from "./week-calorie-strip";
-import { WeekInsightsCard } from "./week-insights-card";
+import { TodayDashboard } from "@/app/components/home/today-dashboard";
 import {
-  fdcDescriptionText,
-  formatSourceConfidence,
-  resolveUsdaLink,
-  sourceNoteFromDetail,
-} from "@/lib/nutrition/source-detail";
-import { MealItemComposer } from "./meal-item-composer";
-import {
-  composerHasAnalyzableContent,
   composerRowsToRawInput,
   newComposerRow,
   type ComposerRow,
 } from "@/lib/meals/meal-composer";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
-import { 
-  Sparkles, 
-  History as HistoryIcon, 
-  Plus, 
-  Keyboard, 
-  ChevronRight, 
-  LayoutGrid,
-  Zap,
-  ScanLine,
-  Camera,
-  X,
-  Edit2,
-  AlertCircle,
-  Scale
-} from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { alertBanner } from "@/lib/motion";
 import { type UnitSystem } from "@/lib/profile/units";
-import { WeightLogCard } from "./weight-log-card";
 import { HydrationCard } from "./hydration-card";
-import { AdaptiveTargetCard } from "./adaptive-target-card";
 import type { PreparedMealListItem } from "@/app/components/prepared-meals-section";
 
 type LogInputMode = "free" | "composer";
@@ -156,20 +139,38 @@ type AnalyzeResponse = {
   };
 };
 
-export type RecentMealItem = {
-  id: string;
-  rawInput: string;
-  totalKcal: number;
-  createdAt: string;
-};
-
 export type SavedMealItem = {
   id: string;
   title: string;
   rawInput: string;
 };
 
+const EMPTY_SAVED_MEALS: SavedMealItem[] = [];
+const EMPTY_PREPARED_MEALS: PreparedMealListItem[] = [];
+
+function savedMealsEqual(a: SavedMealItem[], b: SavedMealItem[]) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const left = a[i];
+    const right = b[i];
+    if (
+      left.id !== right.id ||
+      left.title !== right.title ||
+      left.rawInput !== right.rawInput
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export type MealLogView = "today" | "log";
+
 type MealLogClientProps = {
+  variant?: MealLogView;
+  /** Local calendar day shown on the log page (YYYY-MM-DD). */
+  logDateKey?: string;
   dailyTargetKcal?: number | null;
   dailyTargetProteinG?: number | null;
   /** Resolved daily fluid goal (ml), including profile default */
@@ -184,20 +185,13 @@ type MealLogClientProps = {
   weightTrendOnHomeEnabled?: boolean;
   unitSystem?: UnitSystem;
   savedMeals?: SavedMealItem[];
-  recentMeals?: RecentMealItem[];
   /** Week strip + rolling insights prefetched on the server (request TZ). */
   initialWeekPrefetch?: HomeWeekPrefetch | null;
   preparedMeals?: PreparedMealListItem[];
 };
 
-function truncate(s: string, max: number) {
-  const t = s.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max).trim()}…`;
-}
-
 function formatLineNutrient(n: number | undefined, fractionDigits = 0) {
-  if (n == null || Number.isNaN(n)) return "—";
+  if (n == null || Number.isNaN(n)) return MISSING_DISPLAY;
   if (fractionDigits === 0) return String(Math.round(n));
   return (Math.round(n * 10) / 10).toString();
 }
@@ -222,6 +216,8 @@ async function readJsonBody(res: Response): Promise<{
 }
 
 export function MealLogClient({
+  variant = "today",
+  logDateKey,
   dailyTargetKcal = null,
   dailyTargetProteinG = null,
   dailyTargetHydrationMl = DEFAULT_HYDRATION_GOAL_ML,
@@ -231,11 +227,22 @@ export function MealLogClient({
   activeDays14Enabled = false,
   weightTrendOnHomeEnabled = false,
   unitSystem = "metric",
-  savedMeals = [],
-  recentMeals = [],
+  savedMeals = EMPTY_SAVED_MEALS,
   initialWeekPrefetch = null,
-  preparedMeals = [],
+  preparedMeals = EMPTY_PREPARED_MEALS,
 }: MealLogClientProps) {
+  const isLogView = variant === "log";
+  const todayDateKey = formatLocalYmd(new Date());
+  const activeLogDateKey = logDateKey ?? todayDateKey;
+  const logDateLabel =
+    activeLogDateKey !== todayDateKey
+      ? new Date(`${activeLogDateKey}T12:00:00`).toLocaleDateString(undefined, {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        })
+      : null;
+
   const initialPrefetchKeys =
     initialWeekPrefetch?.dateKeys?.length === 7
       ? [...initialWeekPrefetch.dateKeys]
@@ -290,15 +297,12 @@ export function MealLogClient({
     Record<string, SelectedFoodHint>
   >({});
 
-  const [recentList, setRecentList] = useState<RecentMealItem[]>(recentMeals);
   const [savedList, setSavedList] = useState<SavedMealItem[]>(savedMeals);
 
   useEffect(() => {
-    setRecentList(recentMeals);
-  }, [recentMeals]);
-
-  useEffect(() => {
-    setSavedList(savedMeals);
+    setSavedList((prev) =>
+      savedMealsEqual(prev, savedMeals) ? prev : savedMeals,
+    );
   }, [savedMeals]);
 
   useEffect(() => {
@@ -394,6 +398,7 @@ export function MealLogClient({
   const skipInitialWeekFetchRef = useRef(!!initialWeekPrefetch);
 
   useEffect(() => {
+    if (isLogView) return;
     let cancelled = false;
     const ac = new AbortController();
 
@@ -484,6 +489,7 @@ export function MealLogClient({
               ranges,
               includeTiming: true,
               includeHydration: true,
+              includeMeals: true,
               timeZone,
             }),
             ...fetchOpts,
@@ -501,6 +507,7 @@ export function MealLogClient({
                 drivers?: MealDaySummary["drivers"];
                 hydrationTotalMl?: number;
                 appleHealth?: MealDaySummary["appleHealth"];
+                meals?: MealDaySummary["meals"];
               }
             | { ok: false; error?: string }
           >;
@@ -535,6 +542,7 @@ export function MealLogClient({
                 ? { hydrationTotalMl: r.hydrationTotalMl }
                 : {}),
               ...(r.appleHealth ? { appleHealth: r.appleHealth } : {}),
+              ...(r.meals ? { meals: r.meals } : {}),
             };
           }
         });
@@ -602,6 +610,7 @@ export function MealLogClient({
       ac.abort();
     };
   }, [
+    isLogView,
     rollingDateKeys,
     todayKey,
     syncTick,
@@ -696,20 +705,6 @@ export function MealLogClient({
             }
             await dequeueAnalyze(item.id);
             anySuccess = true;
-            if (parsed.mealId && parsed.totals?.kcal != null) {
-              setRecentList((prev) => {
-                const row: RecentMealItem = {
-                  id: parsed.mealId!,
-                  rawInput: item.rawInput,
-                  totalKcal: parsed.totals!.kcal!,
-                  createdAt: new Date().toISOString(),
-                };
-                return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(
-                  0,
-                  5,
-                );
-              });
-            }
             setAnalyzeQueue(await readAnalyzeQueue());
             continue;
           }
@@ -762,18 +757,20 @@ export function MealLogClient({
   }, [syncQueueState, flushAnalyzeQueue]);
 
   useEffect(() => {
+    if (!isLogView) return;
     function onOnline() {
       void flushAnalyzeQueue();
     }
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
-  }, [flushAnalyzeQueue]);
+  }, [flushAnalyzeQueue, isLogView]);
 
   useEffect(() => {
+    if (!isLogView) return;
     if (analyzeQueue.length === 0) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     void flushAnalyzeQueue();
-  }, [syncTick, analyzeQueue.length, flushAnalyzeQueue]);
+  }, [syncTick, analyzeQueue.length, flushAnalyzeQueue, isLogView]);
 
   const busy =
     loading ||
@@ -851,17 +848,6 @@ export function MealLogClient({
       setLastLoggedRaw(trimmed);
       setTodayKey((k) => k + 1);
       setSelectedDateKey(formatLocalYmd(new Date()));
-      if (parsed.mealId) {
-        setRecentList((prev) => {
-          const row: RecentMealItem = {
-            id: parsed.mealId as string,
-            rawInput: trimmed,
-            totalKcal: parsed.totals.kcal,
-            createdAt: new Date().toISOString(),
-          };
-          return [row, ...prev.filter((m) => m.id !== parsed.mealId)].slice(0, 5);
-        });
-      }
       notifyMealsChanged();
 
       // Clear inputs on successful log
@@ -947,21 +933,6 @@ export function MealLogClient({
     }));
   }
 
-  function extractTextareaIngredientQuery(value: string, caret: number): string {
-    const before = value.slice(0, Math.max(0, caret));
-    const lineStart = before.lastIndexOf("\n") + 1;
-    const currentLine = before.slice(lineStart);
-    const token = currentLine.split(",").pop()?.trim() ?? "";
-    return token;
-  }
-
-  function parseIngredientGramsFromLine(line: string): number | null {
-    const m = line.match(/(\d+(?:\.\d+)?)\s*g\b/i);
-    if (!m) return null;
-    const n = Number(m[1]);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  }
-
   function ingredientLinesFromText(value: string) {
     return value
       .split("\n")
@@ -993,42 +964,17 @@ export function MealLogClient({
 
   const derivedSelectedHints = useMemo(() => {
     const lines = ingredientLinesFromText(text);
-    if (lines.length === 0) return [];
-
     const hintList = Object.values(selectedFoodHints);
-    if (hintList.length === 0) return [];
+    if (lines.length === 0 || hintList.length === 0) return [];
 
-    const out: Array<{
-      key: string;
-      label: string;
-      labelNorm: string;
-      grams: number | null;
-      kcal: number | null;
-      hint: SelectedFoodHint;
-    }> = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i]!;
-      const normalizedLine = rawLine.toLowerCase().replace(/\s+/g, " ");
-      const grams = parseIngredientGramsFromLine(rawLine);
-
-      for (const hint of hintList) {
-        if (!normalizedLine.includes(hint.labelNorm)) continue;
-        const kcal =
-          grams != null ? (hint.kcalPer100g * grams) / 100 : null;
-        out.push({
-          key: `${i}-${hint.labelNorm}`,
-          label: hint.label,
-          labelNorm: hint.labelNorm,
-          grams,
-          kcal,
-          hint,
-        });
-        break;
-      }
-    }
-
-    return out;
+    return buildLineHintChips(
+      lines,
+      hintList.map((h) => ({
+        label: h.label,
+        labelNorm: h.labelNorm,
+        kcalPer100g: h.kcalPer100g,
+      })),
+    );
   }, [text, selectedFoodHints]);
 
   function pruneSelectedHintsForText(value: string) {
@@ -1062,8 +1008,7 @@ export function MealLogClient({
     const el = textareaRef.current;
     if (!el) return;
     if (options?.appendAsNewLine) {
-      const base = text.trimEnd();
-      const next = base ? `${base}\n${label} 100g` : `${label} 100g`;
+      const next = appendIngredientSuggestionLine(text, label);
       setText(next);
       setFreeTextQuery(label);
       setShowFreeTextSuggestions(false);
@@ -1076,23 +1021,16 @@ export function MealLogClient({
     }
     const value = text;
     const caret = el.selectionStart ?? value.length;
-    const before = value.slice(0, caret);
-    const after = value.slice(caret);
-    const lineStart = before.lastIndexOf("\n") + 1;
-    const currentLine = before.slice(lineStart);
-    const lastComma = currentLine.lastIndexOf(",");
-    const tokenStartInLine = lastComma >= 0 ? lastComma + 1 : 0;
-    const absoluteTokenStart = lineStart + tokenStartInLine;
-    const prefix = value.slice(0, absoluteTokenStart);
-    const suffix = after;
-    const spacer = prefix.endsWith(" ") || prefix.endsWith(",") ? "" : " ";
-    const next = `${prefix}${spacer}${label} 100g${suffix}`;
+    const { next, nextCaret } = applyIngredientSuggestionToValue(
+      value,
+      caret,
+      label,
+    );
 
     setText(next);
     setFreeTextQuery(label);
     setShowFreeTextSuggestions(false);
     queueMicrotask(() => {
-      const nextCaret = (prefix + spacer + label + " 100g").length;
       el.focus();
       el.setSelectionRange(nextCaret, nextCaret);
     });
@@ -1342,628 +1280,195 @@ export function MealLogClient({
   }, [showBarcodePanel]);
 
   return (
-    <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6">
-      <motion.header 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="flex flex-col gap-6">
-          {/* Top Progress Bar for Selected Date */}
-          <WeekCalorieStrip
-            dateKeys={rollingDateKeys}
-            selectedDateKey={selectedDateKey}
-            onSelectDateKey={setSelectedDateKey}
-            dailyTargetKcal={dailyTargetKcal}
-            dailyTargetHydrationMl={dailyTargetHydrationMl}
-            unitSystem={unitSystem}
-            summariesByKey={summariesByKey}
-            batchLoading={weekBatchLoading}
-          />
-
-          <div className="my-2 h-px w-full bg-gradient-to-r from-transparent via-black/10 to-transparent" />
-          
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-            {/* Primary Metrics & Action Column */}
-            <div className="lg:col-span-8 space-y-8">
-              <DaySummaryCard
-                dateKey={selectedDateKey}
-                dailyTargetKcal={dailyTargetKcal}
-                dailyTargetProteinG={dailyTargetProteinG}
-                loading={weekBatchLoading}
-                batchError={weekBatchError}
-                summary={summariesByKey[selectedDateKey]}
-              />
-
-              <HydrationCard
-                dateKey={selectedDateKey}
-                unitSystem={unitSystem}
-                key={`hydration-${selectedDateKey}`}
-              />
-
-              {/* Injected Log Meal Section for Balance */}
-              <motion.div 
-                layout
-                className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/90 p-1 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.55)]"
-              >
-                <div className="p-4 sm:p-6 lg:p-8">
-                  <div className="mb-6 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eaf7df] text-[#4f9d45]">
-                        <Plus className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <h2 className="font-mono text-xl font-black tracking-tight text-[#171412]">Log Meal</h2>
-                        <p className="text-xs font-semibold text-zinc-500">
-                          Free text or Build (rows)
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 rounded-2xl bg-[#f2eadb] p-1">
-                      <button
-                        onClick={() => switchInputMode("free")}
-                        className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
-                          logInputMode === "free" ? "bg-[#171412] text-white shadow-xl" : "text-zinc-500 hover:text-[#171412]"
-                        }`}
-                      >
-                        <Keyboard className="h-3.5 w-3.5" />
-                        Free
-                      </button>
-                      <button
-                        onClick={() => switchInputMode("composer")}
-                        className={`focus-ring tap-target flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors duration-200 ${
-                          logInputMode === "composer" ? "bg-[#171412] text-white shadow-xl" : "text-zinc-500 hover:text-[#171412]"
-                        }`}
-                      >
-                        <LayoutGrid className="h-3.5 w-3.5" />
-                        Build
-                      </button>
-                    </div>
-                  </div>
-
-                  <form onSubmit={onSubmit} className="flex flex-col gap-6">
-                    <div className="relative">
-                      {logInputMode === "free" ? (
-                        <div className="relative">
-                          <textarea
-                            ref={textareaRef}
-                            value={text}
-                            onChange={(e) =>
-                              onFreeTextChange(
-                                e.target.value,
-                                e.target.selectionStart ?? e.target.value.length,
-                              )
-                            }
-                            onFocus={() =>
-                              {
-                                const el = textareaRef.current;
-                                const caret = el?.selectionStart ?? text.length;
-                                updateFreeTextSuggestionAnchor(caret);
-                                setShowFreeTextSuggestions(
-                                  freeTextQuery.trim().length >= 2,
-                                );
-                              }
-                            }
-                            onClick={(e) =>
-                              updateFreeTextSuggestionAnchor(
-                                e.currentTarget.selectionStart ??
-                                  e.currentTarget.value.length,
-                              )
-                            }
-                            onKeyUp={(e) =>
-                              updateFreeTextSuggestionAnchor(
-                                e.currentTarget.selectionStart ??
-                                  e.currentTarget.value.length,
-                              )
-                            }
-                            onBlur={() => {
-                              setTimeout(() => setShowFreeTextSuggestions(false), 120);
-                            }}
-                            rows={4}
-                            placeholder="Describe your meal... e.g., '2 eggs with spinach and a piece of toast'"
-                            className={`w-full resize-none rounded-3xl border border-black/10 bg-[#fffdf7] px-6 py-5 text-lg leading-relaxed text-[#171412] placeholder:text-zinc-400 focus:border-[#4f9d45]/60 focus:outline-none focus:ring-4 focus:ring-[#4f9d45]/15 ${derivedSelectedHints.length > 0 ? "md:pr-52" : ""}`}
-                          />
-                          {derivedSelectedHints.length > 0 ? (
-                            <div className="pointer-events-none absolute right-3 top-3 hidden max-w-[10.5rem] flex-col gap-1.5 md:flex">
-                              {derivedSelectedHints.slice(0, 5).map((row) => (
-                                  <div
-                                    key={`side-${row.key}`}
-                                    className="truncate rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-right text-[10px] font-bold text-[#356d30]"
-                                  >
-                                    {row.grams != null && row.kcal != null
-                                      ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
-                                      : "Add grams (e.g. 80g)"}
-                                  </div>
-                                ))}
-                            </div>
-                          ) : null}
-                          {derivedSelectedHints.length > 0 ? (
-                            <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
-                              {derivedSelectedHints.slice(0, 5).map((row) => (
-                                <div
-                                  key={`mobile-side-${row.key}`}
-                                  className="rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-[10px] font-bold text-[#356d30]"
-                                >
-                                  {row.grams != null && row.kcal != null
-                                    ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
-                                    : "Add grams (e.g. 80g)"}
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                          {showFreeTextSuggestions &&
-                          freeTextSuggestions.length > 0 ? (
-                            <ul
-                              className="absolute z-40 max-h-56 w-[min(18rem,calc(100%-1.5rem))] overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]"
-                              style={{
-                                left: `${freeTextSuggestionAnchor.left}px`,
-                                top: `${freeTextSuggestionAnchor.top}px`,
-                              }}
-                            >
-                              {freeTextSuggestions
-                                .filter(
-                                  (item): item is UsdaSuggestionItem =>
-                                    !!item &&
-                                    typeof item.label === "string" &&
-                                    item.label.length > 0,
-                                )
-                                .map((item, index) => (
-                                <li
-                                  key={
-                                    item.source === "prepared" &&
-                                    item.preparedMealId
-                                      ? `free-prepared-${item.preparedMealId}`
-                                      : `free-usda-${item.fdcId}-${item.label}-${index}`
-                                  }
-                                >
-                                  <button
-                                    type="button"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      applyFreeTextSuggestionItem(item);
-                                    }}
-                                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f7f3e9]"
-                                  >
-                                    <span className="flex items-center justify-between gap-3">
-                                      <span className="flex min-w-0 items-center gap-2">
-                                        {item.source === "prepared" ? (
-                                          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-violet-800">
-                                            Prepared
-                                          </span>
-                                        ) : null}
-                                        <span className="truncate">{item.label}</span>
-                                      </span>
-                                      {item.kcalPer100g != null ? (
-                                        <span className="shrink-0 text-[11px] font-bold text-[#4f9d45]">
-                                          {Math.round(item.kcalPer100g)} kcal
-                                        </span>
-                                      ) : null}
-                                    </span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <MealItemComposer
-                          rows={composerRows}
-                          onChange={setComposerRows}
-                          onSuggestionPicked={rememberSelectedFoodHint}
-                          disabled={busy}
-                        />
-                      )}
-                      
-                      {/* Visual Feedback Line */}
-                      <div className="absolute bottom-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-[#4f9d45]/30 to-transparent" />
-                    </div>
-
-                    <div className="flex flex-col gap-6">
-                      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <AnimatePresence>
-                          {lastLoggedRaw && (
-                            <motion.button
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.9 }}
-                              type="button"
-                              onClick={() => logAgain(lastLoggedRaw)}
-                              className="focus-ring tap-target flex items-center gap-2 rounded-2xl bg-[#171412] px-4 py-2 text-xs font-bold text-white transition-colors duration-200 hover:bg-black"
-                            >
-                              <HistoryIcon className="h-3.5 w-3.5" />
-                              Repeat Last
-                            </motion.button>
-                          )}
-                        </AnimatePresence>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = !showBarcodePanel;
-                            setShowBarcodePanel(next);
-                            setBarcodeError(null);
-                            if (next) {
-                              if (!isMobileDevice) {
-                                stopBarcodeScanner();
-                              }
-                            } else {
-                              stopBarcodeScanner();
-                            }
-                          }}
-                          className="focus-ring tap-target flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-2 text-xs font-bold text-zinc-600 transition-colors duration-200 hover:border-[#4f9d45]/30 hover:bg-[#f2f8ec] hover:text-[#171412]"
-                        >
-                          <ScanLine className="h-3.5 w-3.5" />
-                          Barcode
-                        </button>
-                        
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <button
-                          type="submit"
-                          disabled={loading || !effectiveMealRaw.trim()}
-                          className="btn-primary min-w-[160px]"
-                        >
-                          {loading ? (
-                            <div className="flex items-center gap-2">
-                              <Zap className="h-4 w-4 animate-pulse" />
-                              Analyzing...
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4" />
-                              Log Meal
-                            </div>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    </div>
-                    {showBarcodePanel ? (
-                      <div className="fixed inset-0 z-[120] bg-black">
-                        <video
-                          ref={barcodeVideoRef}
-                          className="h-full w-full object-cover"
-                          playsInline
-                          muted
-                        />
-                        {!barcodeScanning ? (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/55 text-sm font-semibold text-white/90">
-                            Preparing camera...
-                          </div>
-                        ) : null}
-
-                        <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/75 to-transparent p-4">
-                          <p className="text-xs font-black uppercase tracking-[0.14em] text-white/90">
-                            Barcode scanner
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              stopBarcodeScanner();
-                              setShowBarcodePanel(false);
-                            }}
-                            className="focus-ring rounded-full border border-white/30 bg-black/45 p-2 text-white hover:bg-black/65"
-                            aria-label="Close barcode panel"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-
-                        <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/85 via-black/65 to-transparent p-4 pb-5">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={barcodeValue}
-                              onChange={(e) => setBarcodeValue(e.target.value)}
-                              placeholder="Enter barcode digits"
-                              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-black/45 px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => void lookupBarcode(barcodeValue)}
-                              disabled={barcodeBusy || barcodeValue.trim().length < 6}
-                              className="focus-ring tap-target rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/30 disabled:opacity-40"
-                            >
-                              {barcodeBusy ? "Looking up..." : "Use barcode"}
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              barcodeScanning
-                                ? stopBarcodeScanner()
-                                : void startBarcodeScanner()
-                            }
-                            className="focus-ring tap-target inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/30"
-                          >
-                            <Camera className="h-3.5 w-3.5" />
-                            {barcodeScanning ? "Stop camera" : "Scan with camera"}
-                          </button>
-                          {barcodeError ? (
-                            <p className="text-xs font-semibold text-red-200">
-                              {barcodeError}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </form>
-                </div>
-              </motion.div>
-
-              {/* Inline Analysis Results */}
-              <AnimatePresence mode="wait">
-                {result && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="relative overflow-hidden rounded-[2rem] border border-black/10 bg-white/90 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.55)] sm:p-6 lg:p-8">
-                      <div className="mb-6 flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#4f9d45] text-white shadow-[0_14px_30px_-18px_rgba(79,157,69,0.85)]">
-                            <Sparkles className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <p className="mb-1 text-[10px] font-black uppercase tracking-[0.28em] text-[#356d30]">
-                              AI meal receipt
-                            </p>
-                            <h3 className="font-mono text-2xl font-black tracking-tight text-[#171412]">Latest Analysis</h3>
-                            <p className="mt-1 text-xs font-medium text-zinc-600">Estimated from your last log.</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setResult(null)}
-                          className="focus-ring tap-target rounded-full bg-white/70 p-2 text-zinc-500 transition-colors hover:bg-white hover:text-[#171412]"
-                          title="Clear result"
-                        >
-                          <Plus className="h-5 w-5 rotate-45" />
-                        </button>
-                      </div>
-
-                      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                        <div className="rounded-[1.5rem] border border-black/10 bg-[#fffdf7] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Calories</p>
-                          <p className="mt-2 font-mono text-4xl font-black leading-none text-[#171412]">{Math.round(result.totals.kcal)}<span className="ml-1 text-xs font-black uppercase text-zinc-500">kcal</span></p>
-                        </div>
-                        <div className="rounded-[1.5rem] border border-[#4f9d45]/20 bg-[#eaf7df] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-[#356d30]">Protein</p>
-                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.protein_g}<span className="ml-1 text-xs font-black text-[#356d30]">g</span></p>
-                        </div>
-                        <div className="rounded-[1.5rem] border border-sky-500/20 bg-[#dff1ff] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-sky-900/70">Carbs</p>
-                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.carbs_g}<span className="ml-1 text-xs font-black text-sky-800">g</span></p>
-                        </div>
-                        <div className="rounded-[1.5rem] border border-black/10 bg-[#f7f3e9] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-wider text-[#6d6251]">Fat</p>
-                          <p className="mt-2 font-mono text-3xl font-black text-[#171412]">{result.totals.fat_g}<span className="ml-1 text-xs font-black text-[#6d6251]">g</span></p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-8 md:grid-cols-[1.45fr_0.85fr]">
-                        <div>
-                          <p className="mb-4 px-1 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Ingredient lines</p>
-                          <div className="space-y-3">
-                            {result.lines.map((line, i) => (
-                              <div
-                                key={i}
-                                className="rounded-2xl border border-black/10 bg-white/70 p-4 transition-colors hover:bg-white"
-                              >
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-sm font-black text-[#171412]">
-                                      {line.label}
-                                    </p>
-                                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
-                                      {line.quantity} {line.unit}
-                                    </p>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-1.5 self-start rounded-full bg-[#eaf7df] px-2 py-1 text-[#356d30] sm:self-center">
-                                    <div className="h-1.5 w-1.5 rounded-full bg-[#4f9d45]" />
-                                    <p className="text-[9px] font-black uppercase tracking-widest">
-                                      {line.source}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                  <div className="rounded-xl bg-[#f7f3e9] px-3 py-2">
-                                    <p className="text-[9px] font-black uppercase tracking-wide text-zinc-500">
-                                      kcal
-                                    </p>
-                                    <p className="font-mono text-sm font-black text-[#171412]">
-                                      {formatLineNutrient(line.kcal)}
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl bg-[#eaf7df] px-3 py-2">
-                                    <p className="text-[9px] font-black uppercase tracking-wide text-[#356d30]/75">
-                                      protein
-                                    </p>
-                                    <p className="font-mono text-sm font-black text-[#171412]">
-                                      {formatLineNutrient(line.protein_g)}
-                                      <span className="text-[10px] font-semibold text-[#356d30]">
-                                        g
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl bg-[#dff1ff] px-3 py-2">
-                                    <p className="text-[9px] font-black uppercase tracking-wide text-sky-900/65">
-                                      carbs
-                                    </p>
-                                    <p className="font-mono text-sm font-black text-[#171412]">
-                                      {formatLineNutrient(line.carbs_g)}
-                                      <span className="text-[10px] font-semibold text-sky-800">
-                                        g
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div className="rounded-xl bg-[#f7f3e9] px-3 py-2">
-                                    <p className="text-[9px] font-black uppercase tracking-wide text-[#6d6251]">
-                                      fat
-                                    </p>
-                                    <p className="font-mono text-sm font-black text-[#171412]">
-                                      {formatLineNutrient(line.fat_g)}
-                                      <span className="text-[10px] font-semibold text-[#6d6251]">
-                                        g
-                                      </span>
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-black/10 pt-3">
-                                  <div>
-                                    <p className="text-[9px] font-black uppercase text-zinc-500">
-                                      fiber
-                                    </p>
-                                    <p className="font-mono text-xs font-black text-[#356d30]">
-                                      {line.fiber_g != null
-                                        ? `${formatLineNutrient(line.fiber_g)}`
-                                        : "—"}
-                                      {line.fiber_g != null ? (
-                                        <span className="text-[10px] text-zinc-500">g</span>
-                                      ) : null}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[9px] font-black uppercase text-zinc-500">
-                                      sodium
-                                    </p>
-                                    <p className="font-mono text-xs font-black text-[#171412]">
-                                      {line.sodium_mg != null && line.sodium_mg > 0
-                                        ? `${Math.round(line.sodium_mg)} mg`
-                                        : "—"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-[9px] font-black uppercase text-zinc-500">
-                                      sugar
-                                    </p>
-                                    <p className="font-mono text-xs font-black text-zinc-600">
-                                      {line.sugar_g != null
-                                        ? `${formatLineNutrient(line.sugar_g)}`
-                                        : "—"}
-                                      {line.sugar_g != null ? (
-                                        <span className="text-[10px] text-zinc-500">g</span>
-                                      ) : null}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="mb-4 px-1 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Extra nutrients</p>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between rounded-2xl border border-[#4f9d45]/15 bg-white/65 p-4">
-                              <span className="text-xs font-black text-zinc-600">Fiber</span>
-                              <p className="font-mono text-sm font-black text-[#356d30]">{result.totals.fiber_g ?? 0}<span className="ml-0.5 text-[10px] font-bold">g</span></p>
-                            </div>
-                            <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-white/65 p-4">
-                              <span className="text-xs font-black text-zinc-600">Sodium</span>
-                              <p className="font-mono text-sm font-black text-[#171412]">{Math.round(result.totals.sodium_mg ?? 0)}<span className="ml-0.5 text-[10px] font-bold uppercase">mg</span></p>
-                            </div>
-                            <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-500/20 bg-white/65 p-4">
-                              <span className="text-xs font-black text-zinc-600">Sugars</span>
-                              <div className="text-right">
-                                <p className="font-mono text-sm font-black text-[#171412]">
-                                  {result.totals.sugar_g ?? 0}
-                                  <span className="ml-0.5 text-[10px] font-bold text-zinc-500">g total</span>
-                                </p>
-                                {result.totals.added_sugar_g != null ? (
-                                  <p className="mt-0.5 text-[10px] font-bold text-[#6d6251]">
-                                    ~{Math.round(result.totals.added_sugar_g)} g added
-                                  </p>
-                                ) : null}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {result.assumptions && result.assumptions.length > 0 && (
-                            <div className="mt-6 rounded-2xl border border-black/10 bg-[#f7f3e9] p-4">
-                              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-[#6d6251]">Analysis Assumptions</p>
-                              <ul className="space-y-1.5 [&_li]:font-medium [&_li]:text-[#6d6251]">
-                                {result.assumptions.map((a, i) => (
-                                  <li key={i} className="text-[10px] leading-relaxed text-amber-200/50">• {a}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+    <motion.div
+      className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 pb-24 pt-6 sm:px-6"
+    >
+      {isLogView ? (
+        <header className="mb-5 flex flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#356d30]">
+                Meal logger
+              </p>
+              <h1 className="font-mono text-3xl font-black tracking-tight text-[#171412] sm:text-4xl">
+                Log meal
+              </h1>
             </div>
-            
-            <div className="lg:col-span-4 space-y-6">
-              <WeightLogCard
-                unitSystem={unitSystem}
-                weightTrendOnHomeEnabled={weightTrendOnHomeEnabled}
-                key={`weight-${todayKey}`}
-              />
-              <AdaptiveTargetCard key={`adaptive-${todayKey}`} />
-              <WeekInsightsCard
-                dailyTargetKcal={dailyTargetKcal}
-                dailyTargetProteinG={dailyTargetProteinG}
-                weeklyCoachingFocus={weeklyCoachingFocus}
-                weeklyImplementationIntention={weeklyImplementationIntention}
-                loading={weekBatchLoading}
-                batchError={weekBatchError}
-                data={weekInsightData}
-              />
-            </div>
+            {logDateLabel ? (
+              <span className="rounded-full border border-[#4f9d45]/25 bg-[#eaf7df] px-3 py-1 text-xs font-bold text-[#356d30]">
+                {logDateLabel}
+              </span>
+            ) : null}
           </div>
-        </div>
-      </motion.header>
+          <p className="max-w-2xl text-sm font-medium text-zinc-600">
+            Log meals and fluids for this day. Describe food, build rows, scan a barcode, or track water in the hydration panel.
+          </p>
+        </header>
+      ) : null}
 
+      {!isLogView ? (
+        <TodayDashboard
+          selectedDateKey={selectedDateKey}
+          onSelectDateKey={setSelectedDateKey}
+          rollingDateKeys={rollingDateKeys}
+          summariesByKey={summariesByKey}
+          weekBatchLoading={weekBatchLoading}
+          weekBatchError={weekBatchError}
+          dailyTargetKcal={dailyTargetKcal}
+          dailyTargetProteinG={dailyTargetProteinG}
+          dailyTargetHydrationMl={dailyTargetHydrationMl}
+          unitSystem={unitSystem}
+          weightTrendOnHomeEnabled={weightTrendOnHomeEnabled}
+          weightCardKey={todayKey}
+          weeklyCoachingFocus={weeklyCoachingFocus}
+          weeklyImplementationIntention={weeklyImplementationIntention}
+          weekInsightData={weekInsightData}
+        />
+      ) : null}
 
-      {/* Analysis Error / Queue Alerts */}
       <AnimatePresence>
         {analyzeQueue.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="mb-8 flex items-center justify-between rounded-3xl border border-sky-500/20 bg-sky-500/10 p-4 text-sky-700"
+            role="status"
+            aria-live="polite"
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="mb-5 flex items-center justify-between rounded-3xl border border-sky-500/20 bg-sky-500/10 p-4 text-sky-700"
           >
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
               <div>
-                <p className="text-sm font-bold">{analyzeQueue.length} meal{analyzeQueue.length > 1 ? 's' : ''} queued offline</p>
-                <p className="text-xs opacity-70">Will sync automatically when connection restores.</p>
+                <p className="text-sm font-bold">
+                  {analyzeQueue.length} meal
+                  {analyzeQueue.length > 1 ? "s" : ""} queued offline
+                </p>
+                <p className="text-xs opacity-70">
+                  Will sync when connection restores.
+                </p>
               </div>
             </div>
-            <button 
-              onClick={() => void flushAnalyzeQueue()}
-              className="text-xs font-bold underline decoration-blue-500/20 underline-offset-4"
-            >
-              Sync Now
-            </button>
+            {isLogView ? (
+              <button
+                type="button"
+                onClick={() => void flushAnalyzeQueue()}
+                className="focus-ring cursor-pointer text-xs font-bold underline decoration-sky-500/30 underline-offset-4"
+              >
+                Sync now
+              </button>
+            ) : (
+              <Link
+                href="/log"
+                className="focus-ring cursor-pointer text-xs font-bold underline decoration-sky-500/30 underline-offset-4"
+              >
+                Open logger
+              </Link>
+            )}
           </motion.div>
         )}
 
-        {error && (
+        {error ? (
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="mb-8 flex items-center gap-3 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-red-600"
+            role="alert"
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="mb-5 flex items-center gap-3 rounded-3xl border border-red-500/20 bg-red-500/10 p-4 text-red-600"
           >
-            <AlertCircle className="h-5 w-5 shrink-0" />
+            <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
             <p className="text-sm font-medium">{error}</p>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      <p className="mt-12 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
-        Engineered for precision • v1.0
+      {isLogView ? (
+        <div
+          className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start lg:gap-8"
+          aria-label="Log meals and hydration"
+        >
+          <div className="min-w-0 space-y-5 lg:col-span-7">
+            <LogMealView
+              logInputMode={logInputMode}
+              onSwitchInputMode={switchInputMode}
+              text={text}
+              onFreeTextChange={onFreeTextChange}
+              onFreeTextFocus={() => {
+                const el = textareaRef.current;
+                const caret = el?.selectionStart ?? text.length;
+                updateFreeTextSuggestionAnchor(caret);
+                setShowFreeTextSuggestions(freeTextQuery.trim().length >= 2);
+              }}
+              onFreeTextBlur={() => {
+                setTimeout(() => setShowFreeTextSuggestions(false), 120);
+              }}
+              textareaRef={textareaRef}
+              composerRows={composerRows}
+              onComposerRowsChange={setComposerRows}
+              onSuggestionPicked={rememberSelectedFoodHint}
+              busy={busy}
+              loading={loading}
+              canSubmit={!!effectiveMealRaw.trim()}
+              onSubmit={onSubmit}
+              hintChips={derivedSelectedHints}
+              freeTextSuggestions={freeTextSuggestions}
+              showFreeTextSuggestions={showFreeTextSuggestions}
+              freeTextSuggestionAnchor={freeTextSuggestionAnchor}
+              onPickSuggestion={applyFreeTextSuggestionItem}
+              lastLoggedRaw={lastLoggedRaw}
+              onLogAgain={logAgain}
+              showBarcodePanel={showBarcodePanel}
+              onToggleBarcodePanel={() => {
+                const next = !showBarcodePanel;
+                setShowBarcodePanel(next);
+                setBarcodeError(null);
+                if (next) {
+                  if (!isMobileDevice) {
+                    stopBarcodeScanner();
+                  }
+                } else {
+                  stopBarcodeScanner();
+                }
+              }}
+              barcodeVideoRef={barcodeVideoRef}
+              barcodeScanning={barcodeScanning}
+              barcodeValue={barcodeValue}
+              onBarcodeValueChange={setBarcodeValue}
+              barcodeBusy={barcodeBusy}
+              barcodeError={barcodeError}
+              onLookupBarcode={(value) => void lookupBarcode(value)}
+              onCloseBarcodePanel={() => {
+                stopBarcodeScanner();
+                setShowBarcodePanel(false);
+              }}
+              onToggleBarcodeScanner={() =>
+                barcodeScanning
+                  ? stopBarcodeScanner()
+                  : void startBarcodeScanner()
+              }
+              result={result}
+              onClearResult={() => setResult(null)}
+            />
+          </div>
+
+          <aside
+            aria-label="Hydration"
+            className="min-w-0 lg:col-span-5 lg:sticky lg:top-20"
+          >
+            <HydrationCard
+              dateKey={activeLogDateKey}
+              unitSystem={unitSystem}
+              key={`log-hydration-${activeLogDateKey}`}
+            />
+          </aside>
+        </div>
+      ) : null}
+
+
+      <p className="mt-12 text-center text-[10px] font-medium text-zinc-400">
+        TrackOMacro
       </p>
-    </div>
+    </motion.div>
   );
 }

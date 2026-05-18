@@ -27,7 +27,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/login") || pathname.startsWith("/signup");
 
   const isPublicInfoPage =
-    pathname === "/privacy" || pathname.startsWith("/resources/");
+    pathname === "/" ||
+    pathname === "/privacy" ||
+    pathname.startsWith("/resources/");
 
   const isPublicApi =
     pathname.startsWith("/api/auth") ||
@@ -49,7 +51,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();

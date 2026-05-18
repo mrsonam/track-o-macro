@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "TrackOMacro",
     description:
       "Log meals in plain language and estimate calories with USDA-backed nutrition data.",
-    start_url: "/",
+    start_url: "/dashboard",
     scope: "/",
     display: "standalone",
     display_override: ["standalone", "browser"],
@@ -40,7 +40,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Log meal",
         short_name: "Log",
         description: "Describe what you ate",
-        url: "/",
+        url: "/dashboard",
         icons: [
           { src: "/icon-192x192.svg", sizes: "192x192", type: "image/svg+xml" },
         ],

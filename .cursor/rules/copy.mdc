@@ -1,0 +1,26 @@
+---
+description: User-facing copy — no dash punctuation
+alwaysApply: true
+---
+
+When writing or editing **user-facing text** (UI, errors, onboarding, marketing, help), follow `PRODUCT.md` → **Copy and punctuation**.
+
+## Banned in user-facing strings
+
+- Em dashes (—)
+- En dashes (–) as punctuation or ranges
+- Double hyphens (`--`) as dash substitutes
+
+## Use instead
+
+- Commas, colons, periods, or parentheses between ideas
+- The word **to** for ranges (`13 to 120`, `3 to 4 oz`)
+- **N/A** for missing numeric or time values (not `—`)
+
+## Allowed
+
+- Hyphens inside standard compound words (`USDA-backed`, `sign-in`, `If-then`, `Mifflin-St Jeor`)
+
+## Before shipping copy
+
+Search changed files for `—`, `–`, and ` -- ` in strings shown to users. Refactor before commit.

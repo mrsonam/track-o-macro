@@ -1,30 +1,47 @@
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
+import { AuthNav, type AuthNavVariant } from "@/components/auth/auth-nav";
 
 type AuthShellProps = {
   children: ReactNode;
-  /** Default `md` (28rem); onboarding uses `lg`. */
-  size?: "md" | "lg";
+  size?: "md" | "lg" | "split";
+  /** Accessible name for the auth landmark (e.g. "Sign in", "Create account"). */
+  title: string;
+  /** Which auth page — drives navbar alternate action. */
+  nav: AuthNavVariant;
+  /** Optional left column (signup value prop). */
+  aside?: ReactNode;
 };
 
-export function AuthShell({ children, size = "md" }: AuthShellProps) {
-  const max = size === "lg" ? "max-w-xl" : "max-w-md";
-  
+const maxWidth = {
+  md: "max-w-md",
+  lg: "max-w-xl",
+  split: "max-w-7xl",
+} as const;
+
+export function AuthShell({ children, size = "md", title, nav, aside }: AuthShellProps) {
+  const max = maxWidth[size];
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className={`w-full ${max} relative`}
+    <div className="fresh-shell flex min-h-dvh flex-col">
+      <AuthNav variant={nav} />
+      <main
+        id="main"
+        aria-label={title}
+        className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:py-12"
       >
-        <div className="absolute -inset-1 rounded-[2.5rem] bg-gradient-to-br from-[#4f9d45]/15 to-sky-500/10 opacity-45 blur-2xl" />
-        
-        <div className="bento-card relative overflow-visible border-black/[0.08] bg-white/88 p-8 shadow-2xl backdrop-blur-3xl sm:p-12">
-          <div className="absolute left-1/2 top-0 h-[2px] w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-[#4f9d45]/60 to-transparent" />
-          {children}
+        <div className={`w-full ${max}`}>
+          {aside ? (
+            <div className="grid items-stretch gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,34rem)]">
+              {aside}
+              <div className="bento-card border-black/[0.08] bg-white/95 p-6 sm:p-8 lg:p-10">
+                {children}
+              </div>
+            </div>
+          ) : (
+            <div className="bento-card border-black/[0.08] bg-white/95 p-8 sm:p-12">{children}</div>
+          )}
         </div>
-      </motion.div>
+      </main>
     </div>
   );
 }

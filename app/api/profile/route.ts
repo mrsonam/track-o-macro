@@ -164,7 +164,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json(
         {
           error:
-            "Missing height, weight, age, sex, activity, or goal — cannot compute calorie target.",
+            "Missing height, weight, age, sex, activity, or goal. Cannot compute calorie target.",
         },
         { status: 400 },
       );

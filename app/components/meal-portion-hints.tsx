@@ -19,7 +19,7 @@ export function MealPortionHints() {
       </summary>
       
       <p className="mt-4 max-w-sm text-[11px] font-medium leading-relaxed text-zinc-500">
-        Rough averages for logging — not label-accurate. Use a scale when you need
+        Rough averages for logging, not label-accurate. Use a scale when you need
         exact grams.
       </p>
 

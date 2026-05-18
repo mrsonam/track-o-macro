@@ -49,7 +49,7 @@ export function explainTheDayLines(input: ExplainInput): string[] {
       );
     } else if (pct < 75) {
       lines.push(
-        `Protein was under your usual ${Math.round(pt)} g guide (${Math.round(p)} g) — easy to adjust another day.`,
+        `Protein was under your usual ${Math.round(pt)} g guide (${Math.round(p)} g). Easy to adjust another day.`,
       );
     } else if (pct > 128) {
       lines.push(
@@ -61,7 +61,7 @@ export function explainTheDayLines(input: ExplainInput): string[] {
   const fiber = summary.totals.fiber_g ?? 0;
   if (fiber > 0 && fiber < 18) {
     lines.push(
-      `Fiber from logged items was modest (${Math.round(fiber)} g) — whole grains or veg can lift it when you want.`,
+      `Fiber from logged items was modest (${Math.round(fiber)} g). Whole grains or veg can lift it when you want.`,
     );
   } else if (fiber >= 28) {
     lines.push(

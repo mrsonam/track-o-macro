@@ -1,6 +1,6 @@
 /**
  * Plain-language wins / friction for the rolling week recap (Epic 5).
- * Heuristics only—not medical advice.
+ * Heuristics only, not medical advice.
  */
 
 export type WeeklyRecapInput = {
@@ -40,11 +40,11 @@ export function weeklyRecapLines(input: WeeklyRecapInput): {
   const ratio = daysInWindow > 0 ? daysWithLogs / daysInWindow : 0;
   if (ratio >= 0.85) {
     wins.push(
-      `${daysWithLogs} of ${daysInWindow} days had a log—solid visibility without needing a perfect streak.`,
+      `${daysWithLogs} of ${daysInWindow} days had a log. Solid visibility without needing a perfect streak.`,
     );
   } else if (daysWithLogs >= 4) {
     wins.push(
-      `${daysWithLogs} logging days this week—enough signal to notice patterns.`,
+      `${daysWithLogs} logging days this week. Enough signal to notice patterns.`,
     );
   }
 
@@ -54,14 +54,14 @@ export function weeklyRecapLines(input: WeeklyRecapInput): {
       wins.push("Average calories landed close to your daily target.");
     } else if (avgKcalPerDay > dailyTargetKcal * 1.14) {
       friction.push(
-        "Calories averaged above your goal on most days—small steady swaps often beat a full restart.",
+        "Calories averaged above your goal on most days. Small steady swaps often beat a full restart.",
       );
     } else if (
       avgKcalPerDay < dailyTargetKcal * 0.75 &&
       daysWithLogs >= 3
     ) {
       friction.push(
-        "Calories averaged under your goal—check that lined up with how you felt and what you intended.",
+        "Calories averaged under your goal. Check that lined up with how you felt and what you intended.",
       );
     }
   }
@@ -71,7 +71,7 @@ export function weeklyRecapLines(input: WeeklyRecapInput): {
       wins.push("Protein averaged near your daily goal.");
     } else if (avgProteinGPerDay < dailyTargetProteinG * 0.68) {
       friction.push(
-        "Protein averaged under your goal—earlier-in-the-day sources are usually easier to keep than late catch-ups.",
+        "Protein averaged under your goal. Earlier-in-the-day sources are usually easier to keep than late catch-ups.",
       );
     }
   }
@@ -83,13 +83,13 @@ export function weeklyRecapLines(input: WeeklyRecapInput): {
     weekendAvgKcal > weekdayAvgKcal + 220
   ) {
     friction.push(
-      "Weekend days ran higher in calories than weekdays—fine if that was the plan; worth noticing if it was not.",
+      "Weekend days ran higher in calories than weekdays. Fine if that was the plan; worth noticing if it was not.",
     );
   }
 
   if (daysWithLogs > 0 && daysWithLogs < 4) {
     friction.push(
-      "Logging showed up on fewer days—when you want more rhythm, one regular meal slot you actually log can help.",
+      "Logging showed up on fewer days. When you want more rhythm, one regular meal slot you actually log can help.",
     );
   }
 

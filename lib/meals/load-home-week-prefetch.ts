@@ -34,6 +34,7 @@ export async function loadHomeWeekPrefetch(
     const { results } = await mealSummaryBatchForUser(userId, ranges, {
       includeTiming: true,
       includeHydration: true,
+      includeMeals: true,
       timeZone,
     });
 
@@ -53,6 +54,7 @@ export async function loadHomeWeekPrefetch(
           ? { hydrationTotalMl: r.hydrationTotalMl }
           : {}),
         ...(r.appleHealth ? { appleHealth: r.appleHealth } : {}),
+        ...(r.meals ? { meals: r.meals } : {}),
       };
     });
 

@@ -42,7 +42,34 @@ Create a `.env` file in the project root (never commit real secrets). Use placeh
 | `AVOCAVO_API_KEY`       | Avocavo API for USDA-linked ingredient resolution.                                                               |
 | `FATSECRET_CLIENT_ID`   | FatSecret Platform OAuth2 client id ([docs](https://platform.fatsecret.com/docs/guides)).                      |
 | `FATSECRET_CLIENT_SECRET` | FatSecret Platform OAuth2 client secret ([docs](https://platform.fatsecret.com/docs/guides)).                |
+| `FATSECRET_HTTP_PROXY`  | Optional static-IP HTTP proxy URL for FatSecret calls only (required on Vercel when IP restrictions are on). |
 | `OPENAI_API_KEY`        | Optional: OpenAI path for parsing / resolution; behavior is gated in code when this is set.                    |
+
+
+#### FatSecret IP whitelist (proxy setup)
+
+FatSecret blocks API calls unless the **server outbound IP** is on your allow list (up to 15 IPs; changes can take **24 hours**). Your app already acts as a proxy: the PWA calls `/api/nutrition/usda-search` and `/api/meals/analyze`; only `lib/nutrition/fatsecret.ts` talks to FatSecret. **Never** put client id/secret in the browser.
+
+**On Vercel (recommended path):** serverless egress IPs are not stable, so use a static-IP HTTP proxy:
+
+1. Create a FatSecret Platform app and enable **IP restrictions** under API Keys.
+2. Sign up for a static egress proxy (e.g. [Fixie](https://usefixie.com/), QuotaGuard Static, or similar).
+3. Set the proxy URL in `.env` and Vercel. Use `FATSECRET_HTTP_PROXY`, or the provider default (`FIXIE_URL` for Fixie, `QUOTAGUARDSTATIC_URL` for QuotaGuard). Restart `npm run dev` after editing env.
+4. Set `FATSECRET_CLIENT_ID` and `FATSECRET_CLIENT_SECRET` in `.env` and Vercel.
+5. Discover the IP to whitelist:
+
+   ```bash
+   npm run fatsecret:egress-check
+   ```
+
+   Or, when deployed and logged in: `GET /api/internal/fatsecret-egress` (returns JSON with `outboundIp`).
+
+6. Add that IP in FatSecret → API Keys → IP restrictions. Wait up to 24h.
+7. Redeploy Vercel so production uses the proxy env vars. Test food search in the app.
+
+**On a VPS / Fly.io / Railway with a fixed IPv4:** deploy the app there, run `npm run fatsecret:egress-check` on that host (no proxy needed), whitelist that IP, and set only the FatSecret credentials in env.
+
+**Local dev:** either use the same `FATSECRET_HTTP_PROXY` as production, or temporarily whitelist your home IP (uses one of the 15 slots).
 
 
 #### Optional tuning

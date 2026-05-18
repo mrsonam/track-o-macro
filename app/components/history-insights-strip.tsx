@@ -4,14 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { rolling7WindowBoundsIso, rolling14WindowBoundsIso } from "@/lib/meals/local-date";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
-import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
-import { Info, AlertCircle, Zap, TrendingUp } from "lucide-react";
+import { Info, AlertCircle, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { alertBanner, fadeUpItem } from "@/lib/motion";
 import {
   RollingWeekSummaryBody,
   type RollingWeekSummaryData,
 } from "./rolling-week-summary-body";
+import { useTrendsInsights } from "@/app/components/trends/trends-insights-context";
+import { WeekendDriftSummary } from "@/app/components/trends/weekend-drift-summary";
 
 type HistoryInsightsStripProps = {
   dailyTargetKcal: number | null;
@@ -30,31 +32,33 @@ export function HistoryInsightsStrip({
   activeDays14Enabled = false,
   className,
 }: HistoryInsightsStripProps) {
-  const online = useOnline();
+  const shared = useTrendsInsights();
+  const onlineLocal = useOnline();
   const syncTick = useMealsSyncTick();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<RollingWeekSummaryData | null>(null);
+  const online = shared?.online ?? onlineLocal;
+
+  const [loadingLocal, setLoadingLocal] = useState(!shared);
+  const [errorLocal, setErrorLocal] = useState<string | null>(null);
+  const [dataLocal, setDataLocal] = useState<RollingWeekSummaryData | null>(null);
+
+  const loading = shared?.loading ?? loadingLocal;
+  const error = shared?.error ?? errorLocal;
+  const data = shared?.rolling7 ?? dataLocal;
 
   const load = useCallback(async () => {
+    if (shared) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setLoading(false);
-      setError(null);
+      setLoadingLocal(false);
+      setErrorLocal(null);
       return;
     }
-    setLoading(true);
-    setError(null);
+    setLoadingLocal(true);
+    setErrorLocal(null);
     try {
       const { fromIso, toIso } = rolling7WindowBoundsIso();
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const q = new URLSearchParams({
-        from: fromIso,
-        to: toIso,
-        timeZone,
-      });
-      const res = await fetch(`/api/meals/insights?${q}`, {
-        credentials: "same-origin",
-      });
+      const q = new URLSearchParams({ from: fromIso, to: toIso, timeZone });
+      const res = await fetch(`/api/meals/insights?${q}`, { credentials: "same-origin" });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
         daysInWindow?: number;
@@ -66,9 +70,7 @@ export function HistoryInsightsStrip({
         patterns?: RollingWeekSummaryData["patterns"];
       };
       if (!res.ok) {
-        setError(
-          typeof json.error === "string" ? json.error : "Could not load summary",
-        );
+        setErrorLocal(typeof json.error === "string" ? json.error : "Could not load summary");
         return;
       }
       if (
@@ -78,10 +80,9 @@ export function HistoryInsightsStrip({
         !json.totals ||
         !json.averages
       ) {
-        setError("Unexpected response");
+        setErrorLocal("Unexpected response");
         return;
       }
-      setError(null);
       let payload: RollingWeekSummaryData = {
         daysInWindow: json.daysInWindow,
         daysWithLogs: json.daysWithLogs,
@@ -100,30 +101,26 @@ export function HistoryInsightsStrip({
           windowDays: "14",
         });
         try {
-          const res14 = await fetch(`/api/meals/insights?${q14}`, {
-            credentials: "same-origin",
-          });
+          const res14 = await fetch(`/api/meals/insights?${q14}`, { credentials: "same-origin" });
           if (res14.ok) {
             const j14 = (await res14.json()) as { daysWithLogs?: unknown };
             const dw = Number(j14.daysWithLogs);
             if (Number.isFinite(dw)) {
-              payload = {
-                ...payload,
-                recovery14: { daysWithLogs: dw, daysInWindow: 14 },
-              };
+              payload = { ...payload, recovery14: { daysWithLogs: dw, daysInWindow: 14 } };
             }
           }
         } catch {
-          /* keep payload without recovery14 */
+          /* optional 14-day merge */
         }
       }
-      setData(payload);
+      setDataLocal(payload);
+      setErrorLocal(null);
     } catch {
-      setError("Network error");
+      setErrorLocal("Network error");
     } finally {
-      setLoading(false);
+      setLoadingLocal(false);
     }
-  }, [activeDays14Enabled]);
+  }, [shared, activeDays14Enabled]);
 
   useEffect(() => {
     void load();
@@ -131,163 +128,87 @@ export function HistoryInsightsStrip({
 
   return (
     <div
-      id={TRENDS_INSIGHT_ANCHORS.rollingWeek}
-      className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 ${className ?? ""}`}
+      className={
+        className ?? "bento-card scroll-mt-28 border-black/10 bg-white/85 p-6"
+      }
     >
-      <div className="flex items-start gap-4 mb-8">
-        <div className="relative group">
-          <div className="absolute -inset-1 rounded-xl bg-emerald-500/20 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative h-10 w-10 flex items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0 border border-emerald-500/20">
-            <TrendingUp className="h-5 w-5" />
-          </div>
-        </div>
-        <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-emerald-500">
-            Rolling Momentum
-          </h3>
-          <p className="mt-1 text-xs font-medium text-zinc-600 leading-relaxed max-w-sm">
-            Analysis of the last 7 dynamic local days. Patterns derived from real-time log aggregates.
-          </p>
-        </div>
-      </div>
-
       <AnimatePresence mode="wait">
         {!online && data ? (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-3 text-xs font-bold text-amber-500 mb-4" role="status"
+          <motion.div
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-4 text-xs font-bold text-amber-800"
+            role="status"
           >
-            <Info className="h-4 w-4" />
-            Offline — showing cached engine state.
+            <Info className="h-4 w-4 shrink-0" aria-hidden />
+            Offline. Showing your last loaded rolling week.
           </motion.div>
         ) : !online ? (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-3 text-xs font-bold text-amber-500 mb-4" role="status"
+          <motion.div
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="mb-4 flex items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-4 text-xs font-bold text-amber-800"
+            role="status"
           >
-            <Info className="h-4 w-4" />
-            Connectivity required to refresh telemetry.
+            <Info className="h-4 w-4 shrink-0" aria-hidden />
+            Connect to load your rolling week summary.
           </motion.div>
         ) : loading && !data ? (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="flex items-center gap-3 text-xs font-bold text-zinc-600 py-4"
+          <motion.div
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="flex items-center gap-3 py-4 text-xs font-bold text-zinc-600"
           >
-            <Zap className="h-4 w-4 animate-pulse" />
-            Parsing rolling window...
+            <Zap className="h-4 w-4 motion-safe:animate-pulse" aria-hidden />
+            Loading rolling week…
           </motion.div>
         ) : error && !data ? (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-center gap-3 text-xs font-bold text-red-500 mb-4" role="alert"
+          <motion.div
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700"
+            role="alert"
           >
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden />
             {error}
           </motion.div>
         ) : data ? (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
+          <motion.div
+            variants={fadeUpItem}
+            initial="hidden"
+            animate="show"
             className="space-y-8"
           >
             {online && loading && (
-              <div className="mb-4 flex items-center gap-1 text-[10px] font-bold text-emerald-500/70">
-                Updating <div className="h-1 w-1 animate-pulse rounded-full bg-emerald-500" />
-              </div>
+              <p className="mb-4 flex items-center gap-1 text-[10px] font-bold text-signal-deep/80">
+                Updating
+                <span className="h-1 w-1 motion-safe:animate-pulse rounded-full bg-accent-secondary" />
+              </p>
             )}
-            
+
             <RollingWeekSummaryBody
               data={data}
               dailyTargetKcal={dailyTargetKcal}
               dailyTargetProteinG={dailyTargetProteinG}
               weeklyCoachingFocus={weeklyCoachingFocus}
               weeklyImplementationIntention={weeklyImplementationIntention}
-              isDetailed={true}
+              isDetailed
             />
 
-            {/* Weekend Drift Analysis (Sat/Sun vs Mon-Fri) */}
-            {data.drifts?.weekendAvgKcal != null && data.drifts?.weekdayAvgKcal != null && (
-              <div className="border-t border-black/10 pt-8">
-                <div className="mb-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#3b82a0]" />
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">
-                      Phase Variance Matrix
-                    </p>
-                  </div>
-                  <div className={`rounded-full px-3 py-1 text-[8px] font-black uppercase tracking-widest border shadow-[0_0_15px_-3px_rgba(255,255,255,0.05)] ${
-                    Math.abs(data.drifts.weekendAvgKcal - data.drifts.weekdayAvgKcal) > 200 
-                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20" 
-                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
-                  }`}>
-                    {Math.abs(data.drifts.weekendAvgKcal - data.drifts.weekdayAvgKcal) > 200 ? "Drift Active" : "Steady State"}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="group relative flex flex-col justify-between rounded-2xl border border-black/10 bg-white p-6 transition-all overflow-hidden hover:bg-[#f7f3e9]">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-[9px] font-black uppercase tracking-[0.3em] text-zinc-600 transition-colors group-hover:text-zinc-800">Weekday Baseline</span>
-                      <div className="h-2 w-2 rounded-full bg-zinc-400" />
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-zinc-950">{data.drifts.weekdayAvgKcal}</span>
-                      <span className="text-[10px] font-bold text-zinc-600 uppercase">kcal</span>
-                    </div>
-                    <div className="mt-6 flex items-center gap-2">
-                      <div className="h-1 flex-1 overflow-hidden rounded-full bg-black/10">
-                        <div className="h-full w-full bg-zinc-400/50" />
-                      </div>
-                      <span className="text-[8px] font-black text-zinc-600 uppercase">Ref</span>
-                    </div>
-                  </div>
-
-                  <div className={`group flex flex-col justify-between rounded-2xl p-6 border transition-all relative overflow-hidden ${
-                    data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal + 200
-                      ? "bg-amber-500/[0.03] border-amber-500/20 shadow-[inset_0_0_20px_rgba(245,158,11,0.05)]"
-                      : "border-black/10 bg-white shadow-[inset_0_0_20px_rgba(23,20,18,0.02)] hover:bg-[#f7f3e9]"
-                  }`}>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className={`text-[9px] font-black uppercase tracking-[0.3em] ${
-                        data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal + 200 ? "text-amber-600" : "text-zinc-600 group-hover:text-zinc-800"
-                      }`}>Weekend Deviation</span>
-                      <div className={`h-2 w-2 rounded-full ${
-                        data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal + 200 ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" : "bg-zinc-400"
-                      }`} />
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-3xl font-black ${
-                        data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal + 200 ? "text-amber-600" : "text-zinc-950"
-                      }`}>{data.drifts.weekendAvgKcal}</span>
-                      <span className="text-[10px] font-bold text-zinc-600 uppercase">kcal</span>
-                    </div>
-                    
-                    <div className="mt-6 space-y-2">
-                      <div className="flex justify-between items-center text-[8px] font-black text-zinc-700 uppercase tracking-widest">
-                        <span>Relative Drift</span>
-                        <span className={data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal ? "text-amber-500/70" : "text-emerald-500/70"}>
-                          {data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal ? "+" : ""}{data.drifts.weekendAvgKcal - data.drifts.weekdayAvgKcal} kcal
-                        </span>
-                      </div>
-                      <div className="h-1 rounded-full bg-black/10 overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(100, Math.max(20, (data.drifts.weekendAvgKcal / data.drifts.weekdayAvgKcal) * 100))}%` }}
-                          className={`h-full ${data.drifts.weekendAvgKcal > data.drifts.weekdayAvgKcal + 200 ? "bg-amber-500" : "bg-emerald-500"}`}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <p className="mt-6 flex items-center gap-2 px-1 text-[10px] font-medium italic leading-relaxed text-zinc-600">
-                   {Math.abs(data.drifts.weekendAvgKcal - data.drifts.weekdayAvgKcal) > 200 
-                    ? <span className="text-amber-500">⚠️ Segment variance exceeds safe baseline (+200kcal)</span>
-                    : <span className="text-emerald-500/80">✓ Weekend baseline confirms adherence to weekday rhythm</span>}
-                </p>
-              </div>
-            )}
+            {data.drifts?.weekendAvgKcal != null && data.drifts?.weekdayAvgKcal != null ? (
+              <WeekendDriftSummary
+                weekdayAvgKcal={data.drifts.weekdayAvgKcal}
+                weekendAvgKcal={data.drifts.weekendAvgKcal}
+              />
+            ) : null}
           </motion.div>
         ) : null}
       </AnimatePresence>

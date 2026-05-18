@@ -10,7 +10,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "prisma:generate": "prisma generate",
-    "seed:sonamsrp8": "tsx scripts/seed-sonamsrp8.ts"
+    "seed:sonamsrp8": "tsx scripts/seed-sonamsrp8.ts",
+    "fatsecret:egress-check": "tsx --env-file=.env scripts/check-fatsecret-egress.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -26,6 +27,7 @@
     "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "undici": "^7.25.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -16,6 +16,13 @@ import { parseMealDescription } from "@/lib/nutrition/parse-meal";
 import { fatSecretSearchFoods, hasFatSecretCredentials } from "@/lib/nutrition/fatsecret";
 import { singleIngredientAnalyze } from "@/lib/nutrition/avocavo";
 import { lineFromAvocavoApiItem } from "@/lib/nutrition/avocavo-analyze-meal";
+import {
+  applyGramsFromRawInput,
+  fallbackParseIngredientsFromText,
+  parseGramsFromSegment,
+  segmentLabelForMatch,
+  splitMealIntoSegments,
+} from "@/lib/meals/parse-meal-grams";
 
 export const maxDuration = 60;
 const FATSECRET_ANALYSIS_PORTION_G = 100;
@@ -28,21 +35,7 @@ function fallbackParseIngredients(rawInput: string): {
   ingredients: ParsedIngredientInput[];
   assumptions: string[];
 } {
-  const tokens = rawInput
-    .split(/[\n,]/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return {
-    ingredients: tokens.map((name) => ({
-      name,
-      search_query: name,
-      quantity_g: FATSECRET_ANALYSIS_PORTION_G,
-      unit_note: "fallback_parse",
-    })),
-    assumptions: [
-      "Parsed without LLM; each ingredient line estimated as 100 g.",
-    ],
-  };
+  return fallbackParseIngredientsFromText(rawInput, FATSECRET_ANALYSIS_PORTION_G);
 }
 
 async function buildFatSecretLine(
@@ -181,29 +174,42 @@ function sumTotals(lines: ResolvedLine[]) {
   };
 }
 
-function parseGramsFromSegment(seg: string): number | null {
-  const m = seg.match(/(\d+(?:\.\d+)?)\s*g\b/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function splitMealIntoSegments(rawInput: string): string[] {
-  const lines = rawInput
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-  if (lines.length > 1) return lines;
-  const line = rawInput.trim();
-  if (!line) return [];
-  return line
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 function resolveLabelNormInSegment(seg: string) {
   return seg.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function findHintForSegment(
+  seg: string,
+  hints: UserFoodResolveInput[],
+): UserFoodResolveInput | undefined {
+  const segLabel = segmentLabelForMatch(seg);
+  if (!segLabel) return undefined;
+
+  let best: UserFoodResolveInput | undefined;
+  let bestScore = 0;
+
+  for (const hint of hints) {
+    const hintNorm = resolveLabelNormInSegment(hint.label);
+    let score = 0;
+    if (segLabel === hintNorm) {
+      score = 100;
+    } else if (segLabel.includes(hintNorm) || hintNorm.includes(segLabel)) {
+      score = Math.min(segLabel.length, hintNorm.length);
+    } else {
+      const segTokens = segLabel.split(/\W+/).filter((t) => t.length >= 3);
+      const hintTokens = hintNorm.split(/\W+/).filter((t) => t.length >= 3);
+      const overlap = segTokens.filter((st) =>
+        hintTokens.some((ht) => ht.includes(st) || st.includes(ht)),
+      ).length;
+      if (overlap > 0) score = 10 + overlap;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = hint;
+    }
+  }
+
+  return bestScore > 0 ? best : undefined;
 }
 
 type AvocavoMicrosPer100g = {
@@ -318,10 +324,7 @@ function tryResolveFromSelectedFoodHints(
     const grams = parseGramsFromSegment(seg);
     if (grams == null) return null;
 
-    const normalizedSeg = resolveLabelNormInSegment(seg);
-    const hint = hints.find((h) =>
-      normalizedSeg.includes(resolveLabelNormInSegment(h.label)),
-    );
+    const hint = findHintForSegment(seg, hints);
     if (!hint) return null;
 
     const factor = grams / 100;
@@ -523,10 +526,25 @@ export async function POST(request: Request) {
           ? [...selectedFoodHints, ...userFoods]
           : userFoods;
 
-      const parsed =
-        process.env.OPENAI_API_KEY?.trim()
-          ? await parseMealDescription(rawInput)
-          : fallbackParseIngredients(rawInput);
+      let parsed: Awaited<ReturnType<typeof parseMealDescription>>;
+      if (process.env.OPENAI_API_KEY?.trim()) {
+        try {
+          parsed = await parseMealDescription(rawInput);
+        } catch (e) {
+          console.warn(
+            "[analyze] LLM parse failed, using fallback split:",
+            e instanceof Error ? e.message : e,
+          );
+          parsed = fallbackParseIngredients(rawInput);
+        }
+      } else {
+        parsed = fallbackParseIngredients(rawInput);
+      }
+
+      parsed = {
+        ...parsed,
+        ingredients: applyGramsFromRawInput(parsed.ingredients, rawInput),
+      };
 
       const lines: ResolvedLine[] = [];
       for (const ing of parsed.ingredients) {
@@ -588,6 +606,7 @@ export async function POST(request: Request) {
           "DATABASE_UNAVAILABLE",
         );
       }
+      console.error("[analyze] failed:", e);
       const message = e instanceof Error ? e.message : "Analysis failed";
       return jsonError(message, 500, "ANALYSIS_FAILED");
     }

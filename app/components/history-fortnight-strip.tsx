@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState, type SVGProps } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { rolling14WindowBoundsIso } from "@/lib/meals/local-date";
 import { fortnightRhythmBlurb } from "@/lib/meals/fortnight-rhythm-blurb";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
-import { TRENDS_INSIGHT_ANCHORS } from "@/lib/meals/trends-insight-anchors";
-import { Activity, Clock, Zap, Info, AlertTriangle } from "lucide-react";
+import { Zap, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { alertBanner, fadeUpItem } from "@/lib/motion";
 
 type FortnightPayload = {
   daysInWindow: number;
@@ -48,9 +48,7 @@ export function HistoryFortnightStrip({
         timeZone,
         windowDays: "14",
       });
-      const res = await fetch(`/api/meals/insights?${q}`, {
-        credentials: "same-origin",
-      });
+      const res = await fetch(`/api/meals/insights?${q}`, { credentials: "same-origin" });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
         daysInWindow?: number;
@@ -59,9 +57,7 @@ export function HistoryFortnightStrip({
         averages?: { kcalPerDay?: number };
       };
       if (!res.ok) {
-        setError(
-          typeof json.error === "string" ? json.error : "Could not load summary",
-        );
+        setError(typeof json.error === "string" ? json.error : "Could not load summary");
         return;
       }
       if (
@@ -93,120 +89,83 @@ export function HistoryFortnightStrip({
 
   return (
     <div
-      id={TRENDS_INSIGHT_ANCHORS.fortnight}
-      className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 ${className ?? ""}`}
+      className={
+        className ?? "bento-card scroll-mt-28 border-black/10 bg-white/85 p-6"
+      }
     >
-      <div className="flex items-start gap-4 mb-6">
-        <div className="h-10 w-10 shrink-0 rounded-xl border border-[#7aa6c2]/25 bg-[#dff1ff] text-[#3b82a0] flex items-center justify-center">
-          <Activity className="h-5 w-5" />
-        </div>
-        <div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-[#3b82a0]">
-            Fortnight Rhythm
-          </h3>
-          <p className="mt-1 text-xs font-medium text-zinc-600 leading-relaxed">
-            Rolling 14-day window synchronized with your device timezone.
-          </p>
-        </div>
-      </div>
-
       <AnimatePresence mode="wait">
         {!online && !data ? (
-          <motion.div 
+          <motion.div
             key="offline"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-3 text-xs font-bold text-amber-500"
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="flex items-center gap-3 rounded-xl border border-amber-200/60 bg-amber-50 p-4 text-xs font-bold text-amber-800"
+            role="status"
           >
-            <AlertTriangle className="h-4 w-4" />
-            Establish connectivity to load rhythmic insights.
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+            Connect to load your 14-day summary.
           </motion.div>
         ) : loading && !data ? (
-           <motion.div key="loading" className="flex items-center gap-3 text-xs font-bold text-zinc-600 py-4">
-            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-               <Zap className="h-4 w-4" />
-             </motion.div>
-            Analyzing window...
+          <motion.div
+            key="loading"
+            className="flex items-center gap-3 py-4 text-xs font-bold text-zinc-600"
+          >
+            <Zap className="h-4 w-4 motion-safe:animate-pulse" aria-hidden />
+            Loading 14-day summary…
           </motion.div>
         ) : error && !data ? (
-          <motion.div 
+          <motion.div
             key="error"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="p-4 rounded-xl bg-red-500/5 border border-red-500/20 flex items-center gap-3 text-xs font-bold text-red-500"
+            variants={alertBanner}
+            initial="hidden"
+            animate="show"
+            exit="exit"
+            className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-bold text-red-700"
+            role="alert"
           >
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
             {error}
           </motion.div>
         ) : data ? (
-          <motion.div 
+          <motion.div
             key="data"
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="space-y-5"
+            variants={fadeUpItem}
+            initial="hidden"
+            animate="show"
+            className="space-y-4"
           >
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1 rounded-2xl border border-black/10 bg-white p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-3 flex items-center gap-2">
-                  <Clock className="h-3 w-3" /> Consistency
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <li className="rounded-xl border border-black/10 bg-warm-neutral/60 px-3 py-2.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Days logged</p>
+                <p className="mt-0.5 font-mono text-lg font-black tabular-nums">
+                  {data.daysWithLogs}/{data.daysInWindow}
                 </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-zinc-950">{data.daysWithLogs}</span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase">Logged Days</span>
-                </div>
-                <div className="mt-2 text-[10px] font-bold text-zinc-600">
-                  OF {data.daysInWindow} DAY WINDOW
-                </div>
-              </div>
-
-              <div className="flex-1 rounded-2xl border border-black/10 bg-white p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-3 flex items-center gap-2">
-                  <BarChart3 className="h-3 w-3 text-emerald-500" /> Intake Avg
+              </li>
+              <li className="rounded-xl border border-black/10 bg-warm-neutral/60 px-3 py-2.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Meals</p>
+                <p className="mt-0.5 font-mono text-lg font-black tabular-nums">{data.mealCount}</p>
+              </li>
+              <li className="rounded-xl border border-black/10 bg-warm-neutral/60 px-3 py-2.5">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Avg kcal/day</p>
+                <p className="mt-0.5 font-mono text-lg font-black tabular-nums">
+                  {Math.round(data.averages.kcalPerDay)}
+                  {dailyTargetKcal != null ? (
+                    <span className="text-sm font-bold text-zinc-500"> / {Math.round(dailyTargetKcal)}</span>
+                  ) : null}
                 </p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-black text-zinc-950">{Math.round(data.averages.kcalPerDay)}</span>
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase">kcal/day</span>
-                </div>
-                {dailyTargetKcal != null && (
-                  <div className="mt-2 text-[10px] font-bold text-zinc-600">
-                    VS {Math.round(dailyTargetKcal)} kcal Goal
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-3 rounded-xl border border-[#7aa6c2]/25 bg-[#dff1ff]/70 p-4">
-               <div className="flex items-center gap-2">
-                 <Info className="h-3 w-3 text-[#3b82a0]" />
-                 <p className="text-[10px] font-black uppercase tracking-widest text-[#3b82a0]">Rhythm Insight</p>
-               </div>
-               <p className="text-base font-medium leading-relaxed text-zinc-700">
-                 {fortnightRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
-               </p>
+              </li>
+            </ul>
+            <div className="flex items-start gap-2 border-t border-black/10 pt-4">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-800" aria-hidden />
+              <p className="text-sm font-medium leading-relaxed text-zinc-700">
+                {fortnightRhythmBlurb(data.daysWithLogs, data.daysInWindow)}
+              </p>
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </div>
-  );
-}
-
-function BarChart3(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 3v18h18" />
-      <path d="M18 17V9" />
-      <path d="M13 17V5" />
-      <path d="M8 17v-3" />
-    </svg>
   );
 }

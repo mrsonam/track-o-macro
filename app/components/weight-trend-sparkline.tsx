@@ -117,13 +117,13 @@ export function WeightTrendSparkline({
     <div className={`relative ${className}`}>
       <svg
         viewBox={`0 0 ${W} ${layout.h}`}
-        className="h-auto w-full text-violet-400"
+        className="h-auto w-full text-accent-secondary"
         preserveAspectRatio="none"
         aria-hidden
       >
         <defs>
           <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgb(167, 139, 250)" stopOpacity="0.22" />
+            <stop offset="0%" stopColor="rgb(79, 157, 69)" stopOpacity="0.22" />
             <stop offset="100%" stopColor="rgb(24, 24, 27)" stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -134,7 +134,7 @@ export function WeightTrendSparkline({
             y1={layout.goalY}
             x2={W - 6}
             y2={layout.goalY}
-            stroke="rgb(52 211 153)"
+            stroke="rgb(79 157 69)"
             strokeOpacity={0.45}
             strokeWidth={variant === "compact" ? 1.25 : 1.5}
             strokeDasharray="5 5"
@@ -147,7 +147,7 @@ export function WeightTrendSparkline({
           strokeWidth={variant === "compact" ? 2 : 2.25}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-violet-400/90"
+          className="text-accent-secondary/90"
         />
         {variant === "panel" &&
           layout.coords.map((c, i) => (
@@ -156,7 +156,7 @@ export function WeightTrendSparkline({
               cx={c.x}
               cy={c.y}
               r={2.25}
-              className="text-violet-300/35"
+              className="text-accent-secondary/35"
               fill="currentColor"
             />
           ))}
@@ -169,7 +169,7 @@ export function WeightTrendSparkline({
             {getWeightLabel(unitSystem)}
           </span>
           {layout.goalLabel != null ? (
-            <span className="text-center text-emerald-400/80 sm:col-start-2">
+            <span className="text-center text-signal-deep/80 sm:col-start-2">
               Goal {layout.goalLabel} {getWeightLabel(unitSystem)}
             </span>
           ) : (
@@ -177,7 +177,7 @@ export function WeightTrendSparkline({
           )}
           <span className="text-left sm:col-start-3 sm:text-right">
             {layout.lastDate}{" "}
-            <span className="text-violet-300/90">{layout.lastLabel}</span>{" "}
+            <span className="text-accent-secondary/90">{layout.lastLabel}</span>{" "}
             {getWeightLabel(unitSystem)}
           </span>
         </div>

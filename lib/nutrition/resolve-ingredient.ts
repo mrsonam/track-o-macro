@@ -372,7 +372,7 @@ async function fallbackEstimate(
         : {}),
       confidence: "low",
       reasoning:
-        "Rough placeholder (~2 kcal per gram of food) — Avocavo had no match and OpenAI is not configured.",
+        "Rough placeholder (~2 kcal per gram of food). Avocavo had no match and OpenAI is not configured.",
       rough_fallback: true,
     },
   };

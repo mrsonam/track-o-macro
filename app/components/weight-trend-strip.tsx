@@ -62,7 +62,7 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
       className={`bento-card scroll-mt-28 border-black/10 bg-white/85 p-6 lg:p-8 ${className}`}
     >
       <div className="mb-6 flex items-start gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] text-[#4f9d45]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent-secondary/20 bg-protein-tint text-accent-secondary">
           <Scale className="h-5 w-5" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
@@ -77,14 +77,14 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
             dampen noise. Set an optional{" "}
             <Link
               href="/settings"
-              className="text-[#4f9d45] underline-offset-2 hover:underline"
+              className="text-signal-deep underline-offset-2 hover:underline"
             >
               target weight
             </Link>{" "}
             for a reference line.{" "}
             <Link
               href="/settings"
-              className="text-[#4f9d45] underline-offset-2 hover:underline"
+              className="text-signal-deep underline-offset-2 hover:underline"
             >
               Home sparkline
             </Link>{" "}
@@ -107,7 +107,7 @@ export function WeightTrendStrip({ unitSystem, className = "" }: Props) {
           goalWeightKg={goalWeightKg}
         />
       ) : (
-        <div className="flex items-start gap-2 rounded-xl border border-black/10 bg-[#f7f3e9] p-4 text-xs font-medium text-zinc-700">
+        <div className="flex items-start gap-2 rounded-xl border border-black/10 bg-warm-neutral p-4 text-xs font-medium text-zinc-700">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
           <span>
             Log your weight from the home screen on a few different days to see

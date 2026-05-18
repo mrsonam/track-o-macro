@@ -1,4 +1,5 @@
 import type { AppleHealthDayRollup } from "@/lib/health/apple-day-rollup";
+import type { DayMealPreview } from "@/lib/meals/day-meal-preview";
 
 export type MealDriver = {
   rawInput: string;
@@ -39,4 +40,6 @@ export type MealDaySummary = {
   hydrationTotalMl?: number;
   /** Apple Health (Shortcuts) aggregates for the same local day window */
   appleHealth?: AppleHealthDayRollup | null;
+  /** Meal rows when batch was requested with includeMeals */
+  meals?: DayMealPreview[];
 };

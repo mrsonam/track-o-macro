@@ -7,8 +7,9 @@ import {
   formatLocalYmd,
 } from "@/lib/meals/local-date";
 import type { UnitSystem } from "@/lib/profile/units";
-import { Droplets, Sparkles, Trash2 } from "lucide-react";
+import { Droplets, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { MotionBento, fadeUpItem, useAppMotion } from "@/lib/motion";
 
 type FluidEntry = {
   id: string;
@@ -67,13 +68,14 @@ function progressHint(
   if (totalMl >= targetMl) {
     const over = totalMl - targetMl;
     if (over < 1) return "Right on your fluid goal for this day.";
-    return `${formatVolume(over, unit)} above goal — totally fine.`;
+    return `${formatVolume(over, unit)} above goal. Totally fine.`;
   }
   const gap = targetMl - totalMl;
   return `${formatVolume(gap, unit)} to your goal`;
 }
 
 export function HydrationCard({ dateKey, unitSystem }: Props) {
+  const { motionOn } = useAppMotion();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [targetMl, setTargetMl] = useState(2000);
@@ -192,7 +194,7 @@ export function HydrationCard({ dateKey, unitSystem }: Props) {
   }
 
   return (
-    <div className="bento-card relative overflow-hidden border border-sky-500/20 bg-[#e4f5ff] p-6">
+    <MotionBento mount className="bento-card relative overflow-hidden border border-sky-500/20 bg-[#e4f5ff] p-6">
       <div
         className="hidden"
         aria-hidden
@@ -289,19 +291,12 @@ export function HydrationCard({ dateKey, unitSystem }: Props) {
               >
                 <motion.div
                   className={`h-full rounded-full ${
-                    ratio >= 1
-                      ? "bg-gradient-to-r from-emerald-600 via-sky-500 to-sky-400"
-                      : "bg-gradient-to-r from-sky-700 via-sky-500 to-sky-400"
+                    ratio >= 1 ? "bg-sky-700" : "bg-sky-600"
                   }`}
                   initial={false}
                   animate={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
                   transition={{ type: "spring", stiffness: 120, damping: 18 }}
                 />
-                {ratio >= 1 ? (
-                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                    <Sparkles className="h-3 w-3 text-white/40" aria-hidden />
-                  </div>
-                ) : null}
               </div>
 
               {hint ? (
@@ -418,10 +413,10 @@ export function HydrationCard({ dateKey, unitSystem }: Props) {
                       <motion.li
                         key={l.id}
                         layout
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
+                        variants={motionOn ? fadeUpItem : undefined}
+                        initial={motionOn ? "hidden" : false}
+                        animate={motionOn ? "show" : undefined}
                         exit={{ opacity: 0, x: 8 }}
-                        transition={{ duration: 0.2 }}
                         className="flex items-center justify-between gap-2 rounded-xl border border-black/10 bg-white/60 px-3 py-2.5 text-xs"
                       >
                         <div className="min-w-0">
@@ -463,7 +458,7 @@ export function HydrationCard({ dateKey, unitSystem }: Props) {
                     No drinks logged for this day
                   </p>
                   <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">
-                    Tap quick add or enter a custom amount — type is optional but
+                    Tap quick add or enter a custom amount. Type is optional but
                     helps your log read clearly.
                   </p>
                 </div>
@@ -477,6 +472,6 @@ export function HydrationCard({ dateKey, unitSystem }: Props) {
           </>
         )}
       </div>
-    </div>
+    </MotionBento>
   );
 }

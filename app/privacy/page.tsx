@@ -68,7 +68,7 @@ export default function PrivacyPage() {
             </div>
             <h2 className="text-lg font-bold text-white mb-4">NLP Transmission</h2>
             <p className="text-xs leading-relaxed text-zinc-500">
-              Meal descriptions are synchronized with secure LLM endpoints for nutritional extraction. We do not transmit sensitive secrets—avoid logging PII within meal entries.
+              Meal descriptions are synchronized with secure LLM endpoints for nutritional extraction. We do not transmit sensitive secrets. Avoid logging PII within meal entries.
             </p>
           </section>
         </div>

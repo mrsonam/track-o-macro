@@ -2,10 +2,29 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  firstPasswordPolicyMessage,
+  MIN_PASSWORD_LENGTH,
+  passwordMeetsPolicy,
+} from "@/lib/auth/password-policy";
 
 const bodySchema = z.object({
   email: z.string().email().transform((e) => e.trim().toLowerCase()),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z
+    .string()
+    .min(
+      MIN_PASSWORD_LENGTH,
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    )
+    .superRefine((val, ctx) => {
+      if (passwordMeetsPolicy(val)) return;
+      ctx.addIssue({
+        code: "custom",
+        message:
+          firstPasswordPolicyMessage(val) ??
+          "Password does not meet requirements",
+      });
+    }),
   acceptedDisclaimer: z
     .boolean()
     .refine((v) => v === true, {

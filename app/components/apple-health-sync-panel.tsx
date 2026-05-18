@@ -119,13 +119,15 @@ export function AppleHealthSyncPanel() {
     typeof window !== "undefined" ? window.location.origin : "";
 
   return (
-    <div className="rounded-3xl border border-black/10 bg-white p-6 sm:p-8">
+    <div className="bento-card border border-black/10 bg-white/95 p-6 sm:p-8">
       <div className="mb-6 flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400">
-          <Activity className="h-6 w-6" />
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/10 bg-carb-sky text-sky-800">
+          <Activity className="h-5 w-5" aria-hidden />
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-zinc-950">Apple Health (Shortcuts)</h2>
+        <div className="min-w-0">
+          <h2 className="text-base font-black tracking-tight text-foreground">
+            Apple Health (Shortcuts)
+          </h2>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
             Automate sending steps, active energy, sleep, and more from the Health
             app via an iPhone Shortcut. Data merges into your daily dashboard next to
@@ -133,7 +135,7 @@ export function AppleHealthSyncPanel() {
           </p>
           <Link
             href="/resources/apple-health-shortcuts"
-            className="mt-3 inline-flex text-xs font-bold text-cyan-400/90 underline-offset-4 hover:underline"
+            className="focus-ring tap-target mt-3 inline-flex cursor-pointer text-xs font-bold text-sky-800 underline-offset-4 transition-colors duration-200 hover:text-sky-950 hover:underline"
           >
             Shortcut setup guide
           </Link>
@@ -149,7 +151,7 @@ export function AppleHealthSyncPanel() {
       {newToken ? (
         <div className="mb-6 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
           <p className="text-xs font-bold text-amber-200/90">
-            Copy this token now — it is only shown once. Paste it into your Shortcut
+            Copy this token now. It is only shown once. Paste it into your Shortcut
             header (see guide).
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">

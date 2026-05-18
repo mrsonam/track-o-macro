@@ -4,6 +4,8 @@ import {
   type AppleHealthDayRollup,
 } from "@/lib/health/apple-day-rollup";
 import { loadAppleHealthRollupsForRanges } from "@/lib/health/load-rollups-for-ranges";
+import type { DayMealPreview } from "@/lib/meals/day-meal-preview";
+import { loadMealsForRanges } from "@/lib/meals/load-meals-for-ranges";
 import { queryMealTimingBands } from "@/lib/meals/meal-timing-bands-query";
 import { isValidIanaTimeZone } from "@/lib/meals/validate-iana-time-zone";
 
@@ -58,6 +60,7 @@ export type MealSummaryBatchOk = {
   };
   hydrationTotalMl?: number;
   appleHealth?: AppleHealthDayRollup;
+  meals?: DayMealPreview[];
 };
 
 export type MealSummaryBatchRow =
@@ -70,11 +73,13 @@ export async function mealSummaryBatchForUser(
   body: {
     includeTiming: boolean;
     includeHydration: boolean;
+    includeMeals?: boolean;
     timeZone: string | null;
   },
 ): Promise<{ results: MealSummaryBatchRow[] }> {
   const includeTiming = body.includeTiming === true;
   const includeHydration = body.includeHydration !== false;
+  const includeMeals = body.includeMeals === true;
   const timeZone =
     typeof body.timeZone === "string" && isValidIanaTimeZone(body.timeZone)
       ? body.timeZone
@@ -89,6 +94,17 @@ export async function mealSummaryBatchForUser(
       x.v.ok ? { index: i, fromD: x.v.fromD, toD: x.v.toD } : null,
     )
     .filter((x): x is { index: number; fromD: Date; toD: Date } => x != null);
+
+  const mealSlots = validatedRanges
+    .map((x, index) =>
+      x.v.ok ? { index, fromD: x.v.fromD, toD: x.v.toD } : null,
+    )
+    .filter((x): x is { index: number; fromD: Date; toD: Date } => x != null);
+
+  let mealsByIndex = new Map<number, DayMealPreview[]>();
+  if (includeMeals && mealSlots.length > 0) {
+    mealsByIndex = await loadMealsForRanges(userId, mealSlots);
+  }
 
   let rollupsByIndex = new Map<number, AppleHealthDayRollup>();
   if (validForHealth.length > 0) {
@@ -228,6 +244,10 @@ export async function mealSummaryBatchForUser(
         const appleHealth =
           appleRollup && rollupHasAnyData(appleRollup) ? appleRollup : undefined;
 
+        const meals = includeMeals
+          ? (mealsByIndex.get(rangeIndex) ?? [])
+          : undefined;
+
         return {
           ok: true as const,
           mealCount: agg._count._all,
@@ -245,6 +265,7 @@ export async function mealSummaryBatchForUser(
           drivers,
           ...(hydrationTotalMl !== undefined ? { hydrationTotalMl } : {}),
           ...(appleHealth ? { appleHealth } : {}),
+          ...(includeMeals ? { meals } : {}),
         };
       } catch {
         return { ok: false as const, error: "Query failed" };

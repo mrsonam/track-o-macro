@@ -1,6 +1,7 @@
 "use client";
 
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
+import { MotionBento } from "@/lib/motion";
 import {
   RollingWeekSummaryBody,
   type RollingWeekSummaryData,
@@ -28,20 +29,19 @@ export function WeekInsightsCard({
   data,
 }: WeekInsightsCardProps) {
   return (
-    <div className="bento-card relative overflow-hidden border-sky-500/20 bg-[#dff1ff] p-6">
-      {/* Background Decorative Blur */}
-      <div className="hidden" />
-      
-      <div className="flex items-center justify-between mb-6">
+    <MotionBento index={2} className="bento-card relative overflow-hidden border-sky-500/20 bg-[#dff1ff] p-6">
+      <div className="mb-6 flex items-center justify-between">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-900/75">
-          Registry Rhythms
+          This week
         </p>
         <div className="flex h-1.5 w-1.5 rounded-full bg-sky-600" />
       </div>
       {loading ? (
-        <p className="mt-2 text-xs font-bold text-zinc-600 animate-pulse">Synchronizing records…</p>
+        <p className="mt-2 text-xs font-bold text-zinc-600 animate-pulse">Loading week summary…</p>
       ) : batchError ? (
-        <p className="mt-2 text-xs font-bold text-red-400/80">{batchError}</p>
+        <p role="alert" className="mt-2 text-xs font-bold text-red-600">
+          {batchError}
+        </p>
       ) : data ? (
         <RollingWeekSummaryBody
           data={data}
@@ -51,6 +51,6 @@ export function WeekInsightsCard({
           weeklyImplementationIntention={weeklyImplementationIntention}
         />
       ) : null}
-    </div>
+    </MotionBento>
   );
 }

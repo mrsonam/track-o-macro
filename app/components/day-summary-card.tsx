@@ -4,6 +4,7 @@ import { dayHeadingLabel } from "@/lib/meals/local-date";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
 import { explainTheDayLines } from "@/lib/meals/explain-the-day";
 import { motion } from "framer-motion";
+import { EASE_OUT, MotionBento, useAppMotion } from "@/lib/motion";
 import { Zap, Target, Flame, Info, Activity } from "lucide-react";
 import { rollupHasAnyData } from "@/lib/health/apple-day-rollup";
 
@@ -16,22 +17,41 @@ type DaySummaryCardProps = {
   summary: MealDaySummary | null | undefined;
 };
 
-function ProgressRing({ value, max, color, size = 120, strokeWidth = 10, label }: { 
-  value: number; 
-  max: number; 
-  color: string; 
-  size?: number; 
+function ProgressRing({
+  value,
+  max,
+  color,
+  size = 120,
+  strokeWidth = 10,
+  label,
+  progressLabel,
+}: {
+  value: number;
+  max: number;
+  color: string;
+  size?: number;
   strokeWidth?: number;
   label?: string;
+  progressLabel: string;
 }) {
+  const { motionOn } = useAppMotion();
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const progress = Math.min(1, value / max);
+  const clampedMax = max > 0 ? max : 1;
+  const progress = Math.min(1, value / clampedMax);
   const offset = circumference - progress * circumference;
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="rotate-[-90deg]">
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+      role="progressbar"
+      aria-valuenow={Math.round(Math.max(0, value))}
+      aria-valuemin={0}
+      aria-valuemax={Math.round(clampedMax)}
+      aria-label={progressLabel}
+    >
+      <svg width={size} height={size} className="rotate-[-90deg]" aria-hidden>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -49,9 +69,9 @@ function ProgressRing({ value, max, color, size = 120, strokeWidth = 10, label }
           strokeWidth={strokeWidth}
           fill="transparent"
           strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
+          initial={motionOn ? { strokeDashoffset: circumference } : false}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
+          transition={{ duration: motionOn ? 1.1 : 0, ease: EASE_OUT }}
           strokeLinecap="round"
         />
       </svg>
@@ -94,34 +114,49 @@ export function DaySummaryCard({
       : [];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+    <MotionBento
+      mount
+      index={0}
       className={`bento-card relative overflow-hidden transition-colors duration-500 ${
         isSurplus ? "border-amber-500/30 bg-[#f7f3e9]" : "border-black/[0.08] bg-white/90"
       }`}
     >
       <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex-1">
+          <h2 className="sr-only">{heading} nutrition summary</h2>
           <div className="mb-6 flex items-center gap-3">
             <div className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
               isSurplus ? "bg-amber-500/20 text-amber-700" : "bg-[#dff2d3] text-[#4f9d45]"
             }`}>
-              {isSurplus ? <Zap className="h-4 w-4 animate-pulse" /> : <Target className="h-4 w-4" />}
+              {isSurplus ? (
+                <Zap className="h-4 w-4 motion-safe:animate-pulse" />
+              ) : (
+                <Target className="h-4 w-4" />
+              )}
             </div>
             <p className={`text-[10px] font-black uppercase tracking-[0.3em] transition-colors ${
               isSurplus ? "text-amber-700" : "text-zinc-500"
             }`}>
-              {heading} {isSurplus ? "EXCEEDANCE" : "Registry"}
+              {heading}
+              {isSurplus ? " · Over target" : ""}
             </p>
           </div>
 
           <div className="flex flex-col gap-2">
-            <h3 className={`font-mono text-5xl font-black tracking-tighter transition-colors ${
-              isSurplus ? "text-amber-700" : "text-[#171412]"
-            }`}>
-              {Math.round(logged)} <span className={`text-xl font-medium ${isSurplus ? "text-amber-800/60" : "text-zinc-500"}`}>kcal</span>
-            </h3>
+            <p
+              className={`font-mono text-5xl font-black tracking-tighter transition-colors ${
+                isSurplus ? "text-amber-700" : "text-[#171412]"
+              }`}
+              aria-label={`${Math.round(logged)} kilocalories logged`}
+            >
+              {Math.round(logged)}{" "}
+              <span
+                className={`text-xl font-medium ${isSurplus ? "text-amber-800/60" : "text-zinc-500"}`}
+                aria-hidden
+              >
+                kcal
+              </span>
+            </p>
             {dailyTargetKcal && (
               <div className={`flex items-center gap-3 rounded-xl px-3 py-1.5 w-fit border transition-colors ${
                 isSurplus ? "border-amber-500/25 bg-amber-500/10" : "border-[#4f9d45]/20 bg-[#eaf7df]"
@@ -135,7 +170,10 @@ export function DaySummaryCard({
           </div>
 
           {batchError ? (
-            <div className="mt-8 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+            <div
+              role="alert"
+              className="mt-8 rounded-xl border border-red-500/20 bg-red-500/5 p-4"
+            >
               <p className="text-xs font-bold text-red-500">{batchError}</p>
             </div>
           ) : !showSpinner && summary === null ? (
@@ -143,33 +181,32 @@ export function DaySummaryCard({
           ) : !showSpinner && summary ? (
             <div className="mt-8">
               <div className="grid grid-cols-3 gap-3">
-                <div className={`rounded-2xl p-4 border transition-colors group ${
-                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-[#f7f3e9] hover:bg-[#f2eadb]"
+                <div className={`rounded-2xl p-4 border transition-colors ${
+                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-warm-neutral"
                 }`}>
                   <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${
                     isSurplus ? "text-amber-700" : "text-zinc-500"
                   }`}>Protein</span>
-                  <p className={`font-mono text-lg font-black ${isSurplus ? "text-amber-800" : "text-[#4f9d45]"}`}>
+                  <p className={`font-mono text-lg font-black ${isSurplus ? "text-amber-800" : "text-accent-secondary"}`}>
                     {Math.round(summary.totals.protein_g)}<span className="text-[10px] ml-0.5">g</span>
                   </p>
                 </div>
-                {/* Carbs and Fat keep their standard colors but match the card's background logic */}
                 <div className={`rounded-2xl p-4 border transition-colors ${
-                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-[#f7f3e9] hover:bg-[#f2eadb]"
+                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-warm-neutral"
                 }`}>
                   <span className="block mb-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Carbs</span>
-                  <p className="font-mono text-lg font-black text-[#171412]">{Math.round(summary.totals.carbs_g)}<span className="text-[10px] ml-0.5">g</span></p>
+                  <p className="font-mono text-lg font-black text-foreground">{Math.round(summary.totals.carbs_g)}<span className="text-[10px] ml-0.5">g</span></p>
                 </div>
                 <div className={`rounded-2xl p-4 border transition-colors ${
-                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-[#f7f3e9] hover:bg-[#f2eadb]"
+                  isSurplus ? "border-amber-500/20 bg-white/50" : "border-black/10 bg-warm-neutral"
                 }`}>
                   <span className="block mb-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Fat</span>
                   <p className="font-mono text-lg font-black text-zinc-600">{Math.round(summary.totals.fat_g)}<span className="text-[10px] ml-0.5">g</span></p>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex items-center gap-3 border-t border-black/10 px-1 py-2">
-                <Zap className={`h-3.5 w-3.5 ${isSurplus ? "text-amber-700" : "text-[#4f9d45]"}`} />
+                <Zap className={`h-3.5 w-3.5 ${isSurplus ? "text-amber-700" : "text-accent-secondary"}`} />
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                   {summary.mealCount} meal{summary.mealCount === 1 ? "" : "s"} logged
                 </p>
@@ -274,11 +311,11 @@ export function DaySummaryCard({
                     ) : null}
                     {summary.appleHealth.weightKg != null &&
                     summary.appleHealth.weightKg > 0 ? (
-                      <div className="rounded-xl border border-white/5 bg-zinc-950/40 px-3 py-2">
+                      <div className="rounded-xl border border-black/10 bg-white/60 px-3 py-2">
                         <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-600">
                           Weight
                         </span>
-                        <p className="text-sm font-black tabular-nums text-cyan-100">
+                        <p className="font-mono text-sm font-black tabular-nums text-[#171412]">
                           {summary.appleHealth.weightKg.toFixed(1)}
                           <span className="text-[10px] font-bold text-zinc-500">
                             {" "}
@@ -292,7 +329,7 @@ export function DaySummaryCard({
               ) : null}
 
               {explainLines.length > 0 ? (
-                <div className="mt-5 space-y-2 border-l-2 border-[#4f9d45]/30 pl-3">
+                <div className="mt-5 space-y-2 rounded-xl bg-[#eaf7df]/50 p-3">
                   {explainLines.map((line, i) => (
                     <p
                       key={i}
@@ -342,7 +379,7 @@ export function DaySummaryCard({
                       <div className="flex flex-col gap-1.5">
                         <p className="text-[10px] font-medium leading-relaxed text-amber-900/80">
                           {isSurplus && `Roughly ${Math.round(logged - target)} kcal above your usual target today. `}
-                          {summary.totals.sodium_mg > 2300 && "Sodium for the day is above a common 2,300 mg reference — often normal if you ate out or packaged foods. "}
+                          {summary.totals.sodium_mg > 2300 && "Sodium for the day is above a common 2,300 mg reference. Often normal if you ate out or packaged foods. "}
                           {summary.totals.sugar_g > 50 && "Total sugars from logged items are on the higher side for one day."}
                         </p>
 
@@ -382,7 +419,7 @@ export function DaySummaryCard({
               </div>
             </div>
           ) : (
-             <div className="mt-8 h-24 w-full animate-pulse rounded-2xl bg-black/5" />
+             <div className="mt-8 h-24 w-full motion-safe:animate-pulse rounded-2xl bg-black/5" />
           )}
         </div>
 
@@ -396,17 +433,15 @@ export function DaySummaryCard({
               size={130}
               strokeWidth={12}
               label="Kcal"
+              progressLabel="Calories logged today"
             />
-            <div className="flex flex-col items-center">
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${
-                isSurplus ? "text-amber-500" : "text-zinc-500"
-              }`}>
-                {isSurplus ? "Exceedance" : "Intake"}
-              </span>
-              <span className={`text-[10px] font-bold uppercase ${
-                isSurplus ? "text-amber-700/60" : "text-[#4f9d45]/70"
-              }`}>Registry</span>
-            </div>
+            <p
+              className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                isSurplus ? "text-amber-600" : "text-zinc-500"
+              }`}
+            >
+              {isSurplus ? "Over target" : "Calories"}
+            </p>
           </div>
 
           {dailyTargetProteinG && (
@@ -414,15 +449,15 @@ export function DaySummaryCard({
               <ProgressRing
                 value={proteinLogged}
                 max={proteinTarget}
-                color="#8b5cf6"
+                color="var(--protein-ring)"
                 strokeWidth={10}
                 size={100}
-                label="Prot"
+                label="Protein"
+                progressLabel="Protein logged today"
               />
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Recovery</span>
-                <span className="text-[10px] font-bold text-violet-500/60 uppercase">Status</span>
-              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-protein-ring">
+                Protein
+              </p>
             </div>
           )}
         </div>
@@ -433,6 +468,6 @@ export function DaySummaryCard({
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4f9d45] border-t-transparent" />
         </div>
       )}
-    </motion.div>
+    </MotionBento>
   );
 }

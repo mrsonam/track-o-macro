@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TrackOMacro",
   description:
-    "Describe meals in plain language — calories from USDA-backed nutrition data.",
+    "Describe meals in plain language. Calories from USDA-backed nutrition data.",
   icons: {
     icon: "/icon-192x192.svg",
     apple: "/icon-192x192.svg",

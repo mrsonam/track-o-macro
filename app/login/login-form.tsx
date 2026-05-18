@@ -1,18 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { Lock } from "lucide-react";
+import { AuthSubmitButton } from "@/components/auth/auth-submit-button";
 import { AuthShell } from "@/components/auth-shell";
-import { Shield, Zap, Info, ArrowRight, Lock } from "lucide-react";
-import { motion } from "framer-motion";
+import { getSafeNextPath } from "@/lib/auth/safe-next-path";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/";
+  const next = getSafeNextPath(searchParams.get("next"));
   const accountDeleted = searchParams.get("deleted") === "1";
+  const errorId = useId();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -39,102 +41,95 @@ export function LoginForm() {
   }
 
   return (
-    <AuthShell>
-      <div className="flex flex-col items-center text-center mb-10">
-        <div className="relative mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eaf7df] text-[#4f9d45]">
-          <div className="absolute inset-0 scale-75 rounded-2xl bg-[#4f9d45]/20 blur-xl" />
-          <Lock className="h-7 w-7 relative" />
+    <AuthShell title="Sign in" nav="login">
+      <div className="mb-10 flex flex-col items-center text-center">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[color:var(--protein-tint)] text-[color:var(--accent-secondary)]">
+          <Lock className="h-7 w-7" aria-hidden />
         </div>
-        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.4em] text-[#4f9d45]">
-          Agent Registry
-        </p>
-        <h1 className="mb-3 text-3xl font-black tracking-tight text-[#171412]">
-          Initialize Session
+        <h1 className="mb-3 text-3xl font-black tracking-tight text-[color:var(--foreground)]">
+          Sign in
         </h1>
         <p className="max-w-[280px] text-sm font-medium text-zinc-600">
-          Synchronize your profile with the TrackOMacro analytics network.
+          Log meals, review macros, and pick up where you left off.
         </p>
       </div>
 
-      {accountDeleted && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 flex gap-3 text-xs font-bold text-emerald-500"
+      {accountDeleted ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-8 flex gap-3 rounded-2xl border border-[color:var(--accent-secondary)]/25 bg-[color:var(--protein-tint)] p-4 text-xs font-bold text-[color:var(--accent-secondary)]"
         >
-          <Info className="h-4 w-4 shrink-0" />
-          <p>Personnel record termination complete. A new account may be initialized.</p>
-        </motion.div>
-      )}
+          <p>Your account was deleted. You can create a new one anytime.</p>
+        </div>
+      ) : null}
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-6">
+      <form
+        onSubmit={onSubmit}
+        className="flex flex-col gap-6"
+        aria-busy={loading}
+      >
         <label className="flex flex-col gap-2">
-          <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Email Identifier</span>
+          <span className="landing-kicker ml-1 text-zinc-500">Email</span>
           <input
             type="email"
             autoComplete="email"
             required
-            placeholder="agent@network.org"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
             className="input-field bg-white py-4"
           />
         </label>
-        
+
         <label className="flex flex-col gap-2">
-          <span className="ml-1 text-[10px] font-black uppercase tracking-widest text-zinc-500">Access Protocol</span>
+          <span className="landing-kicker ml-1 text-zinc-500">Password</span>
           <input
             type="password"
             autoComplete="current-password"
             required
-            placeholder="••••••••"
+            placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
             className="input-field bg-white py-4"
           />
         </label>
 
-        {error && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/5 border border-red-500/20 text-red-500 text-xs font-bold">
-            <Shield className="h-4 w-4" />
+        {error ? (
+          <div
+            id={errorId}
+            role="alert"
+            className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-xs font-bold text-red-600"
+          >
             {error}
           </div>
-        )}
+        ) : null}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-primary flex items-center justify-center gap-3 py-5 text-base mt-2"
-        >
-          {loading ? (
-             <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}>
-               <Zap className="h-5 w-5 text-zinc-950" />
-             </motion.div>
-          ) : (
-            <>
-              Authorize Session
-              <ArrowRight className="h-5 w-5" />
-            </>
-          )}
-        </button>
+        <AuthSubmitButton loading={loading} loadingLabel="Signing in…">
+          Sign in
+        </AuthSubmitButton>
       </form>
 
-      <div className="mt-12 flex flex-col gap-4 items-center">
+      <div className="mt-12 flex flex-col items-center gap-4">
         <p className="text-xs font-medium text-zinc-500">
-          New personnel?{" "}
+          New here?{" "}
           <Link
             href="/signup"
-            className="font-bold text-[#171412] transition-colors hover:text-[#4f9d45]"
+            className="focus-ring font-bold text-[color:var(--foreground)] transition-colors duration-200 hover:text-[color:var(--accent-secondary)]"
           >
-            Initialize Account
+            Create account
           </Link>
         </p>
-        
+
         <Link
           href="/privacy"
-          className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-[#171412]"
+          className="focus-ring tap-target rounded-xl px-3 text-xs font-bold uppercase tracking-wider text-zinc-500 transition-colors duration-200 hover:text-[color:var(--foreground)]"
         >
-          Privacy Protocol <Info className="h-3 w-3" />
+          Privacy
         </Link>
       </div>
     </AuthShell>

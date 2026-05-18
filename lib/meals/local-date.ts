@@ -108,3 +108,25 @@ export function dayHeadingLabel(dateKey: string): string {
   const day = d.getDate();
   return `${SHORT_WEEKDAYS[d.getDay()]} ${day} ${SHORT_MONTHS[d.getMonth()]}`;
 }
+
+/** Subtitle on the Today dashboard header (selected day from the week strip). */
+export function todayPageSubtitle(dateKey: string): string {
+  const todayKey = formatLocalYmd(new Date());
+  const d = parseLocalYmd(dateKey);
+  if (Number.isNaN(d.getTime())) return dateKey;
+  const day = d.getDate();
+  const month = SHORT_MONTHS[d.getMonth()];
+  const weekday = SHORT_WEEKDAYS[d.getDay()];
+
+  if (dateKey === todayKey) {
+    return `${weekday}, ${day} ${month}`;
+  }
+
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  if (dateKey === formatLocalYmd(y)) {
+    return `Totals for yesterday, ${day} ${month}`;
+  }
+
+  return `Totals for ${weekday}, ${day} ${month}`;
+}

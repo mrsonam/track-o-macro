@@ -63,15 +63,15 @@ export function computePlanSuggestionBridge(
   const bundle = `${tryWeek.text ?? ""} ${tryWeek.ifThen ?? ""}`;
 
   if (mentionsProtein(planTrimmed) && mentionsProtein(bundle)) {
-    return "Optional: your note and this week’s protein signal are pointing a similar direction—use either, both, or neither.";
+    return "Optional: your note and this week’s protein signal are pointing a similar direction. Use either, both, or neither.";
   }
 
   if (mentionsLoggingRhythm(planTrimmed, bundle)) {
-    return "Optional: your plan and the rhythm note below both talk about showing up—pick what feels helpful.";
+    return "Optional: your plan and the rhythm note below both talk about showing up. Pick what feels helpful.";
   }
 
   if (mentionsCalories(planTrimmed, bundle)) {
-    return "Optional: your plan and the calorie pattern below can overlap—treat both as tools, not a score.";
+    return "Optional: your plan and the calorie pattern below can overlap. Treat both as tools, not a score.";
   }
 
   return "The suggestion below is patterns-only; it doesn’t replace or judge the plan you wrote.";

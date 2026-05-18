@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     ranges?: RangeInput[];
     includeTiming?: boolean;
     includeHydration?: boolean;
+    includeMeals?: boolean;
     timeZone?: string;
   };
   try {
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
   const userId = session.user.id;
   const includeTiming = body.includeTiming === true;
   const includeHydration = body.includeHydration !== false;
+  const includeMeals = body.includeMeals === true;
   const timeZone =
     typeof body.timeZone === "string" ? body.timeZone : null;
 
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       {
         includeTiming,
         includeHydration,
+        includeMeals,
         timeZone,
       },
     );

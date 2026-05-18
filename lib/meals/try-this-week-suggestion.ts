@@ -57,7 +57,7 @@ export function computeTryThisWeek(i: TryThisWeekInput): TryThisWeekResult {
     avgProteinGPerDay < dailyTargetProteinG * 0.72
   ) {
     return {
-      text: "Add a little protein earlier in the day (breakfast or lunch)—small moves usually stick better than a big late catch-up.",
+      text: "Add a little protein earlier in the day (breakfast or lunch). Small moves usually stick better than a big late catch-up.",
       ifThen:
         "If a meal is light on protein, I’ll add one small source I already keep around (yogurt, egg, fish, or tofu).",
     };
@@ -69,9 +69,9 @@ export function computeTryThisWeek(i: TryThisWeekInput): TryThisWeekResult {
     avgKcalPerDay > dailyTargetKcal * 1.12
   ) {
     return {
-      text: "Try one swap or a slightly smaller portion per meal instead of redoing the whole day—gentle tweaks add up.",
+      text: "Try one swap or a slightly smaller portion per meal instead of redoing the whole day. Gentle tweaks add up.",
       ifThen:
-        "If I’m trending above my calorie guide, I’ll adjust the next meal or snack one step—not restart the whole day.",
+        "If I’m trending above my calorie guide, I’ll adjust the next meal or snack one step, not restart the whole day.",
     };
   }
 
@@ -82,7 +82,7 @@ export function computeTryThisWeek(i: TryThisWeekInput): TryThisWeekResult {
     daysWithLogs >= 3
   ) {
     return {
-      text: "Averages sat under your calorie goal—if that wasn't the plan, one intentional add-on on lighter days can steady the week.",
+      text: "Averages sat under your calorie goal. If that wasn't the plan, one intentional add-on on lighter days can steady the week.",
       ifThen:
         "If I feel low on energy on lighter days, I’ll add one planned snack or side with my next meal.",
     };
@@ -90,7 +90,7 @@ export function computeTryThisWeek(i: TryThisWeekInput): TryThisWeekResult {
 
   if (daysWithLogs < Math.min(4, daysInWindow)) {
     return {
-      text: "Pick one short logging moment on the days you care about (right after a meal works)—brief beats sporadic.",
+      text: "Pick one short logging moment on the days you care about (right after a meal works). Brief beats sporadic.",
       ifThen:
         "If I forget to log, I’ll jot one line after the next meal I care about.",
     };

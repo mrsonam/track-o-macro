@@ -19,11 +19,11 @@ export const LOGGING_STYLE_LABELS: Record<
   },
   weigh_often: {
     title: "I weigh or measure a lot",
-    desc: "Food scale, cups, or labels—numbers matter to you.",
+    desc: "Food scale, cups, or labels; numbers matter to you.",
   },
   mixed: {
     title: "A mix of both",
-    desc: "Sometimes detailed, sometimes quick—it depends on the meal.",
+    desc: "Sometimes detailed, sometimes quick. It depends on the meal.",
   },
 };
 
@@ -72,10 +72,10 @@ export function parseFoodAvoidList(raw: string): string[] {
 export function loggingStyleBlurb(style: LoggingStyle | null | undefined): string {
   if (!style) return "";
   if (style === "quick_estimates") {
-    return "You said you usually log with quick estimates—we’ll keep portion language practical.";
+    return "You said you usually log with quick estimates. We’ll keep portion language practical.";
   }
   if (style === "weigh_often") {
-    return "You prefer weighing or measuring—mention grams or units when you log for tighter matches.";
+    return "You prefer weighing or measuring. Mention grams or units when you log for tighter matches.";
   }
-  return "You use a mix of detail and estimates—either style works here.";
+  return "You use a mix of detail and estimates. Either style works here.";
 }

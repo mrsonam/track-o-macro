@@ -6,6 +6,7 @@ import {
 } from "@/lib/meals/local-date";
 import type { MealDaySummary } from "@/lib/meals/meal-day-summary";
 import type { UnitSystem } from "@/lib/profile/units";
+import { formatFluidCompact } from "@/lib/hydration/format-fluid-compact";
 import { Activity, Droplets, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -20,19 +21,6 @@ type WeekCalorieStripProps = {
   summariesByKey: Record<string, MealDaySummary | null | undefined>;
   batchLoading: boolean;
 };
-
-function formatFluidCompact(ml: number, unit: UnitSystem): string {
-  if (!Number.isFinite(ml) || ml < 0) return "0";
-  const rounded = Math.round(ml);
-  if (rounded === 0) return "0";
-  if (unit === "imperial") {
-    const flOz = ml / 29.5735;
-    if (flOz >= 128) return `${(flOz / 128).toFixed(1)} gal`;
-    return `${Math.round(flOz)} oz`;
-  }
-  if (ml >= 1000) return `${(ml / 1000).toFixed(1)} L`;
-  return `${rounded} ml`;
-}
 
 export function WeekCalorieStrip({
   dateKeys,
@@ -59,8 +47,8 @@ export function WeekCalorieStrip({
 
       <div
         className="-mt-4 flex gap-2 overflow-x-auto px-1 pb-4 pt-4 scroll-smooth no-scrollbar"
-        role="tablist"
-        aria-label="Daily calories and hydration, last 7 days"
+        role="group"
+        aria-label="Choose a day, last 7 days"
       >
         {dateKeys.map((key) => {
           const d = parseLocalYmd(key);
@@ -106,19 +94,18 @@ export function WeekCalorieStrip({
           return (
             <motion.button
               key={key}
-              whileHover={{ y: -2 }}
               whileTap={{ scale: 0.96 }}
               type="button"
-              role="tab"
-              aria-selected={selected}
+              aria-pressed={selected}
+              aria-label={`${d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}${isToday ? ", today" : ""}${selected ? ", selected" : ""}`}
               onClick={() => onSelectDateKey(key)}
               className={`focus-ring tap-target group relative flex min-w-[5.75rem] flex-col items-center rounded-2xl p-4 transition-[color,background-color,border-color,box-shadow] duration-200 ${
                 selected
                   ? isSurplus
                     ? "bg-[#ffcf72] shadow-[0_18px_46px_-28px_rgba(245,158,11,0.78)] ring-1 ring-amber-400"
-                    : "bg-[#4f9d45] shadow-[0_18px_46px_-28px_rgba(79,157,69,0.78)] ring-1 ring-[#4f9d45]"
+                    : "bg-accent-secondary shadow-[0_18px_46px_-28px_rgba(79,157,69,0.78)] ring-1 ring-accent-secondary"
                   : isSurplus
-                    ? "border border-amber-500/25 bg-[#f7f3e9] hover:bg-[#efe7d6]"
+                    ? "border border-amber-500/25 bg-warm-neutral hover:bg-[#efe7d6]"
                     : "border border-black/10 bg-white/85 hover:bg-[#f2f8ec]"
               }`}
             >
@@ -141,7 +128,7 @@ export function WeekCalorieStrip({
                     ? isSurplus
                       ? "text-amber-950"
                       : "text-white"
-                    : "text-[#171412]"
+                    : "text-foreground"
                 }`}
               >
                 {d.getDate()}
@@ -156,7 +143,7 @@ export function WeekCalorieStrip({
                         : "text-white"
                       : isSurplus
                         ? "text-amber-700"
-                        : "text-[#4f9d45]"
+                        : "text-accent-secondary"
                   }`}
                 >
                   <Flame className="h-3 w-3 shrink-0 opacity-90" />
@@ -165,7 +152,7 @@ export function WeekCalorieStrip({
                   </span>
                 </div>
 
-                {/* Calories vs target */}
+                {/* Calories vs target (decorative; see day summary) */}
                 <div
                   className={`h-1.5 w-full overflow-hidden rounded-full ${
                     selected
@@ -174,18 +161,21 @@ export function WeekCalorieStrip({
                         : "bg-white/25"
                       : "border border-black/10 bg-[#f2eadb]"
                   }`}
+                  aria-hidden
                 >
                   <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.round(targetRatio * 100)}%` }}
-                    className={`h-full rounded-full transition-[width,background-color,box-shadow] duration-500 ${
+                    initial={{ scaleX: 0 }}
+                    animate={{ scaleX: targetRatio }}
+                    style={{ transformOrigin: "left center" }}
+                    transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+                    className={`h-full w-full rounded-full ${
                       selected
                         ? isSurplus
                           ? "bg-amber-950"
                           : "bg-white"
                         : isSurplus
                           ? "bg-amber-600"
-                          : "bg-[#4f9d45]"
+                          : "bg-accent-secondary"
                     }`}
                   />
                 </div>
@@ -202,7 +192,7 @@ export function WeekCalorieStrip({
                   >
                     <div className="flex items-center gap-1">
                       <Activity className="h-3 w-3 shrink-0 opacity-90" />
-                      <span className="text-[9px] font-bold tabular-nums leading-tight">
+                      <span className="text-[10px] font-bold tabular-nums leading-tight">
                         {appleSteps != null
                           ? `${appleSteps.toLocaleString()} steps`
                           : appleBurn != null
@@ -211,7 +201,7 @@ export function WeekCalorieStrip({
                       </span>
                     </div>
                     {appleSteps != null && appleBurn != null ? (
-                      <span className="text-[8px] font-semibold tabular-nums opacity-80">
+                      <span className="text-[10px] font-semibold tabular-nums opacity-80">
                         {appleBurn} kcal active
                       </span>
                     ) : null}
@@ -241,6 +231,7 @@ export function WeekCalorieStrip({
                         : "bg-white/25"
                       : "border border-sky-500/20 bg-sky-50"
                   }`}
+                  aria-hidden
                 >
                   <motion.div
                     initial={{ width: 0 }}
@@ -248,7 +239,7 @@ export function WeekCalorieStrip({
                     className={`h-full rounded-full ${
                       selected
                         ? "bg-sky-100 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.15)]"
-                        : "bg-gradient-to-r from-sky-600 to-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.35)]"
+                        : "bg-sky-600"
                     }`}
                   />
                 </div>
@@ -260,10 +251,10 @@ export function WeekCalorieStrip({
                     selected
                       ? isSurplus
                         ? "bg-amber-950"
-                        : "bg-[#171412]"
+                        : "bg-foreground"
                       : isSurplus
                         ? "bg-amber-500"
-                        : "bg-[#4f9d45]"
+                        : "bg-accent-secondary"
                   }`}
                 >
                   <div

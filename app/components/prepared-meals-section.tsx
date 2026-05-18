@@ -1,10 +1,21 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChefHat, Camera, ScanLine, Trash2, X } from "lucide-react";
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
 import { ConfirmDialog } from "@/app/components/confirm-dialog";
+import { Reveal } from "@/lib/motion";
+import { MISSING_DISPLAY } from "@/lib/copy/display";
+import {
+  buildLineHintChips,
+  mealLogLineHintTopPx,
+} from "@/lib/meals/log-line-hints";
+import {
+  appendIngredientSuggestionLine,
+  applyIngredientSuggestionToValue,
+  extractTextareaIngredientQuery,
+} from "@/lib/meals/textarea-ingredient-query";
 
 export type PreparedMealListItem = {
   id: string;
@@ -69,21 +80,6 @@ type PreparedMealsSectionProps = {
   preparedMeals: PreparedMealListItem[];
 };
 
-function extractTextareaIngredientQuery(value: string, caret: number): string {
-  const before = value.slice(0, Math.max(0, caret));
-  const lineStart = before.lastIndexOf("\n") + 1;
-  const currentLine = before.slice(lineStart);
-  const token = currentLine.split(",").pop()?.trim() ?? "";
-  return token;
-}
-
-function parseIngredientGramsFromLine(line: string): number | null {
-  const m = line.match(/(\d+(?:\.\d+)?)\s*g\b/i);
-  if (!m) return null;
-  const n = Number(m[1]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
 function ingredientLinesFromText(value: string) {
   return value
     .split("\n")
@@ -96,13 +92,13 @@ function fmtKcal(n: number) {
 }
 
 function fmtG(n: number) {
-  if (Number.isNaN(n)) return "—";
+  if (Number.isNaN(n)) return MISSING_DISPLAY;
   const r = Math.round(n * 10) / 10;
   return r % 1 === 0 ? String(Math.round(r)) : r.toFixed(1);
 }
 
 function fmtMg(n: number) {
-  if (Number.isNaN(n)) return "—";
+  if (Number.isNaN(n)) return MISSING_DISPLAY;
   return Math.round(n).toLocaleString();
 }
 
@@ -120,6 +116,10 @@ function sourceLabel(source: ResolvedLine["source"]) {
 }
 
 export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProps) {
+  const batchTitleId = useId();
+  const batchRecipeId = useId();
+  const batchSuggestionsId = useId();
+  const barcodeManualId = useId();
   const router = useRouter();
   const [batchTitle, setBatchTitle] = useState("");
   const [batchRecipe, setBatchRecipe] = useState("");
@@ -251,11 +251,11 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     const lineStart = before.lastIndexOf("\n") + 1;
     const currentLine = before.slice(lineStart);
     const approxCharWidth = 8;
-    const approxLineHeight = 22;
-    const rawLeft = 20 + currentLine.length * approxCharWidth;
-    const rawTop = 20 + before.split("\n").length * approxLineHeight;
-    const maxLeft = Math.max(20, el.clientWidth - 220);
-    const maxTop = Math.max(20, el.clientHeight - 120);
+    const approxLineHeight = 26;
+    const rawLeft = 24 + currentLine.length * approxCharWidth;
+    const rawTop = 24 + before.split("\n").length * approxLineHeight;
+    const maxLeft = Math.max(24, el.clientWidth - 220);
+    const maxTop = Math.max(24, el.clientHeight - 120);
     setBatchSuggestionAnchor({
       left: Math.min(rawLeft, maxLeft),
       top: Math.min(rawTop, maxTop),
@@ -316,37 +316,19 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     });
   }
 
-  const batchDerivedHints = useMemo(() => {
+  const batchHintChips = useMemo(() => {
     const lines = ingredientLinesFromText(batchRecipe);
-    if (lines.length === 0) return [];
     const hintList = Object.values(batchSelectedFoodHints);
-    if (hintList.length === 0) return [];
-    const out: Array<{
-      key: string;
-      label: string;
-      labelNorm: string;
-      grams: number | null;
-      kcal: number | null;
-    }> = [];
-    for (let i = 0; i < lines.length; i++) {
-      const rawLine = lines[i]!;
-      const normalizedLine = rawLine.toLowerCase().replace(/\s+/g, " ");
-      const grams = parseIngredientGramsFromLine(rawLine);
-      for (const hint of hintList) {
-        if (!normalizedLine.includes(hint.labelNorm)) continue;
-        const kcal =
-          grams != null ? (hint.kcalPer100g * grams) / 100 : null;
-        out.push({
-          key: `batch-${i}-${hint.labelNorm}`,
-          label: hint.label,
-          labelNorm: hint.labelNorm,
-          grams,
-          kcal,
-        });
-        break;
-      }
-    }
-    return out;
+    if (lines.length === 0 || hintList.length === 0) return [];
+
+    return buildLineHintChips(
+      lines,
+      hintList.map((h) => ({
+        label: h.label,
+        labelNorm: h.labelNorm,
+        kcalPer100g: h.kcalPer100g,
+      })),
+    );
   }, [batchRecipe, batchSelectedFoodHints]);
 
   function onBatchRecipeChange(value: string, caret: number) {
@@ -365,22 +347,15 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     if (!el) return;
     const value = batchRecipe;
     const caret = el.selectionStart ?? value.length;
-    const before = value.slice(0, caret);
-    const after = value.slice(caret);
-    const lineStart = before.lastIndexOf("\n") + 1;
-    const currentLine = before.slice(lineStart);
-    const lastComma = currentLine.lastIndexOf(",");
-    const tokenStartInLine = lastComma >= 0 ? lastComma + 1 : 0;
-    const absoluteTokenStart = lineStart + tokenStartInLine;
-    const prefix = value.slice(0, absoluteTokenStart);
-    const suffix = after;
-    const spacer = prefix.endsWith(" ") || prefix.endsWith(",") ? "" : " ";
-    const next = `${prefix}${spacer}${label} 100g${suffix}`;
+    const { next, nextCaret } = applyIngredientSuggestionToValue(
+      value,
+      caret,
+      label,
+    );
     setBatchRecipe(next);
     setBatchFreeTextQuery(label);
     setBatchShowSuggestions(false);
     queueMicrotask(() => {
-      const nextCaret = (prefix + spacer + label + " 100g").length;
       el.focus();
       el.setSelectionRange(nextCaret, nextCaret);
     });
@@ -390,8 +365,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     rememberBatchFoodHint(item);
     const label = item.label.trim();
     if (!label) return;
-    const base = batchRecipe.trimEnd();
-    const next = base ? `${base}\n${label} 100g` : `${label} 100g`;
+    const next = appendIngredientSuggestionLine(batchRecipe, label);
     setBatchRecipe(next);
     pruneBatchHintsForText(next);
     setBatchShowSuggestions(false);
@@ -705,41 +679,59 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
   const totals = batchPreview?.totals;
 
   return (
-    <div className="space-y-8">
+    <Reveal y={12}>
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,22rem)] xl:grid-cols-[minmax(0,1fr)_minmax(300px,24rem)] xl:gap-8">
+        <div className="min-w-0 space-y-8">
       <div className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/90 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.45)] sm:p-6">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#dff1ff] text-[#3b82a0]">
-            <ChefHat className="h-5 w-5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-carb-sky text-signal-deep">
+            <ChefHat className="h-5 w-5" aria-hidden />
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">
               New prepared batch
             </p>
-            <h3 className="text-lg font-black tracking-tight text-[#171412]">
+            <h2 className="text-lg font-black tracking-tight text-foreground">
               Build the recipe, preview, then save
-            </h3>
+            </h2>
             <p className="mt-1 max-w-2xl text-xs font-medium text-zinc-600">
               Search ingredients, use the barcode scanner, set grams per line, enter the
-              cooked weight of the full batch, then review the breakdown below.
+              cooked weight of the full batch, then review the breakdown in the preview.
             </p>
           </div>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-black/10 bg-[#fffdf7] p-4">
+        <div className="space-y-3">
           <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-600">
             Recipe
           </p>
+          <label htmlFor={batchTitleId} className="sr-only">
+            Dish name
+          </label>
           <input
+            id={batchTitleId}
             type="text"
             value={batchTitle}
             onChange={(e) => setBatchTitle(e.target.value)}
             placeholder="Dish name (e.g. Chicken curry)"
             className="input-field w-full py-2.5 text-sm"
+            autoComplete="off"
           />
+          <label
+            htmlFor={batchRecipeId}
+            className="mb-2 block text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500"
+          >
+            Ingredients
+          </label>
           <div className="relative">
             <textarea
+              id={batchRecipeId}
               ref={batchTextareaRef}
               value={batchRecipe}
+              role="combobox"
+              aria-expanded={batchShowSuggestions && batchFreeTextSuggestions.length > 0}
+              aria-controls={batchSuggestionsId}
+              aria-autocomplete="list"
               onChange={(e) =>
                 onBatchRecipeChange(
                   e.target.value,
@@ -749,21 +741,18 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               onFocus={() => {
                 const el = batchTextareaRef.current;
                 const caret = el?.selectionStart ?? batchRecipe.length;
-                updateBatchSuggestionAnchor(caret);
-                const q = el
-                  ? extractTextareaIngredientQuery(el.value, caret)
-                  : "";
-                setBatchFreeTextQuery(q);
-                setBatchShowSuggestions(q.trim().length >= 2);
+                onBatchRecipeChange(batchRecipe, caret);
               }}
               onClick={(e) =>
-                updateBatchSuggestionAnchor(
+                onBatchRecipeChange(
+                  e.currentTarget.value,
                   e.currentTarget.selectionStart ??
                     e.currentTarget.value.length,
                 )
               }
               onKeyUp={(e) =>
-                updateBatchSuggestionAnchor(
+                onBatchRecipeChange(
+                  e.currentTarget.value,
                   e.currentTarget.selectionStart ??
                     e.currentTarget.value.length,
                 )
@@ -772,42 +761,53 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                 setTimeout(() => setBatchShowSuggestions(false), 120);
               }}
               rows={6}
-              placeholder="Ingredients — search, barcode, or pick matches; add grams (e.g. 400g) per line"
-              className={`w-full resize-y rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm leading-relaxed text-[#171412] placeholder:text-zinc-400 focus:border-[#4f9d45]/50 focus:outline-none focus:ring-2 focus:ring-[#4f9d45]/15 ${
-                batchDerivedHints.length > 0 ? "md:pr-44" : ""
+              placeholder="One ingredient per line — e.g. chicken breast 400g"
+              className={`input-field w-full resize-none rounded-3xl bg-[#fffdf7] px-5 py-4 text-base leading-7 sm:text-lg ${
+                batchHintChips.some((row) => row.showChip) ? "md:pr-48" : ""
               }`}
             />
-            {batchDerivedHints.length > 0 ? (
-              <div className="pointer-events-none absolute right-2 top-2 hidden max-w-[9.5rem] flex-col gap-1 md:flex">
-                {batchDerivedHints.slice(0, 8).map((row) => (
-                  <div
-                    key={row.key}
-                    className="truncate rounded-lg border border-[#4f9d45]/20 bg-[#eaf7df] px-2 py-0.5 text-right text-[10px] font-bold text-[#356d30]"
-                  >
-                    {row.grams != null && row.kcal != null
-                      ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
-                      : "Add grams (e.g. 80g)"}
-                  </div>
-                ))}
+            {batchHintChips.some((row) => row.showChip) ? (
+              <div
+                className="pointer-events-none absolute inset-0 right-3 hidden md:block"
+                aria-hidden
+              >
+                {batchHintChips
+                  .filter((row) => row.showChip)
+                  .map((row) => (
+                    <div
+                      key={`side-${row.key}`}
+                      style={{ top: `${mealLogLineHintTopPx(row.lineIndex)}px` }}
+                      className="absolute right-0 max-w-[11rem] truncate rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-right text-[10px] font-bold text-[#356d30]"
+                    >
+                      {row.grams != null && row.kcal != null
+                        ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
+                        : "Add grams (e.g. 80g)"}
+                    </div>
+                  ))}
               </div>
             ) : null}
-            {batchDerivedHints.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5 md:hidden">
-                {batchDerivedHints.slice(0, 8).map((row) => (
-                  <div
-                    key={`m-${row.key}`}
-                    className="rounded-lg border border-[#4f9d45]/20 bg-[#eaf7df] px-2 py-0.5 text-[10px] font-bold text-[#356d30]"
-                  >
-                    {row.grams != null && row.kcal != null
-                      ? `${Math.round(row.grams)}g • ${Math.round(row.kcal)} kcal`
-                      : "Add grams (e.g. 80g)"}
-                  </div>
-                ))}
+            {batchHintChips.some((row) => row.showChip) ? (
+              <div className="mt-2 flex flex-col gap-1.5 md:hidden">
+                {batchHintChips
+                  .filter((row) => row.showChip)
+                  .map((row) => (
+                    <div
+                      key={`mobile-side-${row.key}`}
+                      className="w-fit rounded-xl border border-[#4f9d45]/20 bg-[#eaf7df] px-2.5 py-1 text-[10px] font-bold text-[#356d30]"
+                    >
+                      {row.grams != null && row.kcal != null
+                        ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
+                        : "Add grams (e.g. 80g)"}
+                    </div>
+                  ))}
               </div>
             ) : null}
             {batchShowSuggestions && batchFreeTextSuggestions.length > 0 ? (
               <ul
-                className="absolute z-40 max-h-56 w-[min(18rem,calc(100%-1rem))] overflow-auto rounded-xl border border-black/10 bg-white p-1 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]"
+                id={batchSuggestionsId}
+                role="listbox"
+                aria-label="Ingredient suggestions"
+                className="absolute z-40 max-h-56 w-[min(20rem,calc(100%-1rem))] overflow-auto rounded-2xl border border-black/10 bg-white p-1.5 shadow-[0_20px_40px_-24px_rgba(23,20,18,0.5)]"
                 style={{
                   left: `${batchSuggestionAnchor.left}px`,
                   top: `${batchSuggestionAnchor.top}px`,
@@ -824,16 +824,17 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                     <li key={`batch-sug-${item.fdcId}-${item.label}-${index}`}>
                       <button
                         type="button"
+                        role="option"
                         onMouseDown={(e) => {
                           e.preventDefault();
                           applyBatchSuggestionItem(item);
                         }}
-                        className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-zinc-800 transition-colors hover:bg-[#f7f3e9]"
+                        className="focus-ring w-full cursor-pointer rounded-xl px-3 py-2.5 text-left text-sm font-medium text-zinc-800 transition-colors duration-200 hover:bg-[#f7f3e9]"
                       >
                         <span className="flex items-center justify-between gap-3">
                           <span className="truncate">{item.label}</span>
                           {item.kcalPer100g != null ? (
-                            <span className="shrink-0 text-[11px] font-bold text-[#4f9d45]">
+                            <span className="shrink-0 text-[11px] font-bold text-accent-secondary">
                               {Math.round(item.kcalPer100g)} kcal
                             </span>
                           ) : null}
@@ -886,7 +887,9 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
             </button>
           </div>
           {batchErr ? (
-            <p className="text-xs font-semibold text-red-600">{batchErr}</p>
+            <p role="alert" className="text-xs font-semibold text-red-600">
+              {batchErr}
+            </p>
           ) : null}
         </div>
       </div>
@@ -895,27 +898,27 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
         <div className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/95 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.4)] sm:p-6">
           <div className="mb-6 flex flex-col gap-2 border-b border-black/10 pb-6 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#356d30]">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.22em] text-signal-deep">
                 Nutrition breakdown
-              </p>
-              <h3 className="mt-1 text-xl font-black tracking-tight text-[#171412] sm:text-2xl">
+              </h2>
+              <h3 className="mt-1 text-xl font-black tracking-tight text-foreground sm:text-2xl">
                 {batchTitle.trim() || "Untitled dish"}
               </h3>
               <p className="mt-2 text-sm text-zinc-600">
                 Totals for everything in your recipe list before you scale by cooked
                 weight. Add your prepared weight above to see{" "}
                 <span className="font-semibold text-zinc-800">per 100 g of the finished dish</span>{" "}
-                (same basis as logging from home).
+                (same basis as logging from the meal logger).
               </p>
             </div>
           </div>
 
           <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-[#4f9d45]/25 bg-[#eaf7df] p-4">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[#356d30]">
+            <div className="rounded-2xl border border-accent-secondary/25 bg-accent-secondary/10 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-signal-deep">
                 Energy
               </p>
-              <p className="mt-1 font-mono text-2xl font-black text-[#171412]">
+              <p className="mt-1 font-mono text-2xl font-black text-foreground">
                 {fmtKcal(totals.kcal)}
                 <span className="text-sm font-bold text-zinc-600"> kcal</span>
               </p>
@@ -924,7 +927,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
                 Protein
               </p>
-              <p className="mt-1 font-mono text-2xl font-black text-[#171412]">
+              <p className="mt-1 font-mono text-2xl font-black text-foreground">
                 {fmtG(totals.protein_g)}
                 <span className="text-sm font-bold text-zinc-600"> g</span>
               </p>
@@ -933,7 +936,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
                 Carbs
               </p>
-              <p className="mt-1 font-mono text-2xl font-black text-[#171412]">
+              <p className="mt-1 font-mono text-2xl font-black text-foreground">
                 {fmtG(totals.carbs_g)}
                 <span className="text-sm font-bold text-zinc-600"> g</span>
               </p>
@@ -942,58 +945,21 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               <p className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
                 Fat
               </p>
-              <p className="mt-1 font-mono text-2xl font-black text-[#171412]">
+              <p className="mt-1 font-mono text-2xl font-black text-foreground">
                 {fmtG(totals.fat_g)}
                 <span className="text-sm font-bold text-zinc-600"> g</span>
               </p>
             </div>
           </div>
 
-          <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                Fiber
-              </p>
-              <p className="mt-0.5 font-mono text-lg font-bold text-[#171412]">
-                {fmtG(totals.fiber_g)} g
-              </p>
-            </div>
-            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                Sodium
-              </p>
-              <p className="mt-0.5 font-mono text-lg font-bold text-[#171412]">
-                {fmtMg(totals.sodium_mg)} mg
-              </p>
-            </div>
-            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                Sugars
-              </p>
-              <p className="mt-0.5 font-mono text-lg font-bold text-[#171412]">
-                {fmtG(totals.sugar_g)} g
-              </p>
-            </div>
-            <div className="rounded-xl border border-black/10 bg-zinc-50/80 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                Added sugar
-              </p>
-              <p className="mt-0.5 font-mono text-lg font-bold text-[#171412]">
-                {totals.added_sugar_g != null && Number.isFinite(totals.added_sugar_g)
-                  ? `${fmtG(totals.added_sugar_g)} g`
-                  : "—"}
-              </p>
-            </div>
-          </div>
-
           {per100gDish ? (
-            <div className="mb-8 rounded-2xl border border-[#3b82a0]/25 bg-[#f0f7ff] p-4 sm:p-5">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#3b82a0]">
+            <div className="mb-8 rounded-2xl border border-accent-secondary/25 bg-carb-sky/40 p-4 sm:p-5">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-signal-deep">
                 Finished dish (per 100 g)
               </p>
               <p className="mt-1 text-xs text-zinc-600">
                 Using prepared weight{" "}
-                <span className="font-bold text-[#171412]">
+                <span className="font-bold text-foreground">
                   {Math.round(preparedGramsNum)} g
                 </span>{" "}
                 total cooked batch.
@@ -1001,40 +967,40 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               <dl className="mt-4 grid gap-3 font-mono text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Kcal</dt>
-                  <dd className="font-black text-[#171412]">
+                  <dd className="font-black text-foreground">
                     {fmtKcal(per100gDish.kcal)} / 100g
                   </dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Protein</dt>
-                  <dd className="font-black text-[#171412]">{fmtG(per100gDish.protein_g)} g</dd>
+                  <dd className="font-black text-foreground">{fmtG(per100gDish.protein_g)} g</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Carbs</dt>
-                  <dd className="font-black text-[#171412]">{fmtG(per100gDish.carbs_g)} g</dd>
+                  <dd className="font-black text-foreground">{fmtG(per100gDish.carbs_g)} g</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Fat</dt>
-                  <dd className="font-black text-[#171412]">{fmtG(per100gDish.fat_g)} g</dd>
+                  <dd className="font-black text-foreground">{fmtG(per100gDish.fat_g)} g</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Fiber</dt>
-                  <dd className="font-black text-[#171412]">{fmtG(per100gDish.fiber_g)} g</dd>
+                  <dd className="font-black text-foreground">{fmtG(per100gDish.fiber_g)} g</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Sodium</dt>
-                  <dd className="font-black text-[#171412]">{fmtMg(per100gDish.sodium_mg)} mg</dd>
+                  <dd className="font-black text-foreground">{fmtMg(per100gDish.sodium_mg)} mg</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Sugars</dt>
-                  <dd className="font-black text-[#171412]">{fmtG(per100gDish.sugar_g)} g</dd>
+                  <dd className="font-black text-foreground">{fmtG(per100gDish.sugar_g)} g</dd>
                 </div>
                 <div>
                   <dt className="text-[10px] font-bold uppercase text-zinc-500">Added sugar</dt>
-                  <dd className="font-black text-[#171412]">
+                  <dd className="font-black text-foreground">
                     {per100gDish.added_sugar_g != null
                       ? `${fmtG(per100gDish.added_sugar_g)} g`
-                      : "—"}
+                      : MISSING_DISPLAY}
                   </dd>
                 </div>
               </dl>
@@ -1050,7 +1016,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
             <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">
               Line-by-line
             </p>
-            <div className="overflow-x-auto rounded-2xl border border-black/10">
+            <div className="overflow-x-auto rounded-2xl border border-black/10" tabIndex={0} role="region" aria-label="Ingredient breakdown table, scroll horizontally on small screens">
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="border-b border-black/10 bg-[#fffdf7] text-[10px] font-black uppercase tracking-wider text-zinc-500">
                   <tr>
@@ -1078,7 +1044,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                 <tbody className="divide-y divide-black/[0.06]">
                   {batchPreview.lines.map((line, idx) => (
                     <tr key={`line-${idx}-${line.label}`} className="bg-white/90">
-                      <td className="max-w-[14rem] px-3 py-2.5 font-medium text-[#171412]">
+                      <td className="max-w-[14rem] px-3 py-2.5 font-medium text-foreground">
                         <span className="line-clamp-2">{line.label}</span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-zinc-600">
@@ -1099,22 +1065,22 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                       </td>
                       {showFiberCol ? (
                         <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-zinc-600">
-                          {line.fiber_g != null ? fmtG(line.fiber_g) : "—"}
+                          {line.fiber_g != null ? fmtG(line.fiber_g) : MISSING_DISPLAY}
                         </td>
                       ) : null}
                       {showSodiumCol ? (
                         <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-zinc-600">
-                          {line.sodium_mg != null ? fmtMg(line.sodium_mg) : "—"}
+                          {line.sodium_mg != null ? fmtMg(line.sodium_mg) : MISSING_DISPLAY}
                         </td>
                       ) : null}
                       {showSugarCol ? (
                         <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-zinc-600">
-                          {line.sugar_g != null ? fmtG(line.sugar_g) : "—"}
+                          {line.sugar_g != null ? fmtG(line.sugar_g) : MISSING_DISPLAY}
                         </td>
                       ) : null}
                       {showAddedSugarCol ? (
                         <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-zinc-600">
-                          {line.added_sugar_g != null ? fmtG(line.added_sugar_g) : "—"}
+                          {line.added_sugar_g != null ? fmtG(line.added_sugar_g) : MISSING_DISPLAY}
                         </td>
                       ) : null}
                       <td className="px-3 py-2.5">
@@ -1125,8 +1091,8 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                     </tr>
                   ))}
                 </tbody>
-                <tfoot className="border-t-2 border-[#4f9d45]/30 bg-[#f7fcf0]">
-                  <tr className="font-black text-[#171412]">
+                <tfoot className="border-t-2 border-accent-secondary/30 bg-accent-secondary/5">
+                  <tr className="font-black text-foreground">
                     <td className="px-3 py-3" colSpan={2}>
                       Batch total
                     </td>
@@ -1147,7 +1113,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                       <td className="px-3 py-3 text-right font-mono">
                         {totals.added_sugar_g != null
                           ? fmtG(totals.added_sugar_g)
-                          : "—"}
+                          : MISSING_DISPLAY}
                       </td>
                     ) : null}
                     <td className="px-3 py-3" />
@@ -1161,32 +1127,34 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
             type="button"
             onClick={() => void savePreparedMeal()}
             disabled={batchSaveBusy}
-            className="focus-ring tap-target w-full rounded-2xl bg-[#4f9d45] px-4 py-3.5 text-sm font-black uppercase tracking-wider text-white hover:bg-[#458a3d] disabled:opacity-50 sm:w-auto sm:min-w-[12rem]"
+            className="focus-ring tap-target w-full rounded-2xl bg-accent-secondary px-4 py-3.5 text-sm font-black uppercase tracking-wider text-white hover:bg-accent-secondary/90 disabled:opacity-50 sm:w-auto sm:min-w-[12rem]"
           >
             {batchSaveBusy ? "Saving…" : "Save prepared meal"}
           </button>
         </div>
       ) : null}
+        </div>
 
-      <div className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/90 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.45)] sm:p-6">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-zinc-600">
+        <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
+      <div className="overflow-hidden rounded-[2rem] border border-black/[0.08] bg-white/90 p-4 shadow-[0_24px_70px_-42px_rgba(23,20,18,0.45)] sm:p-6 lg:max-h-[calc(100vh-7rem)] lg:flex lg:flex-col">
+        <h2 className="text-xs font-black uppercase tracking-[0.14em] text-zinc-600">
           Saved batches
-        </p>
+        </h2>
         {preparedMeals.length === 0 ? (
           <p className="mt-3 text-sm text-zinc-600">
-            No saved batches yet. Preview nutrition and save a dish above — then you can log
-            it from home by searching for the same name.
+            No saved batches yet. Preview nutrition and save a dish in the builder, then log
+            it from the meal logger by searching for the same name.
           </p>
         ) : (
           <>
-            <ul className="mt-4 max-h-72 space-y-2 overflow-y-auto text-sm">
+            <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto text-sm lg:max-h-[calc(100vh-12rem)]">
               {preparedMeals.map((m) => (
                 <li
                   key={m.id}
                   className="flex items-center justify-between gap-3 rounded-xl border border-black/10 bg-[#fffdf7] px-3 py-2.5"
                 >
                   <div className="min-w-0">
-                    <p className="truncate font-bold text-[#171412]">{m.title}</p>
+                    <p className="truncate font-bold text-foreground">{m.title}</p>
                     <p className="mt-0.5 text-xs text-zinc-500">
                       {Math.round(m.preparedGrams)} g batch ·{" "}
                       {fmtKcal(m.batchTotalKcal)} kcal · P {fmtG(m.batchTotalProteinG)} · C{" "}
@@ -1196,7 +1164,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(m)}
-                    className="focus-ring shrink-0 rounded-lg p-2 text-zinc-500 hover:bg-red-50 hover:text-red-600"
+                    className="focus-ring tap-target shrink-0 rounded-lg text-zinc-500 hover:bg-red-50 hover:text-red-600"
                     aria-label={`Delete ${m.title}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -1205,10 +1173,12 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               ))}
             </ul>
             {listErr ? (
-              <p className="mt-3 text-xs font-semibold text-red-600">{listErr}</p>
+              <p role="alert" className="mt-3 text-xs font-semibold text-red-600">{listErr}</p>
             ) : null}
           </>
         )}
+      </div>
+        </aside>
       </div>
 
       {showBarcodePanel ? (
@@ -1245,9 +1215,11 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
           <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/85 via-black/65 to-transparent p-4 pb-5">
             <div className="flex items-center gap-2">
               <input
+                id={barcodeManualId}
                 type="text"
                 inputMode="numeric"
                 value={barcodeValue}
+                aria-label="Barcode number"
                 onChange={(e) => setBarcodeValue(e.target.value)}
                 placeholder="Enter barcode digits"
                 className="min-w-0 flex-1 rounded-xl border border-white/30 bg-black/45 px-3 py-2.5 text-sm text-white placeholder:text-white/60 focus:outline-none"
@@ -1274,7 +1246,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               {barcodeScanning ? "Stop camera" : "Scan with camera"}
             </button>
             {barcodeError ? (
-              <p className="text-xs font-semibold text-red-200">{barcodeError}</p>
+              <p role="alert" className="text-xs font-semibold text-red-200">{barcodeError}</p>
             ) : null}
           </div>
         </div>
@@ -1300,6 +1272,6 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
         }}
         onConfirm={() => void executePreparedDelete()}
       />
-    </div>
+    </Reveal>
   );
 }

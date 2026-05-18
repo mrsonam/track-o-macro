@@ -26,13 +26,13 @@ export function parseWeeklyCoachingFocus(
 export function weeklyCoachingFocusTip(f: WeeklyCoachingFocus): string {
   switch (f) {
     case "protein":
-      return "You chose protein—try one reliable source earlier (eggs, yogurt, tofu, canned fish) so you are not chasing it late.";
+      return "You chose protein. Try one reliable source earlier (eggs, yogurt, tofu, canned fish) so you are not chasing it late.";
     case "vegetables":
-      return "You chose vegetables—add one fist-sized portion where it fits (fresh, frozen, or salad all count).";
+      return "You chose vegetables. Add one fist-sized portion where it fits (fresh, frozen, or salad all count).";
     case "hydration":
-      return "You chose hydration—pair a glass of water with something you already do (after coffee, before dinner).";
+      return "You chose hydration. Pair a glass of water with something you already do (after coffee, before dinner).";
     case "steady_calories":
-      return "You chose steadier calories—roughly similar-sized mains on busy days beat one huge catch-up.";
+      return "You chose steadier calories. Roughly similar-sized mains on busy days beat one huge catch-up.";
   }
 }
 

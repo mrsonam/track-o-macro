@@ -94,7 +94,7 @@ export async function POST(request: Request) {
     const added_sugar_g = scaleOpt(p.batchTotalAddedSugarG);
 
     const label = `${p.title} (${Math.round(portionGrams)}g portion)`;
-    const rawInput = `${label} — prepared batch (${Math.round(preparedG)}g total)`;
+    const rawInput = `${label}, prepared batch (${Math.round(preparedG)}g total)`;
 
     const line: ResolvedLine = {
       label,

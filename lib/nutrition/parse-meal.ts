@@ -51,7 +51,7 @@ Respond with a single JSON object only (no markdown), matching this shape:
 { "meal_label"?: string, "ingredients": [{ "name": string, "quantity_g": number, "search_query"?: string, "unit_note"?: string }], "assumptions"?: string[] }
 
 Rules:
-- Convert counts to grams using typical sizes (e.g., large egg ~50g each; slice bread ~35–45g unless specified).
+- Convert counts to grams using typical sizes (e.g., large egg ~50g each; slice bread ~35 to 45g unless specified).
 - Convert volumes: 1 cup milk ~244g, 1 tbsp oil ~14g, 1 tsp ~5g for dense liquids; use reasonable food-specific estimates.
 - Each ingredient must have quantity_g > 0.
 - Prefer generic food names suitable for nutrition database matching in search_query when the name is ambiguous.`,

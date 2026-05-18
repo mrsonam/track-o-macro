@@ -90,15 +90,15 @@ export const ACTIVITY_LABELS: Record<
   },
   light: {
     title: "Light",
-    desc: "Light exercise or walking 1–3 days/week.",
+    desc: "Light exercise or walking 1 to 3 days/week.",
   },
   moderate: {
     title: "Moderate",
-    desc: "Moderate exercise 3–5 days/week.",
+    desc: "Moderate exercise 3 to 5 days/week.",
   },
   active: {
     title: "Active",
-    desc: "Hard exercise 6–7 days/week or physical job.",
+    desc: "Hard exercise 6 to 7 days/week or physical job.",
   },
   very_active: {
     title: "Very active",

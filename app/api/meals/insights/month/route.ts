@@ -67,6 +67,8 @@ export async function GET(request: Request) {
 
       const avgKcalPerDay = Math.round((kcal / daysInMonth) * 10) / 10;
       const avgProteinPerDay = Math.round((protein_g / daysInMonth) * 10) / 10;
+      const avgCarbsPerDay = Math.round((carbs_g / daysInMonth) * 10) / 10;
+      const avgFatPerDay = Math.round((fat_g / daysInMonth) * 10) / 10;
       const avgFiberPerDay = Math.round((fiber_g / daysInMonth) * 10) / 10;
       const avgSodiumPerDay = Math.round(sodium_mg / daysInMonth);
       const avgSugarPerDay = Math.round((sugar_g / daysInMonth) * 10) / 10;
@@ -149,6 +151,8 @@ export async function GET(request: Request) {
         averages: {
           kcalPerDay: avgKcalPerDay,
           proteinGPerDay: avgProteinPerDay,
+          carbsGPerDay: avgCarbsPerDay,
+          fatGPerDay: avgFatPerDay,
           fiberGPerDay: avgFiberPerDay,
           sodiumMgPerDay: avgSodiumPerDay,
           sugarGPerDay: avgSugarPerDay,

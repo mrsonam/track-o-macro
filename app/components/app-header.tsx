@@ -17,7 +17,7 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 w-full border-b border-black/[0.06] bg-[#fbfaf5]/85 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link
-          href="/"
+          href="/dashboard"
           className="flex items-center gap-2 rounded-xl transition-opacity duration-200 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4f9d45]/35 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fbfaf5]"
           aria-label="TrackOMacro home"
         >
@@ -41,8 +41,8 @@ export function AppHeader() {
           <button
             type="button"
             onClick={() => void onSignOut()}
-            className="focus-ring tap-target flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-500"
-            title="Sign out"
+            aria-label="Sign out"
+            className="focus-ring tap-target flex items-center justify-center rounded-xl text-zinc-500 transition-colors duration-200 hover:bg-red-500/10 hover:text-red-500"
           >
             <LogOut className="h-5 w-5" />
           </button>
