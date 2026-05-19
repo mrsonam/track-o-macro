@@ -39,6 +39,9 @@ model UserFood {
   proteinPer100g Decimal  @map("protein_per_100g")
   carbsPer100g   Decimal  @map("carbs_per_100g")
   fatPer100g     Decimal  @map("fat_per_100g")
+  defaultServingQty    Decimal? @map("default_serving_qty") @db.Decimal(14, 4)
+  defaultServingUnit   String?  @map("default_serving_unit") @db.Text
+  defaultServingGrams  Decimal? @map("default_serving_grams") @db.Decimal(14, 4)
   version        Int      @default(1)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -134,6 +137,11 @@ model MealLineItem {
   label    String  @db.Text
   quantity Decimal?
   unit     String? @db.Text
+  displayQuantity Decimal? @map("display_quantity") @db.Decimal(14, 4)
+  displayUnit     String?  @map("display_unit") @db.Text
+  displayLabel    String?  @map("display_label") @db.Text
+  conversionSource String? @map("conversion_source") @db.Text
+  assumption      String?  @map("assumption") @db.Text
   kcal     Decimal
   proteinG Decimal? @map("protein_g")
   carbsG   Decimal? @map("carbs_g")

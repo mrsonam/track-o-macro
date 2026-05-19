@@ -74,8 +74,6 @@ const patchBodySchema = z.object({
     .enum(["protein", "vegetables", "hydration", "steady_calories"])
     .optional()
     .nullable(),
-  /** Epic 5 — optional user if–then plan shown on week cards */
-  weeklyImplementationIntention: z.string().max(320).optional().nullable(),
   /** Epic 5 — recovery-friendly “active days in last 14” on home / trends */
   activeDays14Enabled: z.boolean().optional(),
   /** Epic 6 — optional smoothed weight sparkline on home body card */
@@ -245,7 +243,6 @@ export async function PATCH(request: Request) {
     data.targetProteinG !== undefined ||
     data.targetHydrationMl !== undefined ||
     data.weeklyCoachingFocus !== undefined ||
-    data.weeklyImplementationIntention !== undefined ||
     data.activeDays14Enabled !== undefined ||
     data.weightTrendOnHomeEnabled !== undefined ||
     data.goalWeightKg !== undefined ||
@@ -346,12 +343,6 @@ export async function PATCH(request: Request) {
       nextWeeklyCoachingFocus = data.weeklyCoachingFocus;
     }
 
-    let nextWeeklyImplementationIntention: string | null | undefined;
-    if (data.weeklyImplementationIntention !== undefined) {
-      const t = data.weeklyImplementationIntention?.trim();
-      nextWeeklyImplementationIntention = t ? t : null;
-    }
-
     const profile = await prisma.userProfile.upsert({
       where: { userId: session.user.id },
       create: {
@@ -370,9 +361,6 @@ export async function PATCH(request: Request) {
         dietaryPattern: nextDietaryPattern ?? undefined,
         foodAvoidJson: nextFoodAvoidJson ?? undefined,
         weeklyCoachingFocus: nextWeeklyCoachingFocus ?? undefined,
-        ...(nextWeeklyImplementationIntention !== undefined
-          ? { weeklyImplementationIntention: nextWeeklyImplementationIntention }
-          : {}),
         ...(data.activeDays14Enabled !== undefined
           ? { activeDays14Enabled: data.activeDays14Enabled }
           : {}),
@@ -420,9 +408,6 @@ export async function PATCH(request: Request) {
         ...(nextWeeklyCoachingFocus !== undefined
           ? { weeklyCoachingFocus: nextWeeklyCoachingFocus }
           : {}),
-        ...(nextWeeklyImplementationIntention !== undefined
-          ? { weeklyImplementationIntention: nextWeeklyImplementationIntention }
-          : {}),
         ...(data.activeDays14Enabled !== undefined
           ? { activeDays14Enabled: data.activeDays14Enabled }
           : {}),
@@ -449,13 +434,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ profile });
   }
 
-  const intentionFallback =
-    data.weeklyImplementationIntention !== undefined
-      ? data.weeklyImplementationIntention?.trim()
-        ? data.weeklyImplementationIntention.trim()
-        : null
-      : undefined;
-
   const profile = await prisma.userProfile.upsert({
     where: { userId: session.user.id },
     create: {
@@ -464,9 +442,6 @@ export async function PATCH(request: Request) {
       draft: mergedDraft,
       ...(data.weeklyCoachingFocus !== undefined
         ? { weeklyCoachingFocus: data.weeklyCoachingFocus }
-        : {}),
-      ...(intentionFallback !== undefined
-        ? { weeklyImplementationIntention: intentionFallback }
         : {}),
       ...(data.activeDays14Enabled !== undefined
         ? { activeDays14Enabled: data.activeDays14Enabled }
@@ -483,9 +458,6 @@ export async function PATCH(request: Request) {
       draft: mergedDraft,
       ...(data.weeklyCoachingFocus !== undefined
         ? { weeklyCoachingFocus: data.weeklyCoachingFocus }
-        : {}),
-      ...(intentionFallback !== undefined
-        ? { weeklyImplementationIntention: intentionFallback }
         : {}),
       ...(data.activeDays14Enabled !== undefined
         ? { activeDays14Enabled: data.activeDays14Enabled }

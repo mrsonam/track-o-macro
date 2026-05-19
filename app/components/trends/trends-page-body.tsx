@@ -26,7 +26,6 @@ export async function TrendsPageBody() {
     targetKcal: unknown;
     targetProteinG: unknown;
     weeklyCoachingFocus: string | null;
-    weeklyImplementationIntention: string | null;
     activeDays14Enabled: boolean;
     unitSystem: string | null;
   } | null = null;
@@ -38,7 +37,6 @@ export async function TrendsPageBody() {
         targetKcal: true,
         targetProteinG: true,
         weeklyCoachingFocus: true,
-        weeklyImplementationIntention: true,
         activeDays14Enabled: true,
         unitSystem: true,
       },
@@ -85,9 +83,6 @@ export async function TrendsPageBody() {
               dailyTargetKcal={dailyTargetKcal}
               dailyTargetProteinG={dailyTargetProteinG}
               weeklyCoachingFocus={weeklyCoachingFocus}
-              weeklyImplementationIntention={
-                profile?.weeklyImplementationIntention ?? null
-              }
               activeDays14Enabled={profile?.activeDays14Enabled ?? false}
               className={`${trends.panel} ${panelPad}`}
             />
@@ -128,9 +123,6 @@ export async function TrendsPageBody() {
               <TrendsWeeklyRecapStrip
                 dailyTargetKcal={dailyTargetKcal}
                 dailyTargetProteinG={dailyTargetProteinG}
-                weeklyImplementationIntention={
-                  profile?.weeklyImplementationIntention ?? null
-                }
                 className={`h-full ${trends.panel} ${panelPad}`}
               />
             </section>

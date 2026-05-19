@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isDbUnavailableError } from "@/lib/db-errors";
 import { normalizeFoodLabel } from "@/lib/nutrition/resolve-ingredient";
+import {
+  parseUserFoodDefaultServing,
+  serializeUserFoodDefaultServing,
+} from "@/lib/meals/user-food-default-serving";
 
 const MAX_LABEL = 200;
 const MAX_FOODS = 150;
@@ -38,6 +42,9 @@ export async function GET() {
         fatPer100g: true,
         version: true,
         updatedAt: true,
+        defaultServingQty: true,
+        defaultServingUnit: true,
+        defaultServingGrams: true,
       },
     });
     return NextResponse.json({
@@ -50,6 +57,7 @@ export async function GET() {
         fatPer100g: Number(r.fatPer100g),
         version: r.version,
         updatedAt: r.updatedAt.toISOString(),
+        ...serializeUserFoodDefaultServing(r),
       })),
     });
   } catch (e) {
@@ -79,6 +87,9 @@ export async function POST(request: Request) {
     proteinPer100g?: unknown;
     carbsPer100g?: unknown;
     fatPer100g?: unknown;
+    defaultServingQty?: unknown;
+    defaultServingUnit?: string;
+    defaultServingGrams?: unknown;
   };
   try {
     body = await request.json();
@@ -118,6 +129,17 @@ export async function POST(request: Request) {
     );
   }
 
+  const defaultServing = parseUserFoodDefaultServing(body);
+  if (defaultServing === "invalid") {
+    return NextResponse.json(
+      {
+        error:
+          "Default serving needs qty, a generic unit (count, g, cup, serving, etc.), and total grams",
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     const count = await prisma.userFood.count({ where: { userId } });
     if (count >= MAX_FOODS) {
@@ -136,6 +158,17 @@ export async function POST(request: Request) {
         proteinPer100g: p,
         carbsPer100g: c,
         fatPer100g: f,
+        ...(defaultServing
+          ? {
+              defaultServingQty: defaultServing.defaultServingQty,
+              defaultServingUnit: defaultServing.defaultServingUnit,
+              defaultServingGrams: defaultServing.defaultServingGrams,
+            }
+          : {
+              defaultServingQty: null,
+              defaultServingUnit: null,
+              defaultServingGrams: null,
+            }),
       },
       select: {
         id: true,
@@ -146,6 +179,9 @@ export async function POST(request: Request) {
         fatPer100g: true,
         version: true,
         updatedAt: true,
+        defaultServingQty: true,
+        defaultServingUnit: true,
+        defaultServingGrams: true,
       },
     });
 
@@ -159,6 +195,7 @@ export async function POST(request: Request) {
         fatPer100g: Number(item.fatPer100g),
         version: item.version,
         updatedAt: item.updatedAt.toISOString(),
+        ...serializeUserFoodDefaultServing(item),
       },
     });
   } catch (e) {

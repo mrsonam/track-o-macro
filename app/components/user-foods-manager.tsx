@@ -25,6 +25,9 @@ type Row = {
   carbsPer100g: number;
   fatPer100g: number;
   version: number;
+  defaultServingQty?: number | null;
+  defaultServingUnit?: string | null;
+  defaultServingGrams?: number | null;
 };
 
 const emptyForm = {
@@ -33,6 +36,9 @@ const emptyForm = {
   proteinPer100g: "",
   carbsPer100g: "",
   fatPer100g: "",
+  defaultServingQty: "",
+  defaultServingUnit: "",
+  defaultServingGrams: "",
 };
 
 export function UserFoodsManager() {
@@ -107,6 +113,11 @@ export function UserFoodsManager() {
       proteinPer100g: String(row.proteinPer100g),
       carbsPer100g: String(row.carbsPer100g),
       fatPer100g: String(row.fatPer100g),
+      defaultServingQty:
+        row.defaultServingQty != null ? String(row.defaultServingQty) : "",
+      defaultServingUnit: row.defaultServingUnit ?? "",
+      defaultServingGrams:
+        row.defaultServingGrams != null ? String(row.defaultServingGrams) : "",
     });
     setError(null);
   }
@@ -129,6 +140,9 @@ export function UserFoodsManager() {
           proteinPer100g: parseFloat(editForm.proteinPer100g),
           carbsPer100g: parseFloat(editForm.carbsPer100g),
           fatPer100g: parseFloat(editForm.fatPer100g),
+          defaultServingQty: editForm.defaultServingQty.trim() || null,
+          defaultServingUnit: editForm.defaultServingUnit.trim() || null,
+          defaultServingGrams: editForm.defaultServingGrams.trim() || null,
         }),
       });
       const data = (await res.json()) as { error?: string };
@@ -308,6 +322,53 @@ export function UserFoodsManager() {
                            <input type="number" step="any" value={editForm.carbsPer100g} onChange={(e) => setEditForm(f => ({...f, carbsPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="C" />
                            <input type="number" step="any" value={editForm.fatPer100g} onChange={(e) => setEditForm(f => ({...f, fatPer100g: e.target.value}))} className="rounded-xl border border-black/10 bg-[#fffdf7] p-2 text-xs text-center text-zinc-950" title="F" />
                         </div>
+                      </div>
+                      <div className="rounded-2xl border border-black/10 bg-[#fffdf7]/80 p-4">
+                        <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                          Default serving (optional)
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="Qty"
+                            value={editForm.defaultServingQty}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                defaultServingQty: e.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-black/10 bg-white p-2 text-xs text-zinc-950"
+                          />
+                          <input
+                            placeholder="Unit (count, g, cup, serving)"
+                            value={editForm.defaultServingUnit}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                defaultServingUnit: e.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-black/10 bg-white p-2 text-xs text-zinc-950"
+                          />
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="Total g"
+                            value={editForm.defaultServingGrams}
+                            onChange={(e) =>
+                              setEditForm((f) => ({
+                                ...f,
+                                defaultServingGrams: e.target.value,
+                              }))
+                            }
+                            className="rounded-xl border border-black/10 bg-white p-2 text-xs text-zinc-950"
+                          />
+                        </div>
+                        <p className="mt-2 text-[10px] font-medium text-zinc-500">
+                          Example: qty 1, unit serving, 120 g total. Units: count, g, cup, tbsp, serving, slice.
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={() => void onSaveEdit(row.id)} className="bg-emerald-500 text-zinc-950 px-4 py-2 rounded-xl text-xs font-bold">Save</button>

@@ -8,6 +8,7 @@ import { isDbUnavailableError } from "@/lib/db-errors";
 import {
   findMatchingUserFood,
   lineFromUserFood,
+  normalizeFoodLabel as normalizeIngredientLabel,
   type ParsedIngredientInput,
   type ResolvedLine,
   type UserFoodResolveInput,
@@ -18,11 +19,16 @@ import { singleIngredientAnalyze } from "@/lib/nutrition/avocavo";
 import { lineFromAvocavoApiItem } from "@/lib/nutrition/avocavo-analyze-meal";
 import {
   applyGramsFromRawInput,
+  estimateGramsFromSegment,
   fallbackParseIngredientsFromText,
   parseGramsFromSegment,
   segmentLabelForMatch,
   splitMealIntoSegments,
 } from "@/lib/meals/parse-meal-grams";
+import {
+  attachPortionToResolvedLine,
+  parseNaturalPortionFromSegment,
+} from "@/lib/meals/portion-resolve";
 
 export const maxDuration = 60;
 const FATSECRET_ANALYSIS_PORTION_G = 100;
@@ -321,46 +327,53 @@ function tryResolveFromSelectedFoodHints(
 
   const lines: ResolvedLine[] = [];
   for (const seg of segments) {
-    const grams = parseGramsFromSegment(seg);
+    const grams =
+      parseGramsFromSegment(seg) ?? estimateGramsFromSegment(seg);
     if (grams == null) return null;
 
     const hint = findHintForSegment(seg, hints);
     if (!hint) return null;
 
+    const portion = parseNaturalPortionFromSegment(seg, hint.label);
     const factor = grams / 100;
-    lines.push({
-      label: hint.label,
-      quantity: grams,
-      unit: "g",
-      kcal: round1(hint.kcalPer100g * factor),
-      protein_g: round1(hint.proteinPer100g * factor),
-      carbs_g: round1(hint.carbsPer100g * factor),
-      fat_g: round1(hint.fatPer100g * factor),
-      ...(hint.fiberPer100g != null
-        ? { fiber_g: round1(hint.fiberPer100g * factor) }
-        : {}),
-      ...(hint.sodiumPer100g != null
-        ? { sodium_mg: Math.round(hint.sodiumPer100g * factor) }
-        : {}),
-      ...(hint.sugarPer100g != null
-        ? { sugar_g: round1(hint.sugarPer100g * factor) }
-        : {}),
-      fdc_id: null,
-      source: "custom",
-      detail: {
-        provider: "client_hints",
-        grams,
-        per100g: {
-          kcal: hint.kcalPer100g,
-          protein_g: hint.proteinPer100g,
-          carbs_g: hint.carbsPer100g,
-          fat_g: hint.fatPer100g,
-          fiber_g: hint.fiberPer100g,
-          sodium_mg: hint.sodiumPer100g,
-          sugar_g: hint.sugarPer100g,
+    lines.push(
+      attachPortionToResolvedLine(
+        {
+          label: hint.label,
+          quantity: grams,
+          unit: "g",
+          kcal: round1(hint.kcalPer100g * factor),
+          protein_g: round1(hint.proteinPer100g * factor),
+          carbs_g: round1(hint.carbsPer100g * factor),
+          fat_g: round1(hint.fatPer100g * factor),
+          ...(hint.fiberPer100g != null
+            ? { fiber_g: round1(hint.fiberPer100g * factor) }
+            : {}),
+          ...(hint.sodiumPer100g != null
+            ? { sodium_mg: Math.round(hint.sodiumPer100g * factor) }
+            : {}),
+          ...(hint.sugarPer100g != null
+            ? { sugar_g: round1(hint.sugarPer100g * factor) }
+            : {}),
+          fdc_id: null,
+          source: "custom",
+          detail: {
+            provider: "client_hints",
+            grams,
+            per100g: {
+              kcal: hint.kcalPer100g,
+              protein_g: hint.proteinPer100g,
+              carbs_g: hint.carbsPer100g,
+              fat_g: hint.fatPer100g,
+              fiber_g: hint.fiberPer100g,
+              sodium_mg: hint.sodiumPer100g,
+              sugar_g: hint.sugarPer100g,
+            },
+          },
         },
-      },
-    });
+        portion,
+      ),
+    );
   }
 
   return { lines, totals: sumTotals(lines) };
@@ -413,6 +426,15 @@ export async function POST(request: Request) {
       rawInput?: string;
       /** When false, returns nutrition without creating a Meal row (for batch preview). */
       persist?: boolean;
+      structuredLines?: Array<{
+        name: string;
+        quantity_g?: number;
+        search_query?: string;
+        unit_note?: string;
+        display_quantity?: number;
+        display_unit?: string;
+        display_label?: string;
+      }>;
       selectedFoodHints?: Array<{
         label?: string;
         labelNorm?: string;
@@ -526,6 +548,93 @@ export async function POST(request: Request) {
           ? [...selectedFoodHints, ...userFoods]
           : userFoods;
 
+      const structured = Array.isArray(body.structuredLines)
+        ? body.structuredLines
+            .map((row): ParsedIngredientInput | null => {
+              const name = row.name?.trim() ?? "";
+              if (!name) return null;
+              const quantity_g =
+                row.quantity_g != null && Number.isFinite(row.quantity_g)
+                  ? row.quantity_g
+                  : 100;
+              const searchQ = row.search_query?.trim() || name;
+              const unit_note =
+                row.display_label?.trim() ||
+                row.unit_note?.trim() ||
+                (row.display_quantity != null && row.display_unit
+                  ? `${row.display_quantity} ${row.display_unit} ${name}`
+                  : undefined);
+              const ing: ParsedIngredientInput = {
+                name,
+                quantity_g,
+                ...(searchQ !== name ? { search_query: searchQ } : {}),
+                ...(unit_note ? { unit_note } : {}),
+              };
+              return ing;
+            })
+            .filter((row): row is ParsedIngredientInput => row != null)
+        : [];
+
+      if (structured.length > 0) {
+        const lines: ResolvedLine[] = [];
+        for (const ing of structured) {
+          const matched = findMatchingUserFood(ing, resolveFoods);
+          const base = matched
+            ? lineFromUserFood(ing, matched)
+            : await resolveIngredientLine(ing);
+          const portion =
+            ing.unit_note != null
+              ? parseNaturalPortionFromSegment(ing.unit_note, ing.name) ??
+                ({
+                  displayQuantity: ing.quantity_g,
+                  displayUnit: "g",
+                  displayLabel: ing.unit_note,
+                  grams: ing.quantity_g,
+                  conversionSource: "user" as const,
+                })
+              : parseNaturalPortionFromSegment(
+                  `${ing.quantity_g} g ${ing.name}`,
+                  ing.name,
+                );
+          lines.push(attachPortionToResolvedLine(base, portion, ing.unit_note));
+        }
+        const totals = sumTotals(lines);
+        if (!persist) {
+          return NextResponse.json({
+            mealId: null,
+            meal_label: undefined,
+            assumptions: undefined,
+            lines,
+            totals,
+          });
+        }
+        const meal = await prisma.meal.create({
+          data: {
+            userId,
+            rawInput,
+            totalKcal: totals.kcal,
+            totalProteinG: totals.protein_g,
+            totalCarbsG: totals.carbs_g,
+            totalFatG: totals.fat_g,
+            totalFiberG: totals.fiber_g,
+            totalSodiumMg: totals.sodium_mg,
+            totalSugarG: totals.sugar_g,
+            totalAddedSugarG: totals.added_sugar_g,
+            lineItems: {
+              create: prismaLineCreates(lines, undefined, null),
+            },
+          },
+          select: { id: true },
+        });
+        return NextResponse.json({
+          mealId: meal.id,
+          meal_label: undefined,
+          assumptions: undefined,
+          lines,
+          totals,
+        });
+      }
+
       let parsed: Awaited<ReturnType<typeof parseMealDescription>>;
       if (process.env.OPENAI_API_KEY?.trim()) {
         try {
@@ -546,14 +655,23 @@ export async function POST(request: Request) {
         ingredients: applyGramsFromRawInput(parsed.ingredients, rawInput),
       };
 
+      const segments = splitMealIntoSegments(rawInput);
       const lines: ResolvedLine[] = [];
-      for (const ing of parsed.ingredients) {
+      for (let i = 0; i < parsed.ingredients.length; i++) {
+        const ing = parsed.ingredients[i]!;
+        const seg = segments[i] ?? segments.find((s) =>
+          segmentLabelForMatch(s).includes(normalizeIngredientLabel(ing.name)),
+        );
+        const portion = seg
+          ? parseNaturalPortionFromSegment(seg, ing.name)
+          : ing.unit_note
+            ? parseNaturalPortionFromSegment(ing.unit_note, ing.name)
+            : null;
         const matched = findMatchingUserFood(ing, resolveFoods);
-        if (matched) {
-          lines.push(lineFromUserFood(ing, matched));
-          continue;
-        }
-        lines.push(await resolveIngredientLine(ing));
+        const base = matched
+          ? lineFromUserFood(ing, matched)
+          : await resolveIngredientLine(ing);
+        lines.push(attachPortionToResolvedLine(base, portion, ing.unit_note));
       }
 
       const meal_label =

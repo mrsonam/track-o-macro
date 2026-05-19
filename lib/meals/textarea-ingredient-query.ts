@@ -1,4 +1,5 @@
 import { parseGramsFromSegment } from "@/lib/meals/parse-meal-grams";
+import { defaultLineForFoodPick } from "@/lib/meals/portion-resolve";
 
 /** Gram amount token, e.g. `100g` or leading `150g` in `150g chicken`. */
 const GRAM_TOKEN_RE = /(\d+(?:\.\d+)?)\s*g\b/gi;
@@ -118,15 +119,17 @@ export function gramSuffixForLineSegment(
   return grams != null ? ` ${grams}g` : ` ${defaultGrams}g`;
 }
 
-/** Gram suffix when inserting a picked label; skips if label or segment already has grams. */
+/** Suffix when inserting a picked label; natural defaults, no forced 100 g. */
 export function amountSuffixForSuggestionLabel(
   segment: string,
   label: string,
-  defaultGrams = DEFAULT_SUGGESTION_GRAMS,
+  _defaultGrams = DEFAULT_SUGGESTION_GRAMS,
 ): string {
   const trimmedLabel = label.trim();
   if (parseGramsFromSegment(trimmedLabel) != null) return "";
-  return gramSuffixForLineSegment(segment, defaultGrams);
+  if (parseGramsFromSegment(segment) != null) return "";
+  if (segment.trim().length > 0) return "";
+  return "";
 }
 
 /** Replace the comma-segment at caret with a new food label, preserving grams once. */
@@ -140,7 +143,13 @@ export function replaceSegmentWithSuggestion(
   const segment = line.slice(start, end);
   const lead = segment.match(/^\s*/)?.[0] ?? "";
   const trimmedLabel = label.trim();
-  const newSegment = `${lead}${trimmedLabel}${amountSuffixForSuggestionLabel(segment, label, defaultGrams)}`;
+  const countLead = segment
+    .trim()
+    .match(/^(\d+(?:\.\d+)?)\s*$/);
+  const newSegment =
+    countLead != null
+      ? `${lead}${countLead[1]} ${trimmedLabel}`
+      : `${lead}${trimmedLabel}${amountSuffixForSuggestionLabel(segment, label, defaultGrams)}`;
   return {
     line: line.slice(0, start) + newSegment + line.slice(end),
     caretOffset: start + lead.length + trimmedLabel.length,
@@ -171,10 +180,53 @@ export function applyIngredientSuggestionToValue(
 export function appendIngredientSuggestionLine(
   value: string,
   label: string,
-  defaultGrams = DEFAULT_SUGGESTION_GRAMS,
+  _defaultGrams = DEFAULT_SUGGESTION_GRAMS,
 ): string {
-  const trimmedLabel = label.trim();
-  const line = `${trimmedLabel}${amountSuffixForSuggestionLabel(trimmedLabel, label, defaultGrams)}`;
+  const line = defaultLineForFoodPick(label);
   const base = value.trimEnd();
   return base ? `${base}\n${line}` : line;
+}
+
+/** Replace the comma-segment at caret with a full portion phrase (e.g. "2 large eggs"). */
+export function replaceSegmentWithLineText(
+  line: string,
+  caretInLine: number,
+  lineText: string,
+): { line: string; caretOffset: number } {
+  const { start, end } = getSegmentBounds(line, caretInLine);
+  const segment = line.slice(start, end);
+  const lead = segment.match(/^\s*/)?.[0] ?? "";
+  const trimmed = lineText.trim();
+  return {
+    line: line.slice(0, start) + `${lead}${trimmed}` + line.slice(end),
+    caretOffset: start + lead.length + trimmed.length,
+  };
+}
+
+export function applyPortionLineToValue(
+  value: string,
+  caret: number,
+  lineText: string,
+  options?: { appendAsNewLine?: boolean },
+): { next: string; nextCaret: number } {
+  const trimmed = lineText.trim();
+  if (!trimmed) {
+    return { next: value, nextCaret: caret };
+  }
+  if (options?.appendAsNewLine) {
+    const next = appendIngredientSuggestionLine(value, trimmed);
+    return { next, nextCaret: next.length };
+  }
+  const { lineStart, line, caretInLine } = getCaretLineContext(value, caret);
+  const nextBreak = value.indexOf("\n", lineStart);
+  const lineEnd = nextBreak === -1 ? value.length : nextBreak;
+  const { line: newLine, caretOffset } = replaceSegmentWithLineText(
+    line,
+    caretInLine,
+    trimmed,
+  );
+  return {
+    next: value.slice(0, lineStart) + newLine + value.slice(lineEnd),
+    nextCaret: lineStart + caretOffset,
+  };
 }

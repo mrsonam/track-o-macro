@@ -1,12 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { activeDays14Blurb } from "@/lib/meals/active-days-14-blurb";
 import { computeTryThisWeek } from "@/lib/meals/try-this-week-suggestion";
-import { computePlanSuggestionBridge } from "@/lib/meals/implementation-intention-bridge";
 import type { WeeklyCoachingFocus } from "@/lib/meals/weekly-coaching-focus";
-import { TrendingUp, Calendar, Target, AlertTriangle, Moon, Wheat, CalendarClock, ListTodo } from "lucide-react";
+import { TrendingUp, Calendar, Target, AlertTriangle, Moon, Wheat, CalendarClock } from "lucide-react";
 import { motion } from "framer-motion";
 import type { RollingWeekSummaryData } from "@/lib/meals/rolling-week-summary-data";
 
@@ -17,7 +15,6 @@ type RollingWeekSummaryBodyProps = {
   dailyTargetKcal: number | null;
   dailyTargetProteinG: number | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
-  weeklyImplementationIntention?: string | null;
   isDetailed?: boolean;
 };
 
@@ -61,7 +58,6 @@ export function RollingWeekSummaryBody({
   dailyTargetKcal,
   dailyTargetProteinG,
   weeklyCoachingFocus = null,
-  weeklyImplementationIntention = null,
   isDetailed = false,
 }: RollingWeekSummaryBodyProps) {
   const surplusThreshold = 1.1;
@@ -92,16 +88,6 @@ export function RollingWeekSummaryBody({
     ],
   );
 
-  const planText = weeklyImplementationIntention?.trim() ?? "";
-
-  const planSuggestionBridge = useMemo(() => {
-    if (!planText || !tryWeek.text) return null;
-    return computePlanSuggestionBridge(planText, {
-      text: tryWeek.text,
-      ifThen: tryWeek.ifThen,
-    });
-  }, [planText, tryWeek.text, tryWeek.ifThen]);
-
   const kcalSub =
     isDetailed && dailyTargetKcal != null
       ? `Goal ${dailyTargetKcal} kcal · ${Math.round((data.averages.kcalPerDay / dailyTargetKcal) * 100)}% of target`
@@ -109,28 +95,6 @@ export function RollingWeekSummaryBody({
 
   return (
     <div className={isDetailed ? "space-y-5" : "space-y-3"}>
-      {planText ? (
-        <div className="border-t border-accent-secondary/20 bg-protein-tint/30 px-4 py-4 sm:px-5">
-          <div className="mb-2 flex items-center gap-2">
-            <ListTodo className="h-4 w-4 text-signal-deep" aria-hidden />
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-signal-deep">
-              Your plan this week
-            </p>
-          </div>
-          <p className="text-sm font-medium leading-relaxed text-foreground">{planText}</p>
-          <p className="mt-3 text-[10px] font-medium text-zinc-600">
-            Edit in{" "}
-            <Link
-              href="/settings"
-              className="font-bold text-signal-deep underline decoration-accent-secondary/30 underline-offset-2 hover:text-accent-secondary"
-            >
-              Settings
-            </Link>
-            .
-          </p>
-        </div>
-      ) : null}
-
       {data.recovery14 && isDetailed ? (
         <div className="border-t border-sky-800/15 bg-carb-sky/50 px-4 py-4">
           <div className="mb-2 flex items-center gap-2">
@@ -275,13 +239,6 @@ export function RollingWeekSummaryBody({
           <p className={`font-medium leading-relaxed text-foreground ${isDetailed ? "text-base" : "text-xs"}`}>
             {tryWeek.text}
           </p>
-          {planSuggestionBridge ? (
-            <p
-              className={`mt-3 rounded-lg bg-protein-tint/50 p-3 leading-relaxed text-zinc-700 ${isDetailed ? "text-sm" : "text-[11px]"}`}
-            >
-              {planSuggestionBridge}
-            </p>
-          ) : null}
           {tryWeek.ifThen ? (
             <p className="mt-3 border-t border-black/10 pt-3 text-[11px] leading-relaxed text-zinc-600">
               <span className="font-bold text-zinc-500">If-then: </span>

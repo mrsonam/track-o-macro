@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyGramsFromRawInput,
+  estimateGramsFromSegment,
   fallbackParseIngredientsFromText,
   parseGramsFromSegment,
 } from "@/lib/meals/parse-meal-grams";
@@ -41,5 +42,17 @@ describe("fallbackParseIngredientsFromText", () => {
     const { ingredients } = fallbackParseIngredientsFromText("rice 120g, salad");
     expect(ingredients[0]!.quantity_g).toBe(120);
     expect(ingredients[1]!.quantity_g).toBe(100);
+  });
+
+  it("parses natural portions for eggs", () => {
+    const { ingredients } = fallbackParseIngredientsFromText("2 eggs");
+    expect(ingredients[0]!.quantity_g).toBe(100);
+    expect(ingredients[0]!.unit_note).toBe("2 eggs");
+  });
+});
+
+describe("estimateGramsFromSegment", () => {
+  it("returns grams for count-based segments", () => {
+    expect(estimateGramsFromSegment("1 cup cooked rice")).toBeGreaterThan(0);
   });
 });

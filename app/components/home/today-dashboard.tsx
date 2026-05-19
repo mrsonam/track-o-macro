@@ -31,7 +31,6 @@ export type TodayDashboardProps = {
   weightTrendOnHomeEnabled: boolean;
   weightCardKey: number;
   weeklyCoachingFocus: WeeklyCoachingFocus | null;
-  weeklyImplementationIntention: string | null;
   weekInsightData: WeekInsightPayload | null;
 };
 
@@ -49,7 +48,6 @@ export function TodayDashboard({
   weightTrendOnHomeEnabled,
   weightCardKey,
   weeklyCoachingFocus,
-  weeklyImplementationIntention,
   weekInsightData,
 }: TodayDashboardProps) {
   const selectedSummary = summariesByKey[selectedDateKey];
@@ -148,7 +146,6 @@ export function TodayDashboard({
             dailyTargetKcal={dailyTargetKcal}
             dailyTargetProteinG={dailyTargetProteinG}
             weeklyCoachingFocus={weeklyCoachingFocus}
-            weeklyImplementationIntention={weeklyImplementationIntention}
             loading={weekBatchLoading}
             batchError={weekBatchError}
             data={weekInsightData}

@@ -19,6 +19,11 @@ export type ResolvedLine = {
   fdc_id: number | null;
   source: "fdc" | "estimate" | "custom";
   detail: Record<string, unknown>;
+  display_quantity?: number;
+  display_unit?: string;
+  display_label?: string;
+  conversion_source?: string;
+  assumption?: string;
 };
 
 export type ParsedIngredientInput = {
@@ -40,6 +45,9 @@ export type UserFoodResolveInput = {
   sodiumPer100g?: number;
   sugarPer100g?: number;
   version: number;
+  defaultServingQty?: number;
+  defaultServingUnit?: string;
+  defaultServingGrams?: number;
 };
 
 export function normalizeFoodLabel(s: string): string {

@@ -28,8 +28,11 @@ import { buildLineHintChips } from "@/lib/meals/log-line-hints";
 import {
   appendIngredientSuggestionLine,
   applyIngredientSuggestionToValue,
+  applyPortionLineToValue,
   extractTextareaIngredientQuery,
 } from "@/lib/meals/textarea-ingredient-query";
+import type { PortionServingOption } from "@/lib/meals/portion-resolve";
+import { PortionPickSheet } from "@/app/components/log/portion-pick-sheet";
 import { LogMealView } from "@/app/components/log/log-meal-view";
 import { MISSING_DISPLAY } from "@/lib/copy/display";
 import type { LoggingStyle } from "@/lib/profile/preferences";
@@ -46,6 +49,7 @@ import { AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { alertBanner } from "@/lib/motion";
 import { type UnitSystem } from "@/lib/profile/units";
+import { acquireOverlayLock } from "@/lib/ui/overlay-open";
 import { HydrationCard } from "./hydration-card";
 import type { PreparedMealListItem } from "@/app/components/prepared-meals-section";
 
@@ -61,9 +65,15 @@ type UsdaSuggestionItem = {
   sodiumPer100g?: number | null;
   sugarPer100g?: number | null;
   addedSugarPer100g?: number | null;
+  servings?: PortionServingOption[];
   /** User-saved prepared batch — shown in meal log search with a distinct tag */
   source?: "prepared";
   preparedMealId?: string;
+};
+
+type PortionPickState = {
+  item: UsdaSuggestionItem;
+  appendAsNewLine?: boolean;
 };
 type SelectedFoodHint = {
   label: string;
@@ -177,8 +187,6 @@ type MealLogClientProps = {
   dailyTargetHydrationMl?: number;
   loggingStyle?: LoggingStyle | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
-  /** Epic 5 — user-authored if–then plan for the week card */
-  weeklyImplementationIntention?: string | null;
   /** Epic 5 — show “active days in last 14” on the week card */
   activeDays14Enabled?: boolean;
   /** Epic 6 — optional smoothed weight sparkline on body card */
@@ -223,7 +231,6 @@ export function MealLogClient({
   dailyTargetHydrationMl = DEFAULT_HYDRATION_GOAL_ML,
   loggingStyle = null,
   weeklyCoachingFocus = null,
-  weeklyImplementationIntention = null,
   activeDays14Enabled = false,
   weightTrendOnHomeEnabled = false,
   unitSystem = "metric",
@@ -296,6 +303,7 @@ export function MealLogClient({
   const [selectedFoodHints, setSelectedFoodHints] = useState<
     Record<string, SelectedFoodHint>
   >({});
+  const [portionPick, setPortionPick] = useState<PortionPickState | null>(null);
 
   const [savedList, setSavedList] = useState<SavedMealItem[]>(savedMeals);
 
@@ -999,40 +1007,91 @@ export function MealLogClient({
     setShowFreeTextSuggestions(q.length >= 2);
   }
 
+  function insertFreeTextLine(
+    lineText: string,
+    options?: { appendAsNewLine?: boolean },
+  ) {
+    const el = textareaRef.current;
+    if (!el) return;
+    const value = text;
+    const caret = el.selectionStart ?? value.length;
+    const { next, nextCaret } = applyPortionLineToValue(
+      value,
+      caret,
+      lineText,
+      options,
+    );
+    setText(next);
+    setFreeTextQuery(lineText);
+    setShowFreeTextSuggestions(false);
+    queueMicrotask(() => {
+      el.focus();
+      el.setSelectionRange(nextCaret, nextCaret);
+    });
+  }
+
   function applyFreeTextSuggestionItem(
     item: UsdaSuggestionItem,
     options?: { appendAsNewLine?: boolean },
   ) {
     rememberSelectedFoodHint(item);
-    const label = item.label;
-    const el = textareaRef.current;
-    if (!el) return;
-    if (options?.appendAsNewLine) {
-      const next = appendIngredientSuggestionLine(text, label);
+    if (item.source === "prepared") {
+      const el = textareaRef.current;
+      if (!el) return;
+      const label = item.label;
+      if (options?.appendAsNewLine) {
+        const next = appendIngredientSuggestionLine(text, label);
+        setText(next);
+        setFreeTextQuery(label);
+        setShowFreeTextSuggestions(false);
+        queueMicrotask(() => {
+          const nextCaret = next.length;
+          el.focus();
+          el.setSelectionRange(nextCaret, nextCaret);
+        });
+        return;
+      }
+      const value = text;
+      const caret = el.selectionStart ?? value.length;
+      const { next, nextCaret } = applyIngredientSuggestionToValue(
+        value,
+        caret,
+        label,
+      );
       setText(next);
       setFreeTextQuery(label);
       setShowFreeTextSuggestions(false);
       queueMicrotask(() => {
-        const nextCaret = next.length;
         el.focus();
         el.setSelectionRange(nextCaret, nextCaret);
       });
       return;
     }
-    const value = text;
-    const caret = el.selectionStart ?? value.length;
-    const { next, nextCaret } = applyIngredientSuggestionToValue(
-      value,
-      caret,
-      label,
-    );
-
-    setText(next);
-    setFreeTextQuery(label);
+    setPortionPick({ item, appendAsNewLine: options?.appendAsNewLine });
     setShowFreeTextSuggestions(false);
+  }
+
+  function confirmPortionPick(lineText: string) {
+    if (!portionPick) return;
+    insertFreeTextLine(lineText, {
+      appendAsNewLine: portionPick.appendAsNewLine,
+    });
+    setPortionPick(null);
+  }
+
+  function appendQuickSnippet(snippetText: string) {
+    const trimmed = snippetText.trim();
+    if (!trimmed) return;
+    const base = text.trimEnd();
+    const next = base ? `${base}\n${trimmed}` : trimmed;
+    setText(next);
+    setError(null);
+    setResult(null);
     queueMicrotask(() => {
+      const el = textareaRef.current;
+      if (!el) return;
       el.focus();
-      el.setSelectionRange(nextCaret, nextCaret);
+      el.setSelectionRange(next.length, next.length);
     });
   }
 
@@ -1270,13 +1329,8 @@ export function MealLogClient({
   }, [showBarcodePanel, isMobileDevice]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.dataset.barcodeOverlayOpen = showBarcodePanel ? "1" : "0";
-    window.dispatchEvent(new Event("barcode-overlay-change"));
-    return () => {
-      document.body.dataset.barcodeOverlayOpen = "0";
-      window.dispatchEvent(new Event("barcode-overlay-change"));
-    };
+    if (!showBarcodePanel) return;
+    return acquireOverlayLock();
   }, [showBarcodePanel]);
 
   return (
@@ -1321,7 +1375,6 @@ export function MealLogClient({
           weightTrendOnHomeEnabled={weightTrendOnHomeEnabled}
           weightCardKey={todayKey}
           weeklyCoachingFocus={weeklyCoachingFocus}
-          weeklyImplementationIntention={weeklyImplementationIntention}
           weekInsightData={weekInsightData}
         />
       ) : null}
@@ -1416,6 +1469,7 @@ export function MealLogClient({
               showFreeTextSuggestions={showFreeTextSuggestions}
               freeTextSuggestionAnchor={freeTextSuggestionAnchor}
               onPickSuggestion={applyFreeTextSuggestionItem}
+              onAppendQuickSnippet={appendQuickSnippet}
               lastLoggedRaw={lastLoggedRaw}
               onLogAgain={logAgain}
               showBarcodePanel={showBarcodePanel}
@@ -1450,6 +1504,14 @@ export function MealLogClient({
               result={result}
               onClearResult={() => setResult(null)}
             />
+            {portionPick ? (
+              <PortionPickSheet
+                foodLabel={portionPick.item.label}
+                servings={portionPick.item.servings}
+                onConfirm={confirmPortionPick}
+                onCancel={() => setPortionPick(null)}
+              />
+            ) : null}
           </div>
 
           <aside

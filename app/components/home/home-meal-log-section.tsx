@@ -22,7 +22,6 @@ export async function HomeMealLogSection() {
     targetProteinG: unknown;
     loggingStyle: string | null;
     weeklyCoachingFocus: string | null;
-    weeklyImplementationIntention: string | null;
     unitSystem: string | null;
     activeDays14Enabled?: boolean;
     weightTrendOnHomeEnabled?: boolean;
@@ -53,7 +52,6 @@ export async function HomeMealLogSection() {
           targetProteinG: true,
           loggingStyle: true,
           weeklyCoachingFocus: true,
-          weeklyImplementationIntention: true,
           unitSystem: true,
           activeDays14Enabled: true,
           weightTrendOnHomeEnabled: true,
@@ -138,7 +136,6 @@ export async function HomeMealLogSection() {
       dailyTargetHydrationMl={dailyTargetHydrationMl}
       loggingStyle={loggingStyle}
       weeklyCoachingFocus={weeklyCoachingFocus}
-      weeklyImplementationIntention={profile?.weeklyImplementationIntention ?? null}
       activeDays14Enabled={profile?.activeDays14Enabled ?? false}
       weightTrendOnHomeEnabled={profile?.weightTrendOnHomeEnabled ?? false}
       unitSystem={unitSystem}

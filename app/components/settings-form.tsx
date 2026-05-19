@@ -16,7 +16,6 @@ import {
   parseWeeklyCoachingFocus,
   WEEKLY_COACHING_FOCUS_UI,
 } from "@/lib/meals/weekly-coaching-focus";
-import { IMPLEMENTATION_INTENTION_STARTERS } from "@/lib/meals/implementation-intention-bridge";
 import { 
   Dna, 
   Activity, 
@@ -115,8 +114,6 @@ export function SettingsForm({ profile }: Props) {
       ? String(kgToLbs(kg).toFixed(1))
       : kg.toFixed(1);
   });
-  const [weeklyImplementationIntention, setWeeklyImplementationIntention] =
-    useState(() => profile?.weeklyImplementationIntention ?? "");
   const [targetHydrationMl, setTargetHydrationMl] = useState(() =>
     profile?.targetHydrationMl != null ? String(profile.targetHydrationMl) : "",
   );
@@ -177,12 +174,6 @@ export function SettingsForm({ profile }: Props) {
       }
       hydrationGoalPayload = h;
     }
-    const planTrim = weeklyImplementationIntention.trim();
-    if (planTrim.length > 320) {
-      setError("Weekly plan must be 320 characters or fewer.");
-      return;
-    }
-
     let goalWeightPayload: number | null | undefined;
     const goalTrim = goalWeightKg.trim();
     if (goalTrim === "") {
@@ -226,8 +217,6 @@ export function SettingsForm({ profile }: Props) {
             avoidParsed.length > 0 ? avoidParsed : null,
           weeklyCoachingFocus:
             weeklyCoachingFocus === "" ? null : weeklyCoachingFocus,
-          weeklyImplementationIntention:
-            planTrim === "" ? null : planTrim,
           activeDays14Enabled,
           weightTrendOnHomeEnabled,
           goalWeightKg: goalWeightPayload,
@@ -605,41 +594,7 @@ export function SettingsForm({ profile }: Props) {
           </label>
         </div>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">
-            Plan this week (If-then)
-          </span>
-          <textarea
-            value={weeklyImplementationIntention}
-            onChange={(e) => setWeeklyImplementationIntention(e.target.value)}
-            maxLength={320}
-            rows={3}
-            placeholder='e.g. "If I skip breakfast, then I log lunch before 2pm."'
-            className="form-field min-h-[5rem] resize-y"
-          />
-          <span className="text-[10px] font-medium leading-relaxed text-zinc-600">
-            Optional. A short concrete plan pairs with suggestions on the home and trends week cards. Not medical advice.
-          </span>
-          <div className="mt-3 space-y-2">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">
-              Templates
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {IMPLEMENTATION_INTENTION_STARTERS.map((starter) => (
-                <button
-                  key={starter}
-                  type="button"
-                  onClick={() => setWeeklyImplementationIntention(starter)}
-                  className="rounded-xl border border-black/10 bg-white px-3 py-2 text-left text-[11px] font-medium leading-snug text-zinc-700 transition-colors hover:border-[#4f9d45]/35 hover:text-zinc-950"
-                >
-                  {starter}
-                </button>
-              ))}
-            </div>
-          </div>
-        </label>
-
-        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 bg-white p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">
+        <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-black/10 bg-white p-5 text-left transition-colors duration-200 focus-within:border-emerald-500/35der-emerald-500/35 focus-within:ring-2 focus-within:ring-emerald-500/15">
           <input
             type="checkbox"
             checked={activeDays14Enabled}

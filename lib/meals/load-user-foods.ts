@@ -9,7 +9,18 @@ export function userFoodRowToResolveInput(row: {
   carbsPer100g: { toString(): string };
   fatPer100g: { toString(): string };
   version: number;
+  defaultServingQty?: { toString(): string } | null;
+  defaultServingUnit?: string | null;
+  defaultServingGrams?: { toString(): string } | null;
 }): UserFoodResolveInput {
+  const defaultServingQty =
+    row.defaultServingQty != null
+      ? Number(row.defaultServingQty)
+      : undefined;
+  const defaultServingGrams =
+    row.defaultServingGrams != null
+      ? Number(row.defaultServingGrams)
+      : undefined;
   return {
     id: row.id,
     label: row.label,
@@ -18,6 +29,20 @@ export function userFoodRowToResolveInput(row: {
     carbsPer100g: Number(row.carbsPer100g),
     fatPer100g: Number(row.fatPer100g),
     version: row.version,
+    ...(defaultServingQty != null &&
+    Number.isFinite(defaultServingQty) &&
+    defaultServingQty > 0 &&
+    row.defaultServingUnit?.trim()
+      ? {
+          defaultServingQty,
+          defaultServingUnit: row.defaultServingUnit.trim(),
+          ...(defaultServingGrams != null &&
+          Number.isFinite(defaultServingGrams) &&
+          defaultServingGrams > 0
+            ? { defaultServingGrams }
+            : {}),
+        }
+      : {}),
   };
 }
 
@@ -34,6 +59,9 @@ export async function loadUserFoodsForResolve(
       carbsPer100g: true,
       fatPer100g: true,
       version: true,
+      defaultServingQty: true,
+      defaultServingUnit: true,
+      defaultServingGrams: true,
     },
   });
   return rows.map(userFoodRowToResolveInput);

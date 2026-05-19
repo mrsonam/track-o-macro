@@ -61,6 +61,31 @@ export const modalBackdrop: Variants = {
   exit: { opacity: 0, transition: { duration: 0.14, ease: EASE_OUT } },
 };
 
+/** Mobile bottom sheet: slide up from below the viewport. */
+export const sheetPanel: Variants = {
+  hidden: { y: "100%" },
+  show: {
+    y: 0,
+    transition: easeOutTransition(DURATION.modal),
+  },
+  exit: {
+    y: "100%",
+    transition: easeOutTransition(DURATION.fast),
+  },
+};
+
+export const sheetPanelReduced: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: easeOutTransition(DURATION.fast),
+  },
+  exit: {
+    opacity: 0,
+    transition: easeOutTransition(DURATION.fast),
+  },
+};
+
 export const pageEnter: Variants = {
   hidden: { opacity: 0, y: 6 },
   show: {

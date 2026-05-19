@@ -30,7 +30,7 @@ export const PORTION_COMMON_FOODS: PortionHintRow[] = [
 export const PORTION_QUICK_SNIPPETS: { label: string; text: string }[] = [
   { label: "120 g chicken", text: "120 g chicken breast, cooked" },
   { label: "1 cup rice", text: "1 cup cooked rice" },
-  { label: "2 eggs", text: "2 large eggs" },
+  { label: "2 eggs", text: "2 eggs" },
   { label: "1 tbsp oil", text: "1 tbsp olive oil" },
   { label: "Medium banana", text: "1 medium banana" },
   { label: "Slice bread", text: "1 slice whole wheat bread" },

@@ -170,6 +170,12 @@ async function callFatSecretApi(
   return raw;
 }
 
+export type FatSecretServingOption = {
+  id: string;
+  label: string;
+  grams: number;
+};
+
 export type FatSecretSuggestionItem = {
   label: string;
   fdcId: number;
@@ -177,6 +183,7 @@ export type FatSecretSuggestionItem = {
   proteinPer100g: number | null;
   carbsPer100g: number | null;
   fatPer100g: number | null;
+  servings?: FatSecretServingOption[];
 };
 
 /** Grams represented by one unit in FatSecret search blurbs (heuristic for "Per 1 egg" etc.). */
@@ -245,11 +252,36 @@ function suggestionLabel(food: FatSecretFood): string | null {
   return brand ? `${name} (${brand})` : name;
 }
 
+function mapServingsFromFood(food: FatSecretFood): FatSecretServingOption[] {
+  const servings = listify(food.servings?.serving);
+  const out: FatSecretServingOption[] = [];
+  for (const s of servings) {
+    const desc = (s.serving_description ?? "").trim();
+    const metricAmount = toNumber(s.metric_serving_amount);
+    const metricUnit = String(s.metric_serving_unit ?? "").toLowerCase();
+    if (!desc) continue;
+    let grams: number | null = null;
+    if (metricAmount != null && metricAmount > 0) {
+      if (metricUnit === "g" || metricUnit === "gram" || metricUnit === "grams") {
+        grams = metricAmount;
+      } else {
+        grams = gramsForServingUnit(metricAmount, metricUnit);
+      }
+    }
+    if (grams == null || grams <= 0) continue;
+    const id = String(s.serving_id ?? desc);
+    if (out.some((o) => o.id === id)) continue;
+    out.push({ id, label: desc, grams: Math.round(grams * 10) / 10 });
+  }
+  return out.slice(0, 12);
+}
+
 function mapFoodToSuggestion(food: FatSecretFood, index: number): FatSecretSuggestionItem | null {
   const label = suggestionLabel(food);
   if (!label) return null;
 
   const servings = listify(food.servings?.serving);
+  const servingOptions = mapServingsFromFood(food);
 
   let kcalPer100g: number | null = null;
   let proteinPer100g: number | null = null;
@@ -308,6 +340,7 @@ function mapFoodToSuggestion(food: FatSecretFood, index: number): FatSecretSugge
     proteinPer100g,
     carbsPer100g,
     fatPer100g,
+    ...(servingOptions.length > 0 ? { servings: servingOptions } : {}),
   };
 }
 

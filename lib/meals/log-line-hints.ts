@@ -1,4 +1,7 @@
-import { parseGramsFromSegment } from "@/lib/meals/parse-meal-grams";
+import {
+  estimateGramsFromSegment,
+  parseGramsFromSegment,
+} from "@/lib/meals/parse-meal-grams";
 
 /** Match textarea padding + line height (text-lg, leading-relaxed). */
 export const MEAL_LOG_TEXTAREA_PAD_TOP_PX = 16;
@@ -49,7 +52,8 @@ export function buildLineHintChips(
 
   return lines.map((rawLine, lineIndex) => {
     const lineNorm = rawLine.toLowerCase().replace(/\s+/g, " ").trim();
-    const grams = parseGramsFromSegment(rawLine);
+    const grams =
+      parseGramsFromSegment(rawLine) ?? estimateGramsFromSegment(rawLine);
 
     let best: FoodHintForLineMatch | null = null;
     let bestScore = 0;

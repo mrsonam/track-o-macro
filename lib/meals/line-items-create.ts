@@ -22,6 +22,11 @@ function mealLineDetailJson(
   if (line.sodium_mg != null) merged.sodium_mg = line.sodium_mg;
   if (line.sugar_g != null) merged.sugar_g = line.sugar_g;
   if (line.added_sugar_g != null) merged.added_sugar_g = line.added_sugar_g;
+  if (line.display_quantity != null) merged.display_quantity = line.display_quantity;
+  if (line.display_unit != null) merged.display_unit = line.display_unit;
+  if (line.display_label != null) merged.display_label = line.display_label;
+  if (line.conversion_source != null) merged.conversion_source = line.conversion_source;
+  if (line.assumption != null) merged.assumption = line.assumption;
   return merged;
 }
 
@@ -34,6 +39,11 @@ export function prismaLineCreates(
     label: l.label,
     quantity: l.quantity ?? null,
     unit: l.unit ?? null,
+    displayQuantity: l.display_quantity ?? null,
+    displayUnit: l.display_unit ?? null,
+    displayLabel: l.display_label ?? null,
+    conversionSource: l.conversion_source ?? null,
+    assumption: l.assumption ?? null,
     kcal: l.kcal,
     proteinG: l.protein_g,
     carbsG: l.carbs_g,

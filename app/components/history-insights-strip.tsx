@@ -19,7 +19,6 @@ type HistoryInsightsStripProps = {
   dailyTargetKcal: number | null;
   dailyTargetProteinG: number | null;
   weeklyCoachingFocus?: WeeklyCoachingFocus | null;
-  weeklyImplementationIntention?: string | null;
   activeDays14Enabled?: boolean;
   className?: string;
 };
@@ -28,7 +27,6 @@ export function HistoryInsightsStrip({
   dailyTargetKcal,
   dailyTargetProteinG,
   weeklyCoachingFocus = null,
-  weeklyImplementationIntention = null,
   activeDays14Enabled = false,
   className,
 }: HistoryInsightsStripProps) {
@@ -199,7 +197,6 @@ export function HistoryInsightsStrip({
               dailyTargetKcal={dailyTargetKcal}
               dailyTargetProteinG={dailyTargetProteinG}
               weeklyCoachingFocus={weeklyCoachingFocus}
-              weeklyImplementationIntention={weeklyImplementationIntention}
               isDetailed
             />
 

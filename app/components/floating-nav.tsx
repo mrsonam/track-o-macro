@@ -16,19 +16,24 @@ const sideLinks = [
 
 export function FloatingNav() {
   const pathname = usePathname();
-  const [hideNavForBarcodeOverlay, setHideNavForBarcodeOverlay] = useState(false);
+  const [hideNavForOverlay, setHideNavForOverlay] = useState(false);
 
   useEffect(() => {
     const sync = () =>
-      setHideNavForBarcodeOverlay(
-        document.body.dataset.barcodeOverlayOpen === "1",
+      setHideNavForOverlay(
+        document.body.dataset.overlayOpen === "1" ||
+          document.body.dataset.barcodeOverlayOpen === "1",
       );
     sync();
+    window.addEventListener("overlay-change", sync);
     window.addEventListener("barcode-overlay-change", sync);
-    return () => window.removeEventListener("barcode-overlay-change", sync);
+    return () => {
+      window.removeEventListener("overlay-change", sync);
+      window.removeEventListener("barcode-overlay-change", sync);
+    };
   }, []);
 
-  if (hideNavForBarcodeOverlay) return null;
+  if (hideNavForOverlay) return null;
 
   const logActive = pathname === "/log" || pathname.startsWith("/log/");
 

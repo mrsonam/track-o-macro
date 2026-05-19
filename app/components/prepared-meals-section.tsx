@@ -12,10 +12,15 @@ import {
   mealLogLineHintTopPx,
 } from "@/lib/meals/log-line-hints";
 import {
-  appendIngredientSuggestionLine,
-  applyIngredientSuggestionToValue,
+  applyPortionLineToValue,
   extractTextareaIngredientQuery,
 } from "@/lib/meals/textarea-ingredient-query";
+import type { PortionServingOption } from "@/lib/meals/portion-resolve";
+import { PortionPickSheet } from "@/app/components/log/portion-pick-sheet";
+import { PORTION_QUICK_SNIPPETS } from "@/lib/meals/portion-hints";
+import { linePortionDisplay } from "@/lib/meals/portion-display";
+import { acquireOverlayLock } from "@/lib/ui/overlay-open";
+import { Z_INDEX } from "@/lib/ui/z-index";
 
 export type PreparedMealListItem = {
   id: string;
@@ -43,6 +48,12 @@ type UsdaSuggestionItem = {
   sodiumPer100g?: number | null;
   sugarPer100g?: number | null;
   addedSugarPer100g?: number | null;
+  servings?: PortionServingOption[];
+};
+
+type PortionPickState = {
+  item: UsdaSuggestionItem;
+  appendAsNewLine?: boolean;
 };
 
 type SelectedFoodHint = {
@@ -149,6 +160,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
   const [batchSelectedFoodHints, setBatchSelectedFoodHints] = useState<
     Record<string, SelectedFoodHint>
   >({});
+  const [portionPick, setPortionPick] = useState<PortionPickState | null>(null);
 
   const [showBarcodePanel, setShowBarcodePanel] = useState(false);
   const [barcodeValue, setBarcodeValue] = useState("");
@@ -340,20 +352,23 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     setBatchShowSuggestions(q.length >= 2);
   }
 
-  function applyBatchSuggestionItem(item: UsdaSuggestionItem) {
-    rememberBatchFoodHint(item);
-    const label = item.label;
+  function insertBatchLine(
+    lineText: string,
+    options?: { appendAsNewLine?: boolean },
+  ) {
     const el = batchTextareaRef.current;
     if (!el) return;
     const value = batchRecipe;
     const caret = el.selectionStart ?? value.length;
-    const { next, nextCaret } = applyIngredientSuggestionToValue(
+    const { next, nextCaret } = applyPortionLineToValue(
       value,
       caret,
-      label,
+      lineText,
+      options,
     );
     setBatchRecipe(next);
-    setBatchFreeTextQuery(label);
+    pruneBatchHintsForText(next);
+    setBatchFreeTextQuery(lineText);
     setBatchShowSuggestions(false);
     queueMicrotask(() => {
       el.focus();
@@ -361,15 +376,32 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
     });
   }
 
-  function appendBarcodeLineToBatch(item: UsdaSuggestionItem) {
+  function applyBatchSuggestionItem(
+    item: UsdaSuggestionItem,
+    options?: { appendAsNewLine?: boolean },
+  ) {
     rememberBatchFoodHint(item);
-    const label = item.label.trim();
-    if (!label) return;
-    const next = appendIngredientSuggestionLine(batchRecipe, label);
+    setPortionPick({ item, appendAsNewLine: options?.appendAsNewLine });
+    setBatchShowSuggestions(false);
+  }
+
+  function confirmPortionPick(lineText: string) {
+    if (!portionPick) return;
+    insertBatchLine(lineText, {
+      appendAsNewLine: portionPick.appendAsNewLine,
+    });
+    setPortionPick(null);
+  }
+
+  function appendBatchQuickSnippet(snippetText: string) {
+    const trimmed = snippetText.trim();
+    if (!trimmed) return;
+    const base = batchRecipe.trimEnd();
+    const next = base ? `${base}\n${trimmed}` : trimmed;
     setBatchRecipe(next);
     pruneBatchHintsForText(next);
-    setBatchShowSuggestions(false);
-    setBatchFreeTextQuery("");
+    setBatchErr(null);
+    setBatchPreview(null);
     queueMicrotask(() => {
       const el = batchTextareaRef.current;
       if (!el) return;
@@ -399,7 +431,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
         setBarcodeError("No food found for this barcode");
         return;
       }
-      appendBarcodeLineToBatch(json.item);
+      applyBatchSuggestionItem(json.item, { appendAsNewLine: true });
       setShowBarcodePanel(false);
       setBarcodeValue("");
     } catch {
@@ -667,13 +699,8 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
   }, [showBarcodePanel, isMobileDevice]);
 
   useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.dataset.barcodeOverlayOpen = showBarcodePanel ? "1" : "0";
-    window.dispatchEvent(new Event("barcode-overlay-change"));
-    return () => {
-      document.body.dataset.barcodeOverlayOpen = "0";
-      window.dispatchEvent(new Event("barcode-overlay-change"));
-    };
+    if (!showBarcodePanel) return;
+    return acquireOverlayLock();
   }, [showBarcodePanel]);
 
   const totals = batchPreview?.totals;
@@ -695,8 +722,8 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
               Build the recipe, preview, then save
             </h2>
             <p className="mt-1 max-w-2xl text-xs font-medium text-zinc-600">
-              Search ingredients, use the barcode scanner, set grams per line, enter the
-              cooked weight of the full batch, then review the breakdown in the preview.
+              Search ingredients, pick portions (e.g. 2 eggs or 120 g), scan barcodes, enter
+              the cooked weight of the full batch, then review the breakdown in the preview.
             </p>
           </div>
         </div>
@@ -761,7 +788,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                 setTimeout(() => setBatchShowSuggestions(false), 120);
               }}
               rows={6}
-              placeholder="One ingredient per line — e.g. chicken breast 400g"
+              placeholder="One ingredient per line — e.g. 400 g chicken breast, 2 eggs"
               className={`input-field w-full resize-none rounded-3xl bg-[#fffdf7] px-5 py-4 text-base leading-7 sm:text-lg ${
                 batchHintChips.some((row) => row.showChip) ? "md:pr-48" : ""
               }`}
@@ -781,7 +808,7 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                     >
                       {row.grams != null && row.kcal != null
                         ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
-                        : "Add grams (e.g. 80g)"}
+                        : "Add amount (e.g. 2 eggs or 80g)"}
                     </div>
                   ))}
               </div>
@@ -797,11 +824,27 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                     >
                       {row.grams != null && row.kcal != null
                         ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
-                        : "Add grams (e.g. 80g)"}
+                        : "Add amount (e.g. 2 eggs or 80g)"}
                     </div>
                   ))}
               </div>
             ) : null}
+            <div
+              className="mt-3 flex flex-wrap gap-2"
+              aria-label="Quick portion examples"
+            >
+              {PORTION_QUICK_SNIPPETS.map((snippet) => (
+                <button
+                  key={snippet.label}
+                  type="button"
+                  disabled={batchPreviewBusy || batchSaveBusy}
+                  onClick={() => appendBatchQuickSnippet(snippet.text)}
+                  className="focus-ring tap-target cursor-pointer rounded-full border border-black/10 bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-700 transition-colors duration-200 hover:border-[#4f9d45]/30 hover:bg-[#f2f8ec] hover:text-[#171412] disabled:opacity-40"
+                >
+                  {snippet.label}
+                </button>
+              ))}
+            </div>
             {batchShowSuggestions && batchFreeTextSuggestions.length > 0 ? (
               <ul
                 id={batchSuggestionsId}
@@ -1042,14 +1085,20 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.06]">
-                  {batchPreview.lines.map((line, idx) => (
+                  {batchPreview.lines.map((line, idx) => {
+                    const portion = linePortionDisplay(line);
+                    return (
                     <tr key={`line-${idx}-${line.label}`} className="bg-white/90">
                       <td className="max-w-[14rem] px-3 py-2.5 font-medium text-foreground">
                         <span className="line-clamp-2">{line.label}</span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-zinc-600">
-                        {fmtG(line.quantity)}
-                        {line.unit ? ` ${line.unit}` : ""}
+                      <td className="max-w-[10rem] px-3 py-2.5 text-zinc-600">
+                        <span className="font-medium text-foreground">{portion.primary}</span>
+                        {portion.secondary ? (
+                          <span className="mt-0.5 block text-[10px] text-zinc-500">
+                            {portion.secondary}
+                          </span>
+                        ) : null}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-right font-mono text-zinc-800">
                         {fmtKcal(line.kcal)}
@@ -1089,7 +1138,8 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
                 <tfoot className="border-t-2 border-accent-secondary/30 bg-accent-secondary/5">
                   <tr className="font-black text-foreground">
@@ -1182,7 +1232,10 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
       </div>
 
       {showBarcodePanel ? (
-        <div className="fixed inset-0 z-[120] bg-black">
+        <div
+          className="fixed inset-0 bg-black"
+          style={{ zIndex: Z_INDEX.barcode }}
+        >
           <video
             ref={barcodeVideoRef}
             className="h-full w-full object-cover"
@@ -1250,6 +1303,16 @@ export function PreparedMealsSection({ preparedMeals }: PreparedMealsSectionProp
             ) : null}
           </div>
         </div>
+      ) : null}
+
+      {portionPick ? (
+        <PortionPickSheet
+          foodLabel={portionPick.item.label}
+          servings={portionPick.item.servings}
+          confirmLabel="Add to recipe"
+          onConfirm={confirmPortionPick}
+          onCancel={() => setPortionPick(null)}
+        />
       ) : null}
 
       <ConfirmDialog

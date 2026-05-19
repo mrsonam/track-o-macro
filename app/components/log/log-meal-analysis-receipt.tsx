@@ -2,6 +2,7 @@
 
 import type { ResolvedLine } from "@/lib/nutrition/resolve-ingredient";
 import { MISSING_DISPLAY } from "@/lib/copy/display";
+import { linePortionDisplay } from "@/lib/meals/portion-display";
 import { motion } from "framer-motion";
 import { Plus, Sparkles } from "lucide-react";
 import { collapsePanel } from "@/lib/motion";
@@ -120,7 +121,9 @@ export function LogMealAnalysisReceipt({
             Ingredients
           </p>
           <ul className="space-y-2.5">
-            {result.lines.map((line, i) => (
+            {result.lines.map((line, i) => {
+              const portion = linePortionDisplay(line);
+              return (
               <li
                 key={`${line.label}-${i}`}
                 className="rounded-2xl border border-black/10 bg-white/80 p-3.5 transition-colors duration-200 hover:bg-white"
@@ -128,11 +131,18 @@ export function LogMealAnalysisReceipt({
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-black text-[#171412]">
-                      {line.label}
+                      {portion.primary}
                     </p>
-                    <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
-                      {line.quantity} {line.unit}
-                    </p>
+                    {portion.secondary ? (
+                      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-500">
+                        {portion.secondary}
+                      </p>
+                    ) : null}
+                    {portion.assumption ? (
+                      <p className="mt-1 text-[10px] font-medium leading-relaxed text-zinc-600">
+                        {portion.assumption}
+                      </p>
+                    ) : null}
                   </div>
                   <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-[#eaf7df] px-2 py-1 text-[#356d30]">
                     <span className="h-1.5 w-1.5 rounded-full bg-[#4f9d45]" aria-hidden />
@@ -175,7 +185,8 @@ export function LogMealAnalysisReceipt({
                   </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </div>
 

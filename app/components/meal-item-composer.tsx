@@ -6,6 +6,9 @@ import {
   type ComposerRow,
   newComposerRow,
 } from "@/lib/meals/meal-composer";
+import { sanitizePositiveDecimalInput } from "@/lib/forms/sanitize-positive-decimal-input";
+import { suggestComposerDefaultsForFood } from "@/lib/meals/portion-resolve";
+import type { PortionServingOption } from "@/lib/meals/portion-resolve";
 import { CustomSelect } from "@/app/components/custom-select";
 
 type MealItemComposerProps = {
@@ -22,6 +25,7 @@ type SuggestionItem = {
   proteinPer100g: number | null;
   carbsPer100g: number | null;
   fatPer100g: number | null;
+  servings?: PortionServingOption[];
 };
 
 export function MealItemComposer({
@@ -113,7 +117,11 @@ export function MealItemComposer({
                     autoComplete="off"
                     disabled={disabled}
                     value={row.qty}
-                    onChange={(e) => updateRow(row.id, { qty: e.target.value })}
+                    onChange={(e) =>
+                      updateRow(row.id, {
+                        qty: sanitizePositiveDecimalInput(e.target.value),
+                      })
+                    }
                     placeholder={row.unit === "count" ? "optional" : "e.g. 1"}
                     className="input-field w-full py-2.5 text-base tabular-nums sm:py-2 sm:text-sm"
                   />
@@ -178,7 +186,14 @@ export function MealItemComposer({
                             disabled={disabled}
                             onMouseDown={(e) => {
                               e.preventDefault();
-                              updateRow(row.id, { food: item.label });
+                              const defaults = suggestComposerDefaultsForFood(
+                                item.label,
+                              );
+                              updateRow(row.id, {
+                                food: item.label,
+                                unit: defaults.unit,
+                                qty: defaults.qty || row.qty,
+                              });
                               onSuggestionPicked?.(item);
                               setOpenSuggestionsForRow(null);
                             }}

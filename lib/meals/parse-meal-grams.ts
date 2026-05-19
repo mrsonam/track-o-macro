@@ -1,4 +1,10 @@
 import type { ParsedIngredientInput } from "@/lib/nutrition/resolve-ingredient";
+import {
+  estimateGramsFromSegment,
+  parseNaturalPortionFromSegment,
+} from "@/lib/meals/portion-resolve";
+
+export { estimateGramsFromSegment } from "@/lib/meals/portion-resolve";
 
 /** Parse explicit gram amount from a meal line or segment (e.g. "chicken 150g"). */
 export function parseGramsFromSegment(seg: string): number | null {
@@ -57,7 +63,8 @@ function gramsForIngredientFromSegments(
     .filter(Boolean);
 
   for (const seg of segments) {
-    const grams = parseGramsFromSegment(seg);
+    const grams =
+      parseGramsFromSegment(seg) ?? estimateGramsFromSegment(seg, ing.name);
     if (grams == null) continue;
     const segLabel = segmentLabelForMatch(seg);
     for (const name of names) {
@@ -81,13 +88,23 @@ export function applyGramsFromRawInput(
 
   if (segments.length === ingredients.length) {
     return ingredients.map((ing, i) => {
-      const grams = parseGramsFromSegment(segments[i]!);
-      return grams != null ? { ...ing, quantity_g: grams } : ing;
+      const seg = segments[i]!;
+      const grams =
+        parseGramsFromSegment(seg) ??
+        estimateGramsFromSegment(seg, ing.name);
+      const portion = parseNaturalPortionFromSegment(seg, ing.name);
+      const unit_note = portion?.displayLabel ?? ing.unit_note;
+      return grams != null ? { ...ing, quantity_g: grams, unit_note } : ing;
     });
   }
 
   return ingredients.map((ing) => {
-    const grams = gramsForIngredientFromSegments(ing, segments);
+    const grams =
+      gramsForIngredientFromSegments(ing, segments) ??
+      segments
+        .map((seg) => estimateGramsFromSegment(seg, ing.name))
+        .find((g) => g != null) ??
+      null;
     return grams != null ? { ...ing, quantity_g: grams } : ing;
   });
 }
@@ -103,16 +120,22 @@ export function fallbackParseIngredientsFromText(
   const usedDefault: string[] = [];
 
   const ingredients = segments.map((segment) => {
-    const grams = parseGramsFromSegment(segment);
+    const portion = parseNaturalPortionFromSegment(segment);
+    const grams =
+      portion?.grams ??
+      parseGramsFromSegment(segment) ??
+      estimateGramsFromSegment(segment);
     const name = segmentLabelForMatch(segment) || segment.trim();
-    if (grams == null) {
+    if (grams == null || portion == null) {
       usedDefault.push(name);
     }
     return {
       name,
       search_query: name,
       quantity_g: grams ?? defaultGrams,
-      unit_note: grams != null ? "grams_from_user_text" : "fallback_parse",
+      unit_note:
+        portion?.displayLabel ??
+        (grams != null ? "grams_from_user_text" : "fallback_parse"),
     };
   });
 

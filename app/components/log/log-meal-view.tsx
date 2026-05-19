@@ -23,6 +23,9 @@ import {
   mealLogLineHintTopPx,
   type LineHintChip,
 } from "@/lib/meals/log-line-hints";
+import { PORTION_QUICK_SNIPPETS } from "@/lib/meals/portion-hints";
+import type { PortionServingOption } from "@/lib/meals/portion-resolve";
+import { Z_INDEX } from "@/lib/ui/z-index";
 
 export type LogInputMode = "free" | "composer";
 
@@ -39,6 +42,7 @@ export type LogMealSuggestionItem = {
   addedSugarPer100g?: number | null;
   source?: "prepared";
   preparedMealId?: string;
+  servings?: PortionServingOption[];
 };
 
 export type LogMealHintChip = LineHintChip;
@@ -63,6 +67,7 @@ type LogMealViewProps = {
   showFreeTextSuggestions: boolean;
   freeTextSuggestionAnchor: { top: number; left: number };
   onPickSuggestion: (item: LogMealSuggestionItem) => void;
+  onAppendQuickSnippet: (text: string) => void;
   lastLoggedRaw: string | null;
   onLogAgain: (raw: string) => void;
   showBarcodePanel: boolean;
@@ -102,6 +107,7 @@ export function LogMealView({
   showFreeTextSuggestions,
   freeTextSuggestionAnchor,
   onPickSuggestion,
+  onAppendQuickSnippet,
   lastLoggedRaw,
   onLogAgain,
   showBarcodePanel,
@@ -227,7 +233,7 @@ export function LogMealView({
                         >
                           {row.grams != null && row.kcal != null
                             ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
-                            : "Add grams (e.g. 80g)"}
+                            : "Add amount (e.g. 2 eggs or 80g)"}
                         </div>
                       ))}
                   </div>
@@ -243,10 +249,30 @@ export function LogMealView({
                         >
                           {row.grams != null && row.kcal != null
                             ? `${Math.round(row.grams)}g · ${Math.round(row.kcal)} kcal`
-                            : "Add grams (e.g. 80g)"}
+                            : "Add amount (e.g. 2 eggs or 80g)"}
                         </div>
                       ))}
                   </div>
+                ) : null}
+                {logInputMode === "free" ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="mt-3 flex flex-wrap gap-2"
+                    aria-label="Quick portion examples"
+                  >
+                    {PORTION_QUICK_SNIPPETS.map((snippet) => (
+                      <button
+                        key={snippet.label}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onAppendQuickSnippet(snippet.text)}
+                        className="focus-ring tap-target cursor-pointer rounded-full border border-black/10 bg-white px-3 py-1.5 text-[11px] font-bold text-zinc-700 transition-colors duration-200 hover:border-[#4f9d45]/30 hover:bg-[#f2f8ec] hover:text-[#171412] disabled:opacity-40"
+                      >
+                        {snippet.label}
+                      </button>
+                    ))}
+                  </motion.div>
                 ) : null}
                 {showFreeTextSuggestions && freeTextSuggestions.length > 0 ? (
                   <ul
@@ -400,7 +426,10 @@ export function LogMealView({
       </div>
 
       {showBarcodePanel ? (
-        <div className="fixed inset-0 z-[120] bg-black">
+        <div
+          className="fixed inset-0 bg-black"
+          style={{ zIndex: Z_INDEX.barcode }}
+        >
           <video
             ref={barcodeVideoRef}
             className="h-full w-full object-cover"

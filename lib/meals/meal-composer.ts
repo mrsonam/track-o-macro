@@ -2,6 +2,8 @@
  * Multi-item meal composer: structured rows → newline-separated text for analyze.
  */
 
+import { suggestComposerDefaultsForFood } from "@/lib/meals/portion-resolve";
+
 export type ComposerUnitId =
   | "g"
   | "oz"
@@ -95,15 +97,18 @@ export function composerHasAnalyzableContent(rows: ComposerRow[]): boolean {
   return rows.some((r) => formatComposerRow(r) !== null);
 }
 
-export function newComposerRow(): ComposerRow {
+export function newComposerRow(foodHint?: string): ComposerRow {
+  const defaults = foodHint?.trim()
+    ? suggestComposerDefaultsForFood(foodHint)
+    : { unit: "g" as const, qty: "" };
   return {
     id:
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `row-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    qty: "",
-    unit: "g",
-    food: "",
+    qty: defaults.qty,
+    unit: defaults.unit,
+    food: foodHint?.trim() ?? "",
   };
 }
 

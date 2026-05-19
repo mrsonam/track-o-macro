@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { rolling7WindowBoundsIso } from "@/lib/meals/local-date";
 import { weeklyRecapLines } from "@/lib/meals/weekly-recap-lines";
 import { useOnline } from "@/lib/meals/use-online";
 import { useMealsSyncTick } from "@/lib/meals/use-meals-sync-tick";
-import { Award, Info, ShieldAlert, Zap, AlertCircle, ListTodo } from "lucide-react";
+import { Award, Info, ShieldAlert, Zap, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { alertBanner, fadeUpItem } from "@/lib/motion";
 import { useTrendsInsights } from "@/app/components/trends/trends-insights-context";
@@ -14,14 +13,12 @@ import { useTrendsInsights } from "@/app/components/trends/trends-insights-conte
 type HistoryWeeklyRecapStripProps = {
   dailyTargetKcal: number | null;
   dailyTargetProteinG: number | null;
-  weeklyImplementationIntention?: string | null;
   className?: string;
 };
 
 export function HistoryWeeklyRecapStrip({
   dailyTargetKcal,
   dailyTargetProteinG,
-  weeklyImplementationIntention = null,
   className,
 }: HistoryWeeklyRecapStripProps) {
   const shared = useTrendsInsights();
@@ -108,8 +105,6 @@ export function HistoryWeeklyRecapStrip({
   useEffect(() => {
     void load();
   }, [load, online, syncTick]);
-
-  const planFoot = weeklyImplementationIntention?.trim() ?? "";
 
   return (
     <div
@@ -272,29 +267,6 @@ export function HistoryWeeklyRecapStrip({
               </div>
             )}
 
-            {hadMeals && planFoot ? (
-              <div className="rounded-2xl border border-accent-secondary/20 bg-protein-tint/40 p-4 sm:p-5">
-                <div className="mb-2 flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-protein-tint text-signal-deep">
-                    <ListTodo className="h-4 w-4" aria-hidden />
-                  </div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-signal-deep">
-                    Your plan this week
-                  </p>
-                </div>
-                <p className="text-sm font-medium leading-relaxed text-zinc-800">{planFoot}</p>
-                <p className="mt-3 text-[10px] font-medium text-zinc-500">
-                  Edit in{" "}
-                  <Link
-                    href="/settings"
-                    className="font-bold text-signal-deep underline decoration-accent-secondary/30 underline-offset-2 hover:text-accent-secondary"
-                  >
-                    Settings
-                  </Link>
-                  .
-                </p>
-              </div>
-            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
