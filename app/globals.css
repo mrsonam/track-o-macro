@@ -718,3 +718,60 @@ html.landing-motion-ready .landing-cta-glow {
     animation: none !important;
   }
 }
+
+/* App splash: scattered icons soft bounce (transform only) */
+@keyframes splash-icon-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .splash-icon-bounce {
+    animation: splash-icon-bounce 3.4s var(--ease-in-out) infinite;
+    animation-delay: var(--splash-bounce-delay, 0s);
+    will-change: transform;
+  }
+
+  .splash-logo-loader {
+    border: 2.5px solid rgba(79, 157, 69, 0.22);
+    border-top-color: #4f9d45;
+    border-right-color: #4f9d45;
+    animation: splash-logo-spin 0.9s linear infinite;
+    will-change: transform;
+  }
+}
+
+@keyframes splash-logo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-logo-loader {
+    border: 2.5px solid rgba(79, 157, 69, 0.35);
+    border-top-color: #4f9d45;
+    animation: splash-logo-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+.splash-logo-loader--reduced {
+  border: 2.5px solid rgba(79, 157, 69, 0.35);
+  border-top-color: #4f9d45;
+  animation: splash-logo-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes splash-logo-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}

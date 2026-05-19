@@ -1,5 +1,9 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  clearNextAuthCookies,
+  hasNextAuthSessionCookie,
+} from "@/lib/auth-cookies";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -18,10 +22,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+  let token: Awaited<ReturnType<typeof getToken>> = null;
+  try {
+    token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+  } catch {
+    token = null;
+  }
+
+  const staleSessionCookie = !token && hasNextAuthSessionCookie(request);
 
   const isAuthPage =
     pathname.startsWith("/login") || pathname.startsWith("/signup");
@@ -37,24 +48,32 @@ export async function proxy(request: NextRequest) {
     pathname === "/api/health/apple/sync";
 
   if (isPublicApi) {
-    return NextResponse.next();
+    const res = NextResponse.next();
+    if (staleSessionCookie) clearNextAuthCookies(res);
+    return res;
   }
 
   if (!token && !isAuthPage && !isPublicInfoPage) {
     if (pathname.startsWith("/api")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      const res = NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      if (staleSessionCookie) clearNextAuthCookies(res);
+      return res;
     }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    const res = NextResponse.redirect(url);
+    if (staleSessionCookie) clearNextAuthCookies(res);
+    return res;
   }
 
   if (token && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  if (staleSessionCookie) clearNextAuthCookies(res);
+  return res;
 }
 
 export const config = {

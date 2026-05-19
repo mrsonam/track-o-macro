@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { ChefHat, Home, Plus, Settings, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { navLayoutTransition } from "@/lib/motion";
+import { Z_INDEX } from "@/lib/ui/z-index";
 
 const sideLinks = [
   { href: "/dashboard", icon: Home, label: "Today" },
@@ -16,7 +18,12 @@ const sideLinks = [
 
 export function FloatingNav() {
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
   const [hideNavForOverlay, setHideNavForOverlay] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const sync = () =>
@@ -33,27 +40,24 @@ export function FloatingNav() {
     };
   }, []);
 
-  if (hideNavForOverlay) return null;
+  if (!mounted || hideNavForOverlay) return null;
 
   const logActive = pathname === "/log" || pathname.startsWith("/log/");
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed bottom-6 left-1/2 z-50 w-full max-w-lg -translate-x-1/2 px-4"
+      className="pointer-events-none fixed inset-x-0 bottom-[max(1.25rem,env(safe-area-inset-bottom))] flex justify-center px-4"
+      style={{ zIndex: Z_INDEX.nav }}
     >
       <nav
-        className="relative flex items-end justify-between gap-1 rounded-[2rem] border border-black/10 bg-[#171412] px-2 pb-2 pt-3 shadow-[0_24px_70px_-28px_rgba(23,20,18,0.8)]"
+        className="pointer-events-auto relative flex w-full max-w-lg items-end justify-between gap-1 rounded-[2rem] border border-black/10 bg-[#171412] px-2 pb-2 pt-3 shadow-[0_24px_70px_-28px_rgba(23,20,18,0.8)]"
         aria-label="Main"
       >
         {sideLinks.slice(0, 2).map((link) => (
-          <NavIconLink
-            key={link.href}
-            link={link}
-            pathname={pathname}
-          />
+          <NavIconLink key={link.href} link={link} pathname={pathname} />
         ))}
 
         <Link
@@ -66,14 +70,11 @@ export function FloatingNav() {
         </Link>
 
         {sideLinks.slice(2).map((link) => (
-          <NavIconLink
-            key={link.href}
-            link={link}
-            pathname={pathname}
-          />
+          <NavIconLink key={link.href} link={link} pathname={pathname} />
         ))}
       </nav>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
 

@@ -3,7 +3,25 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
+/** Stale cookie after NEXTAUTH_SECRET changed; not a real server fault. */
+function isJwtSessionErrorCode(code: string): boolean {
+  return code === "JWT_SESSION_ERROR";
+}
+
 export const authOptions: NextAuthOptions = {
+  logger: {
+    error(code, metadata) {
+      if (isJwtSessionErrorCode(code)) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            "[auth] Session cookie could not be decrypted. Clear site cookies for this origin or sign in again.",
+          );
+        }
+        return;
+      }
+      console.error(`[next-auth][error][${code}]`, metadata);
+    },
+  },
   providers: [
     CredentialsProvider({
       name: "credentials",

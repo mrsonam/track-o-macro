@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { AppShell } from "./components/app-shell";
 import { PwaRegistration } from "./components/PwaRegistration";
 import { Providers } from "./providers";
 
@@ -59,10 +60,12 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-full min-h-dvh flex-col font-sans">
         <Providers>
-          <PwaRegistration />
-          <Suspense fallback={<div className="min-h-dvh w-full" aria-hidden />}>
-            {children}
-          </Suspense>
+          <AppShell>
+            <PwaRegistration />
+            <Suspense fallback={<div className="min-h-dvh w-full bg-[#fbfaf5]" aria-hidden />}>
+              {children}
+            </Suspense>
+          </AppShell>
         </Providers>
       </body>
     </html>
