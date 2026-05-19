@@ -12,8 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     display: "standalone",
     display_override: ["standalone", "browser"],
     orientation: "any",
-    background_color: "#fafaf9",
-    theme_color: "#15803d",
+    background_color: "#fbfaf5",
+    theme_color: "#fbfaf5",
     categories: ["health", "food"],
     icons: [
       {
@@ -29,7 +29,7 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: "any",
       },
       {
-        src: "/icon-512x512.svg",
+        src: "/icon-maskable.svg",
         sizes: "512x512",
         type: "image/svg+xml",
         purpose: "maskable",

@@ -21,7 +21,10 @@ export const metadata: Metadata = {
   description:
     "Describe meals in plain language. Calories from USDA-backed nutrition data.",
   icons: {
-    icon: "/icon-192x192.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-192x192.svg", type: "image/svg+xml", sizes: "192x192" },
+    ],
     apple: "/icon-192x192.svg",
   },
   appleWebApp: {
@@ -50,7 +53,8 @@ export default function RootLayout({
       style={{ colorScheme: "light" }}
     >
       <head>
-        <link rel="apple-touch-icon" href="/icon-192x192.svg" />
+        <link rel="apple-touch-icon" href="/icon-192x192.svg" sizes="192x192" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"

@@ -7,6 +7,8 @@ const PRECACHE = [
   "/manifest.webmanifest",
   "/icon-192x192.svg",
   "/icon-512x512.svg",
+  "/icon-maskable.svg",
+  "/favicon.svg",
 ];
 
 /** Origin this worker controls (scope may include trailing slash). */
