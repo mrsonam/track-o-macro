@@ -14,6 +14,8 @@ model User {
   passwordHash String   @map("password_hash") @db.Text
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// True for the public demo account; used to locate it for the daily catch-up job.
+  isDemo       Boolean  @default(false) @map("is_demo")
 
   profile           UserProfile?
   meals             Meal[]
