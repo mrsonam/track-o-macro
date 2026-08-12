@@ -56,4 +56,5 @@ export const SPLASH_FOOD_ICONS: readonly SplashFoodIcon[] = [
   { Icon: Popcorn, tileClass: "bg-[#fff0e6]", iconClass: "text-[#c45c26]" },
 ] as const;
 
-export const SPLASH_MIN_VISIBLE_MS = 5200;
+/** Matches the reduced-motion hold; the full icon-scatter entrance finishes well within this. */
+export const SPLASH_MIN_VISIBLE_MS = 900;

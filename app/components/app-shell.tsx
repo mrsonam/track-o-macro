@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const minTimer = window.setTimeout(() => {
       minElapsed = true;
       tryReveal();
-    }, reduceMotion ? 900 : SPLASH_MIN_VISIBLE_MS);
+    }, SPLASH_MIN_VISIBLE_MS);
 
     const onLoad = () => {
       loadComplete = true;

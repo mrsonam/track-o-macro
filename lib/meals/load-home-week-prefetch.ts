@@ -31,12 +31,35 @@ export async function loadHomeWeekPrefetch(
       return { from: fromIso, to: toIso };
     });
 
-    const { results } = await mealSummaryBatchForUser(userId, ranges, {
-      includeTiming: true,
-      includeHydration: true,
-      includeMeals: true,
-      timeZone,
-    });
+    const { fromIso, toIso } = rolling7WindowBoundsUtcForZone(timeZone);
+    const r14 = activeDays14Enabled ? rolling14WindowBoundsUtcForZone(timeZone) : null;
+
+    // These three queries are independent of each other, so run them concurrently
+    // instead of one after another; each round trip to the DB adds real latency.
+    const [{ results }, insightJson, insight14Json] = await Promise.all([
+      mealSummaryBatchForUser(userId, ranges, {
+        includeTiming: true,
+        includeHydration: true,
+        includeMeals: true,
+        timeZone,
+      }),
+      computeRollingMealInsightsPayload(
+        userId,
+        new Date(fromIso),
+        new Date(toIso),
+        7,
+        timeZone,
+      ),
+      r14
+        ? computeRollingMealInsightsPayload(
+            userId,
+            new Date(r14.fromIso),
+            new Date(r14.toIso),
+            14,
+            timeZone,
+          )
+        : Promise.resolve(null),
+    ]);
 
     const summariesByKey: Record<string, MealDaySummary | null> = {};
     dateKeys.forEach((k, i) => {
@@ -58,26 +81,10 @@ export async function loadHomeWeekPrefetch(
       };
     });
 
-    const { fromIso, toIso } = rolling7WindowBoundsUtcForZone(timeZone);
-    const insightJson = await computeRollingMealInsightsPayload(
-      userId,
-      new Date(fromIso),
-      new Date(toIso),
-      7,
-      timeZone,
-    );
     let weekInsights = parseRollingWeekInsightPayload(insightJson);
 
-    if (weekInsights && activeDays14Enabled) {
-      const r14 = rolling14WindowBoundsUtcForZone(timeZone);
-      const j14 = await computeRollingMealInsightsPayload(
-        userId,
-        new Date(r14.fromIso),
-        new Date(r14.toIso),
-        14,
-        timeZone,
-      );
-      const dw = Number(j14.daysWithLogs);
+    if (weekInsights && insight14Json) {
+      const dw = Number(insight14Json.daysWithLogs);
       if (Number.isFinite(dw)) {
         weekInsights = {
           ...weekInsights,

@@ -68,7 +68,7 @@ export async function proxy(request: NextRequest) {
     return res;
   }
 
-  if (token && isAuthPage) {
+  if (token && (isAuthPage || pathname === "/")) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
