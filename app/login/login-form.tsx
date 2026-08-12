@@ -131,7 +131,7 @@ export function LoginForm() {
           </div>
         ) : null}
 
-        <AuthSubmitButton loading={loading} loadingLabel="Signing in…">
+        <AuthSubmitButton loading={loading || demoLoading} loadingLabel="Signing in…">
           Sign in
         </AuthSubmitButton>
       </form>
