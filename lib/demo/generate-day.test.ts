@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEMO_PREPARED_MEALS } from "@/lib/demo/constants";
 import {
   epochDayIndex,
   generateDemoDay,
@@ -21,10 +22,10 @@ describe("shouldLogWeightOnDate", () => {
 
 describe("weightKgForBackfillDay", () => {
   it("interpolates linearly from start weight to goal weight", () => {
-    expect(weightKgForBackfillDay(0, 60)).toBe(98);
+    expect(weightKgForBackfillDay(0, 60)).toBe(86);
     expect(weightKgForBackfillDay(59, 60)).toBe(80);
     const mid = weightKgForBackfillDay(29, 60);
-    expect(mid).toBeLessThan(98);
+    expect(mid).toBeLessThan(86);
     expect(mid).toBeGreaterThan(80);
   });
 });
@@ -88,6 +89,32 @@ describe("generateDemoDay", () => {
     const day = generateDemoDay(new Date(Date.UTC(2026, 7, 11)));
     expect(day.preparedPortion).not.toBeNull();
     expect(day.meals.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("never produces negative or zero macro values", () => {
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(Date.UTC(2026, 7, 10 + i));
+      const day = generateDemoDay(date);
+      for (const meal of day.meals) {
+        for (const line of meal.lines) {
+          expect(line.kcal).toBeGreaterThan(0);
+          expect(line.proteinG).toBeGreaterThanOrEqual(0);
+          expect(line.carbsG).toBeGreaterThanOrEqual(0);
+          expect(line.fatG).toBeGreaterThanOrEqual(0);
+          expect(line.fiberG).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
+  it("prepared portions always reference a valid batch key", () => {
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(Date.UTC(2026, 7, 10 + i));
+      const day = generateDemoDay(date);
+      if (day.preparedPortion) {
+        expect(Object.keys(DEMO_PREPARED_MEALS)).toContain(day.preparedPortion.preparedMealKey);
+      }
+    }
   });
 });
 

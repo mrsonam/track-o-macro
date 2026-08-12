@@ -2,7 +2,7 @@ export const DEMO_EMAIL = "demo@trackomacro.app";
 export const DEMO_PASSWORD = "Demo12345";
 
 export const DEMO_HEIGHT_CM = 168;
-export const DEMO_START_WEIGHT_KG = 98;
+export const DEMO_START_WEIGHT_KG = 86;
 export const DEMO_GOAL_WEIGHT_KG = 80;
 export const DEMO_BACKFILL_DAYS = 60;
 
