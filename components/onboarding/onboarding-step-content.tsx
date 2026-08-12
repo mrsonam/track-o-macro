@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   Activity,
   CheckCircle2,
@@ -282,15 +281,6 @@ export function OnboardingStepContent({
               have a health condition.
             </li>
           </ul>
-          <p className="text-sm text-zinc-600">
-            <Link
-              href="/resources/eating-disorders"
-              className="focus-ring font-bold text-[color:var(--foreground)] underline decoration-[color:var(--accent-secondary)]/40 underline-offset-2"
-            >
-              Wellness resources
-            </Link>{" "}
-            are available anytime.
-          </p>
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-black/[0.08] bg-white p-4 transition-colors duration-200 hover:border-[color:var(--accent-secondary)]/30">
             <input
               type="checkbox"

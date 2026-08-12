@@ -229,12 +229,6 @@ export function LandingPage() {
                 Privacy
               </Link>
               <Link
-                href="/resources/eating-disorders"
-                className="focus-ring tap-target rounded-xl px-3 text-xs font-medium text-zinc-500 transition-colors duration-200 hover:text-[color:var(--foreground)]"
-              >
-                Wellness resources
-              </Link>
-              <Link
                 href="/login"
                 className="focus-ring tap-target rounded-xl px-3 text-xs font-medium text-zinc-500 transition-colors duration-200 hover:text-[color:var(--foreground)]"
               >

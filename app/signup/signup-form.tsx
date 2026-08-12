@@ -411,13 +411,6 @@ export function SignupForm() {
         >
           Privacy
         </Link>
-        <span className="h-1 w-1 rounded-full bg-zinc-300" aria-hidden />
-        <Link
-          href="/resources/eating-disorders"
-          className="focus-ring tap-target rounded-xl px-3 text-xs font-bold uppercase tracking-wider text-zinc-500 transition-colors duration-200 hover:text-[color:var(--foreground)]"
-        >
-          Wellness resources
-        </Link>
       </footer>
     </AuthShell>
   );

@@ -68,31 +68,16 @@ export function AccountDataPanel() {
           <h3 className="text-xl font-bold text-zinc-950">Trust & Compliance</h3>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <p className="text-xs leading-relaxed text-zinc-500">
-              TrackOMacro is a research-grade tracking tool. Data is stored securely and used only for analysis within your profile.
-            </p>
-            <Link 
-              href="/privacy" 
-              className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors"
-            >
-              Protocol Privacy Statement <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
-          
-          <div className="rounded-2xl border border-black/10 bg-[#f7f3e9] p-6">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Support Registry</h4>
-            <p className="text-xs text-zinc-600 mb-4 italic">
-              Health is holistic. If you need support regarding dietary habits, professional resources are available.
-            </p>
-            <Link
-              href="/resources/eating-disorders"
-              className="group flex items-center justify-between text-xs font-bold text-zinc-900 transition-colors hover:text-emerald-600"
-            >
-              Access Resources <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </div>
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-zinc-500">
+            TrackOMacro is a research-grade tracking tool. Data is stored securely and used only for analysis within your profile.
+          </p>
+          <Link
+            href="/privacy"
+            className="flex items-center gap-2 text-xs font-bold text-emerald-500 hover:text-emerald-400 transition-colors"
+          >
+            Protocol Privacy Statement <ExternalLink className="h-3 w-3" />
+          </Link>
         </div>
       </section>
 

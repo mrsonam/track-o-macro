@@ -107,7 +107,7 @@ export async function TrendsPageBody() {
         </SectionReveal>
 
         <SectionReveal>
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-12 xl:gap-y-0">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-x-10 lg:gap-y-12 lg:items-start xl:gap-y-0">
             <section
               id={TRENDS_INSIGHT_ANCHORS.weekRecap}
               aria-labelledby="trends-recap-heading"
@@ -123,14 +123,14 @@ export async function TrendsPageBody() {
               <TrendsWeeklyRecapStrip
                 dailyTargetKcal={dailyTargetKcal}
                 dailyTargetProteinG={dailyTargetProteinG}
-                className={`h-full ${trends.panel} ${panelPad}`}
+                className={`${trends.panel} ${panelPad}`}
               />
             </section>
 
             <section
               id={TRENDS_INSIGHT_ANCHORS.fortnight}
               aria-labelledby="trends-fortnight-heading"
-              className="min-w-0 scroll-mt-32 mt-6 lg:col-span-12 lg:mt-0 xl:col-span-5"
+              className="min-w-0 scroll-mt-32 lg:col-span-12 xl:col-span-5"
             >
               <TrendsSectionHeading
                 id="trends-fortnight-heading"
@@ -141,13 +141,13 @@ export async function TrendsPageBody() {
               />
               <TrendsFortnightStrip
                 dailyTargetKcal={dailyTargetKcal}
-                className={`h-full ${trends.panel} ${panelPad}`}
+                className={`${trends.panel} ${panelPad}`}
               />
             </section>
           </div>
         </SectionReveal>
 
-        <SectionReveal className="scroll-mt-32 mt-10 pb-2 lg:mt-12">
+        <SectionReveal className="scroll-mt-32 pb-2">
           <section
             id={TRENDS_INSIGHT_ANCHORS.month}
             aria-labelledby="trends-month-heading"
