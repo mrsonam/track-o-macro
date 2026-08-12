@@ -10,6 +10,8 @@ import {
 } from "@/lib/demo/generate-day";
 import { persistDemoDay } from "@/lib/demo/persist-day";
 
+export const maxDuration = 60;
+
 const MAX_BACKFILL_DAYS = 14;
 
 function jsonError(error: string, status: number, code?: string) {
