@@ -81,6 +81,7 @@ FatSecret blocks API calls unless the **server outbound IP** is on your allow li
 | `OPENAI_TEMPERATURE`, `OPENAI_TOP_P`, `OPENAI_MAX_TOKENS`, `OPENAI_SEED` | Model parameters (defaults exist in `lib/llm/openai-compatible-client.ts`). |
 | `OPENAI_RESPONSE_JSON_OBJECT`                                            | `true` / `false` — JSON response mode toggles.                              |
 | `AVOCAVO_MAX_BATCH`                                                      | Cap batch size for Avocavo calls.                                           |
+| `CRON_SECRET`                                                            | Bearer-token secret Vercel Cron sends to `/api/internal/demo-daily-log`. Generate with `openssl rand -base64 32`. |
 
 
 ### 3. Database & Prisma
@@ -137,6 +138,8 @@ Open [http://localhost:3000](http://localhost:3000).
 2. Set `NEXTAUTH_URL` to the **canonical production URL** (including `https`).
 3. Run `prisma migrate deploy` in CI or a release step before/after deploy so the database matches the app — e.g. Vercel **Build Command** can stay `next build` if migrations run separately, or add a dedicated migration job.
 4. Ensure Postgres allows connections from the host provider’s egress IPs (Supabase: use **Connection pooling** for serverless).
+
+**Demo account:** the app ships a public demo login (`demo@trackomacro.app`). After the first deploy, run `npm run seed:demo` once (locally, pointed at the production `DATABASE_URL`/`DIRECT_URL`, or via a one-off release-step command) to create it and backfill 60 days of history. Set `CRON_SECRET` in the Vercel project’s environment variables so the daily catch-up cron (`vercel.json`) can authenticate; Vercel automatically sends it as `Authorization: Bearer $CRON_SECRET` to the scheduled request.
 
 ---
 
