@@ -53,6 +53,14 @@ export async function DELETE(request: Request) {
         return jsonError("Account not found", 404);
       }
 
+      if (user.isDemo) {
+        return jsonError(
+          "The demo account cannot be deleted",
+          403,
+          "DEMO_ACCOUNT",
+        );
+      }
+
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) {
         return jsonError("Incorrect password", 403, "INVALID_PASSWORD");
