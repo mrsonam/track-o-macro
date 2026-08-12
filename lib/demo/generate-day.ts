@@ -91,7 +91,7 @@ function splitMacros(kcal: number, seed: number) {
     proteinG: round1((kcal * pRatio) / 4),
     carbsG: round1((kcal * cRatio) / 4),
     fatG: round1((kcal * fRatio) / 9),
-    fiberG: round1(6 + jitter(seed, 4) * 12),
+    fiberG: round1((kcal / 1000) * (7 + jitter(seed, 4) * 6)),
   };
 }
 
