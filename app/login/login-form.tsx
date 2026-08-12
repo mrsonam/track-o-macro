@@ -27,38 +27,48 @@ export function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await signIn("credentials", {
-      email: email.trim().toLowerCase(),
-      password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (res?.error) {
+    try {
+      const res = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
+      if (res?.error) {
+        setError("Invalid email or password");
+        return;
+      }
+      if (res?.ok) {
+        router.push(next);
+        router.refresh();
+      }
+    } catch {
       setError("Invalid email or password");
-      return;
-    }
-    if (res?.ok) {
-      router.push(next);
-      router.refresh();
+    } finally {
+      setLoading(false);
     }
   }
 
   async function onViewDemo() {
     setDemoError(null);
     setDemoLoading(true);
-    const res = await signIn("credentials", {
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-      redirect: false,
-    });
-    setDemoLoading(false);
-    if (res?.error) {
+    try {
+      const res = await signIn("credentials", {
+        email: DEMO_EMAIL,
+        password: DEMO_PASSWORD,
+        redirect: false,
+      });
+      if (res?.error) {
+        setDemoError("Demo account is temporarily unavailable. Please try again shortly.");
+        return;
+      }
+      if (res?.ok) {
+        router.push(next);
+        router.refresh();
+      }
+    } catch {
       setDemoError("Demo account is temporarily unavailable. Please try again shortly.");
-      return;
-    }
-    if (res?.ok) {
-      router.push(next);
-      router.refresh();
+    } finally {
+      setDemoLoading(false);
     }
   }
 
